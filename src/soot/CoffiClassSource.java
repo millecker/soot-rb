@@ -45,9 +45,13 @@ public class CoffiClassSource extends ClassSource
         } catch (IOException e) { throw new RuntimeException("!?"); }
         
         IInitialResolver.Dependencies deps = new IInitialResolver.Dependencies();
-        deps.typesToHierarchy.addAll(references.getHierarchy());
-        deps.typesToSignature.addAll(references.getSignatures());
-        deps.typesToBody.addAll(references.getBody());
+        if(Options.v().rbclassload() == false){
+          deps.typesToSignature.addAll(references.getAll());
+        } else {        
+          deps.typesToHierarchy.addAll(references.getHierarchy());
+          deps.typesToSignature.addAll(references.getSignatures());
+          deps.typesToBody.addAll(references.getBody());
+        }
         return deps;
     }
     protected InputStream classFile;

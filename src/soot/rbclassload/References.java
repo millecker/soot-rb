@@ -98,4 +98,8 @@ public class References {
     ret.addAll(m_all);
     return ret;
   }
+
+  public List<Type> getAll(){
+    return getBody();
+  }
 }
