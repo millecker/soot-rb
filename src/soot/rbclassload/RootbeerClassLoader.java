@@ -100,6 +100,8 @@ public class RootbeerClassLoader {
     buildFullCallGraph(entry);
     findReachableMethods();
     buildHierarchy();
+
+    Scene.v().loadDynamicClasses();
   }
 
   private void cachePackageNames(){
