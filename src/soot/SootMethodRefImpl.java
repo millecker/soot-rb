@@ -31,6 +31,8 @@ import soot.jimple.StringConstant;
 import soot.options.Options;
 import soot.util.*;
 
+import soot.rbclassload.RootbeerClassLoader;
+
 /** Representation of a reference to a method as it appears in a class file.
  * Note that the method directly referred to may not actually exist; the
  * actual target of the reference is determined according to the resolution
@@ -58,13 +60,11 @@ class SootMethodRefImpl implements SootMethodRef {
 
         if(Options.v().rbclassload()){
           String method_class_name = declaringClass.getName();
-          SootResolver.v().resolveClass(method_class_name, SootClass.SIGNATURES);          
+          RootbeerClassLoader.v().resolveClass(method_class_name, SootClass.SIGNATURES);          
           if(returnType instanceof RefType){
             RefType ref_type = (RefType) returnType;
-            String class_name = ref_type.getClassName();
-                
-            System.out.println("rvalue.load: "+class_name);          
-            SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
+            String class_name = ref_type.getClassName();       
+            RootbeerClassLoader.v().resolveClass(class_name, SootClass.SIGNATURES);
           }
         }
     }

@@ -155,6 +155,12 @@ public class Options extends OptionsBase {
                 whole_shimple = true;
   
             else if( false 
+            || option.equals( "rbcl" )
+            || option.equals( "rbclassload" )
+            )
+                rbclassload = true;
+  
+            else if( false 
             || option.equals( "validate" )
             )
                 validate = true;
@@ -1018,6 +1024,10 @@ public class Options extends OptionsBase {
     private boolean whole_shimple = false;
     public void set_whole_shimple( boolean setting ) { whole_shimple = setting; }
   
+    public boolean rbclassload() { return rbclassload; }
+    private boolean rbclassload = false;
+    public void set_rbclassload( boolean setting ) { rbclassload = setting; }
+  
     public boolean validate() { return validate; }
     private boolean validate = false;
     public void set_validate( boolean setting ) { validate = setting; }
@@ -1239,6 +1249,7 @@ public class Options extends OptionsBase {
 +padOpt(" -app", "Run in application mode" )
 +padOpt(" -w -whole-program", "Run in whole-program mode" )
 +padOpt(" -ws -whole-shimple", "Run in whole-shimple mode" )
++padOpt(" -rbcl -rbclassload", "Use Rootbeer Sparse Whole Program Class Loader" )
 +padOpt(" -validate", "Run internal validation on bodies" )
 +padOpt(" -debug", "Print various Soot debugging info" )
 +padOpt(" -debug-resolver", "Print debugging info from SootResolver" )

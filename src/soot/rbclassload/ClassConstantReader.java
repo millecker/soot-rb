@@ -28,7 +28,6 @@ import soot.*;
 public class ClassConstantReader {
 
   public Type stringToType(String value) {
-    System.out.println("stringToType: "+value);
     int dims = 0;
     while(value.charAt(0) == '['){
       dims++;

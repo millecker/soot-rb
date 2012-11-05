@@ -35,10 +35,12 @@ public class SubScene {
 
   private Set<String> m_methodSignatures;
   private Set<Type> m_allTypes;
+  private Set<String> m_classes;
 
   public SubScene(){
     m_methodSignatures = new HashSet<String>();
     m_allTypes = new HashSet<Type>();
+    m_classes = new HashSet<String>();
   }
 
   public boolean containsMethod(String signature){
@@ -71,5 +73,13 @@ public class SubScene {
 
   public void addSuperClass(Type curr, Type superclass) {
 
+  }
+
+  public boolean containsClass(String name){
+    return m_classes.contains(name);
+  }
+
+  public void addClass(String name){
+    m_classes.add(name);
   }
 }

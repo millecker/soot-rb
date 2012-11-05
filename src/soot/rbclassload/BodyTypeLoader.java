@@ -53,7 +53,7 @@ public class BodyTypeLoader {
           NewExpr expr = (NewExpr) value;
           RefType ref_type = expr.getBaseType();
           String class_name = ref_type.getClassName();
-          SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
+          RootbeerClassLoader.v().resolveClass(class_name, SootClass.SIGNATURES);
         } 
 
       }

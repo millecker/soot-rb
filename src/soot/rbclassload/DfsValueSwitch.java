@@ -264,7 +264,6 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   }
 
   public void caseNewExpr(NewExpr ne) {
-    System.out.println("new "+ne.toString());
     addType(ne.getBaseType());
   }
 

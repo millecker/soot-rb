@@ -152,6 +152,10 @@ public class AntTask extends MatchingTask {
             if(arg) addArg("-whole-shimple");
         }
   
+        public void setrbclassload(boolean arg) {
+            if(arg) addArg("-rbclassload");
+        }
+  
         public void setvalidate(boolean arg) {
             if(arg) addArg("-validate");
         }

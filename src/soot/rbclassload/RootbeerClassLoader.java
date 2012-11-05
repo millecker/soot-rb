@@ -102,6 +102,8 @@ public class RootbeerClassLoader {
     buildHierarchy();
 
     Scene.v().loadDynamicClasses();
+
+    System.out.println("loaded "+m_loadedCount+" classes");
   }
 
   private void cachePackageNames(){
@@ -225,6 +227,11 @@ public class RootbeerClassLoader {
   }
 
   private void addBasicClass(String class_name, int level) {
+    resolveClass(class_name, level);
+  }
+
+  public void resolveClass(String class_name, int level){
+    m_currSubScene.addClass(class_name);
     SootResolver.v().resolveClass(class_name, level);
   }
 
@@ -431,6 +438,12 @@ public class RootbeerClassLoader {
       if(type_class == null){
         continue;
       }
+
+      if(m_currSubScene.containsClass(type_class.getName())){
+        continue;
+      }
+
+      m_currSubScene.addClass(type_class.getName());
       
       System.out.println("addType: "+type_class.getName());
 
