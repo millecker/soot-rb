@@ -27,13 +27,21 @@ import soot.G;
 import soot.Singletons;
 import soot.SourceLocator;
 import soot.SootMethod;
+import soot.SootMethodRef;
+import soot.SootField;
+import soot.SootFieldRef;
 import soot.SootClass;
 import soot.SootResolver;
 import soot.ClassSource;
 import soot.CoffiClassSource;
 import soot.Scene;
+import soot.Type;
+import soot.ArrayType;
+import soot.RefType;
+import soot.jimple.Stmt;
 
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.jar.JarEntry;
@@ -53,6 +61,7 @@ public class RootbeerClassLoader {
 
   private Map<String, SubScene> m_subScenes;
   private SubScene m_currSubScene;
+
   private Map<String, Set<String>> m_packageNameCache;
   private List<String> m_sourcePaths;
   private Map<String, String> m_classToFilename;
@@ -347,10 +356,110 @@ public class RootbeerClassLoader {
         }
       }
     }
+    return null;
   }
 
   private void doDfs(SootMethod method){
+    String signature = method.getSignature();
+    if(m_currSubScene.containsMethod(signature)){
+      return;
+    }
+    m_currSubScene.addMethod(signature);
+        
+    SootClass soot_class = method.getDeclaringClass();
+    addType(soot_class.getType());
+    
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
+    
+    Set<Type> types = value_switch.getTypes();
+    for(Type type : types){
+      addType(type);
+    }
+    
+    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
+    for(DfsMethodRef ref : methods){
+      SootMethodRef mref = ref.getSootMethodRef();
+      SootClass method_class = mref.declaringClass();
+      SootResolver.v().resolveClass(method_class.getName(), SootClass.BODIES);
+      SootMethod dest = mref.resolve();
 
+      if(dest.isConcrete() == false){
+        continue;
+      } 
+      
+      addType(method_class.getType());
+      
+      m_currSubScene.addCallGraphEdge(method, ref.getStmt(), dest);
+      doDfs(dest);
+    }
+    
+    Set<SootFieldRef> fields = value_switch.getFieldRefs();
+    for(SootFieldRef ref : fields){
+      addType(ref.type());
+      
+      SootField field = ref.resolve();
+      m_currSubScene.addField(field);
+    }
+    
+    Set<Type> instance_ofs = value_switch.getInstanceOfs();
+    for(Type type : instance_ofs){
+      m_currSubScene.addInstanceOf(type);
+    }
+    
+    while(soot_class.hasSuperclass()){
+      SootClass super_class = soot_class.getSuperclass();
+      if(super_class.declaresMethod(method.getSubSignature())){
+        SootMethod super_method = super_class.getMethod(method.getSubSignature());
+        doDfs(super_method);
+      }
+      soot_class = super_class;
+    }
+  }
+
+  private void addType(Type type) {
+    List<Type> queue = new LinkedList<Type>();
+    queue.add(type);
+    while(queue.isEmpty() == false){
+      Type curr = queue.get(0);
+      queue.remove(0);
+      
+      if(m_currSubScene.containsType(curr)){
+        continue;
+      }
+        
+      m_currSubScene.addType(curr);
+      
+      SootClass type_class = findTypeClass(curr);
+      if(type_class == null){
+        continue;
+      }
+      
+      type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.SIGNATURES);
+      
+      if(type_class.hasSuperclass()){
+        queue.add(type_class.getSuperclass().getType());
+        
+        m_currSubScene.addSuperClass(curr, type_class.getSuperclass().getType());
+      }
+      
+      if(type_class.hasOuterClass()){
+        queue.add(type_class.getOuterClass().getType());
+      }
+    }
+  }
+
+  private SootClass findTypeClass(Type type){
+    if(type instanceof ArrayType){
+      ArrayType array_type = (ArrayType) type;
+      return findTypeClass(array_type.baseType);
+    } else if(type instanceof RefType){
+      RefType ref_type = (RefType) type;
+      return ref_type.getSootClass();
+    } else {
+      //PrimType and VoidType
+      return null;
+    } 
   }
 
   private void buildFullCallGraph(SootMethod method){

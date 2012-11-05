@@ -23,53 +23,44 @@
 
 package soot.rbclassload;
 
-import soot.Type;
-import soot.SootField;
-import soot.SootMethod;
+import soot.SootMethodRef;
 import soot.jimple.Stmt;
 
-import java.util.Set;
-import java.util.HashSet;
+public class DfsMethodRef {
+  
+  private final SootMethodRef m_ref;
+  private final Stmt m_stmt;
 
-public class SubScene {
-
-  private Set<String> m_methodSignatures;
-  private Set<Type> m_allTypes;
-
-  public SubScene(){
-    m_methodSignatures = new HashSet<String>();
-    m_allTypes = new HashSet<Type>();
+  public DfsMethodRef(SootMethodRef ref, Stmt stmt){
+    m_ref = ref;
+    m_stmt = stmt;
+  }
+  
+  public SootMethodRef getSootMethodRef(){
+    return m_ref;
+  }
+  
+  public Stmt getStmt(){
+    return m_stmt;
+  } 
+  
+  @Override
+  public boolean equals(Object other){
+    if(other instanceof DfsMethodRef == false){
+      return false;
+    }
+    DfsMethodRef rhs = (DfsMethodRef) other;
+    if(m_ref.equals(rhs.m_ref) && m_stmt.equals(rhs.m_stmt)){
+      return true;
+    }
+    return false;
   }
 
-  public boolean containsMethod(String signature){
-    return m_methodSignatures.contains(signature);
-  }
-
-  public void addMethod(String signature){
-    m_methodSignatures.add(signature);
-  }
-
-  public boolean containsType(Type type){
-    return m_allTypes.contains(type);
-  }
-
-  public void addType(Type type){
-    m_allTypes.add(type);
-  }
-
-  public void addInstanceOf(Type type){
-
-  }
-
-  public void addField(SootField field){
-
-  }
-
-  public void addCallGraphEdge(SootMethod src, Stmt stmt, SootMethod dest){
-
-  }
-
-  public void addSuperClass(Type curr, Type superclass) {
-
+  @Override
+  public int hashCode() {
+    int hash = 3;
+    hash = 23 * hash + (this.m_ref != null ? this.m_ref.hashCode() : 0);
+    hash = 23 * hash + (this.m_stmt != null ? this.m_stmt.hashCode() : 0);
+    return hash;
   }
 }
