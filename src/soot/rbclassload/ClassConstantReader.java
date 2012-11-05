@@ -28,13 +28,14 @@ import soot.*;
 public class ClassConstantReader {
 
   public Type stringToType(String value) {
+    System.out.println("stringToType: "+value);
     int dims = 0;
     while(value.charAt(0) == '['){
       dims++;
       value = value.substring(1);
     }
     if(dims != 0 && value.charAt(0) == 'L'){
-      value = value.substring(1, value.length()-2);       
+      value = value.substring(1, value.length()-1);       
     }
     value = value.replace("/", ".");
     Type base_type = getType(value);

@@ -55,6 +55,18 @@ class SootMethodRefImpl implements SootMethodRef {
         if( name == null ) throw new RuntimeException( "Attempt to create SootMethodRef with null name" );
         if( parameterTypes == null ) throw new RuntimeException( "Attempt to create SootMethodRef with null parameterTypes" );
         if( returnType == null ) throw new RuntimeException( "Attempt to create SootMethodRef with null returnType" );        
+
+        if(Options.v().rbclassload()){
+          String method_class_name = declaringClass.getName();
+          SootResolver.v().resolveClass(method_class_name, SootClass.SIGNATURES);          
+          if(returnType instanceof RefType){
+            RefType ref_type = (RefType) returnType;
+            String class_name = ref_type.getClassName();
+                
+            System.out.println("rvalue.load: "+class_name);          
+            SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
+          }
+        }
     }
 
     private final SootClass declaringClass;

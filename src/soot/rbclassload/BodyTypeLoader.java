@@ -26,11 +26,14 @@ package soot.rbclassload;
 import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
+import soot.Type;
 import soot.RefType;
 import soot.SootResolver;
 import soot.SootClass;
+import soot.SootMethodRef;
 import soot.jimple.JimpleBody;
 import soot.jimple.NewExpr;
+import soot.jimple.InvokeExpr;
 
 import java.util.Iterator;
 import java.util.List;
@@ -44,13 +47,15 @@ public class BodyTypeLoader {
       List<ValueBox> values = curr.getUseAndDefBoxes();
       for(ValueBox box : values){
         Value value = box.getValue();
+
+        //unknown types can be created with new
         if(value instanceof NewExpr){
           NewExpr expr = (NewExpr) value;
           RefType ref_type = expr.getBaseType();
           String class_name = ref_type.getClassName();
-
           SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
         } 
+
       }
     }
   }
