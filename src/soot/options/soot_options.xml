@@ -215,6 +215,19 @@ Note that the Whole-Shimple Optimization pack is normally disabled
 specify the Whole Program Optimize option.</p>
       </long_desc>
     </boolopt>
+    <boolopt>
+      <name>Rootbeer Class Loader</name>
+      <alias>rbcl</alias>
+      <alias>rbclassload</alias>
+      <short_desc>Use Rootbeer Sparse Whole Program Class Loader</short_desc>
+      <long_desc>
+<p>
+Use Rootbeer Sparse Whole Program Class Loader. This class loader is used
+for call graph analysis. It uses much less ram and time than the original
+soot whole program class loaders.
+</p>
+      </long_desc>
+    </boolopt>
                 <boolopt>
 			<name>Validate</name>
 			<alias>validate</alias>
