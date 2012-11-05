@@ -42,6 +42,8 @@ import soot.JastAddJ.JavaParser;
 import soot.JastAddJ.JastAddJavaParser;
 import soot.JastAddJ.Program;
 
+import soot.rbclassload.RootbeerClassLoader;
+
 /** Loads symbols for SootClasses from either class files or jimple files. */
 public class SootResolver 
 {
@@ -183,7 +185,12 @@ public class SootResolver
         sc.setResolvingLevel(SootClass.HIERARCHY);
 
         String className = sc.getName();
-        ClassSource is = SourceLocator.v().getClassSource(className);
+        ClassSource is; 
+        if(Options.v().rbclassload()){
+          is = RootbeerClassLoader.v().getClassSource(className);
+        } else {
+          is = SourceLocator.v().getClassSource(className);
+        }
         boolean modelAsPhantomRef = is == null;
 //        || (
 //        		Options.v().no_jrl() &&

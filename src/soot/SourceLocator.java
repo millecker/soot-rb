@@ -146,7 +146,13 @@ public class SourceLocator
     }
 
     private List<String> classPath;
-    public List<String> classPath() { return classPath; }
+    public List<String> classPath() { 
+      if(classPath == null) {
+        classPath = explodeClassPath(Scene.v().getSootClassPath());
+      }
+      return classPath; 
+    }
+
     public void invalidateClassPath() {
         classPath = null;
     }
@@ -155,7 +161,7 @@ public class SourceLocator
     public List<String> sourcePath() {
         if( sourcePath == null ) {
             sourcePath = new ArrayList<String>();
-            for (String dir : classPath) {
+            for (String dir : classPath()) {
                 if( !isArchive(dir) ) sourcePath.add(dir);
             }
         }
