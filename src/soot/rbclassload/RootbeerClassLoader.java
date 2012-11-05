@@ -371,12 +371,20 @@ public class RootbeerClassLoader {
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.run(method);
-    
-    Set<Type> types = value_switch.getTypes();
-    for(Type type : types){
-      addType(type);
+
+    Set<SootFieldRef> fields = value_switch.getFieldRefs();
+    for(SootFieldRef ref : fields){
+      addType(ref.type());
+      
+      SootField field = ref.resolve();
+      m_currSubScene.addField(field);
     }
     
+    Set<Type> instance_ofs = value_switch.getInstanceOfs();
+    for(Type type : instance_ofs){
+      m_currSubScene.addInstanceOf(type);
+    }
+
     Set<DfsMethodRef> methods = value_switch.getMethodRefs();
     for(DfsMethodRef ref : methods){
       SootMethodRef mref = ref.getSootMethodRef();
@@ -394,19 +402,6 @@ public class RootbeerClassLoader {
       doDfs(dest);
     }
     
-    Set<SootFieldRef> fields = value_switch.getFieldRefs();
-    for(SootFieldRef ref : fields){
-      addType(ref.type());
-      
-      SootField field = ref.resolve();
-      m_currSubScene.addField(field);
-    }
-    
-    Set<Type> instance_ofs = value_switch.getInstanceOfs();
-    for(Type type : instance_ofs){
-      m_currSubScene.addInstanceOf(type);
-    }
-    
     while(soot_class.hasSuperclass()){
       SootClass super_class = soot_class.getSuperclass();
       if(super_class.declaresMethod(method.getSubSignature())){
@@ -417,7 +412,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void addType(Type type) {
+  public void addType(Type type) {
     List<Type> queue = new LinkedList<Type>();
     queue.add(type);
     while(queue.isEmpty() == false){
@@ -435,6 +430,8 @@ public class RootbeerClassLoader {
         continue;
       }
       
+      System.out.println("addType: "+type_class.getName());
+
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.SIGNATURES);
       
       if(type_class.hasSuperclass()){

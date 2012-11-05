@@ -37,10 +37,10 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   private ClassConstantReader m_classConstantReader;
   
   public void run(SootMethod method) {
-    m_types = new HashSet<Type>();
-    m_methods = new HashSet<DfsMethodRef>();
-    m_fields = new HashSet<SootFieldRef>();   
-    m_instanceOfs = new HashSet<Type>();
+    m_types = new LinkedHashSet<Type>();
+    m_methods = new LinkedHashSet<DfsMethodRef>();
+    m_fields = new LinkedHashSet<SootFieldRef>();   
+    m_instanceOfs = new LinkedHashSet<Type>();
     m_classConstantReader = new ClassConstantReader();
     
     addType(method.getReturnType());
@@ -87,6 +87,7 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   public void addType(Type type){
     if(m_types.contains(type) == false){
       m_types.add(type);
+      RootbeerClassLoader.v().addType(type);
     }
   }
   
@@ -263,6 +264,7 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   }
 
   public void caseNewExpr(NewExpr ne) {
+    System.out.println("new "+ne.toString());
     addType(ne.getBaseType());
   }
 
@@ -279,6 +281,10 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   }
 
   public void caseStaticFieldRef(StaticFieldRef sfr) {
+    SootFieldRef field_ref = sfr.getFieldRef();
+    SootClass field_decl_class = field_ref.declaringClass();
+    addType(field_decl_class.getType());
+
     addType(sfr.getField().getType());
     addFieldRef(sfr.getFieldRef());
   }

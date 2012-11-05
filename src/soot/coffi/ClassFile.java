@@ -30,6 +30,7 @@
 
 
 package soot.coffi;
+
 import soot.*;
 
 import java.io.*;
@@ -1250,6 +1251,7 @@ public class ClassFile {
                                "\" at offset " + j);
             G.v().out.println(" bytecode = " + (((int)(inst.code))&0xff));
          }
+
          // G.v().out.println("before: " + j);
          j = inst.nextOffset(j);
          // G.v().out.println("after: " + j);

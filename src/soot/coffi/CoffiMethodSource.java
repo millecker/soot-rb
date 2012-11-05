@@ -31,6 +31,8 @@ import soot.*;
 import java.util.*;
 import soot.jimple.*;
 
+import soot.rbclassload.BodyTypeLoader;
+
 public class CoffiMethodSource implements MethodSource
 {
     public ClassFile coffiClass;
@@ -114,6 +116,11 @@ public class CoffiMethodSource implements MethodSource
 
          coffiMethod = null;
          coffiClass = null;
+
+         if(Options.v().rbclassload()){
+           BodyTypeLoader loader = new BodyTypeLoader();
+           loader.load(jb);
+         }
          
          PackManager.v().getPack("jb").apply(jb);
          return jb;
