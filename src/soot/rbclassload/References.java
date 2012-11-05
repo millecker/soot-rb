@@ -67,11 +67,11 @@ public class References {
   }
 
   public void addOther(String name){
-    //m_all.add();
+    m_all.add(RefType.v(name));
   }
 
   public void addOther(Type type){
-    //m_all.add();
+    m_all.add(type);
   }
 
   public List<Type> getHierarchy(){
@@ -89,6 +89,13 @@ public class References {
     for(MethodReference method : m_methods){
       ret.addAll(method.getSignatures());
     }
+    return ret;
+  }
+
+  public List<Type> getBody(){
+    List<Type> ret = new ArrayList<Type>();
+    ret.addAll(getSignatures());
+    ret.addAll(m_all);
     return ret;
   }
 }

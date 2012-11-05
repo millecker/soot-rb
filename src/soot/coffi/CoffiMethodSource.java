@@ -44,6 +44,7 @@ public class CoffiMethodSource implements MethodSource
 
     public Body getBody(SootMethod m, String phaseName)
     {
+        System.out.println("getBody for: "+m.getSignature());
         JimpleBody jb = Jimple.v().newBody(m);
         
         Map options = PhaseOptions.v().getPhaseOptions(phaseName);

@@ -47,6 +47,8 @@ import soot.rbclassload.RootbeerClassLoader;
 /** Loads symbols for SootClasses from either class files or jimple files. */
 public class SootResolver 
 {
+    private final Map<SootClass, ArrayList> classToTypesBody = new HashMap<SootClass, ArrayList>();
+
     /** Maps each resolved class to a list of all references in it. */
     private final Map<SootClass, ArrayList> classToTypesSignature = new HashMap<SootClass, ArrayList>();
 
@@ -217,11 +219,13 @@ public class SootResolver
                 sc.setPhantomClass();
                 classToTypesSignature.put( sc, new ArrayList() );
                 classToTypesHierarchy.put( sc, new ArrayList() );
+                classToTypesBody.put( sc, new ArrayList() );
             }
         } else {
             Dependencies dependencies = is.resolve(sc);
             classToTypesSignature.put( sc, new ArrayList(dependencies.typesToSignature) );
             classToTypesHierarchy.put( sc, new ArrayList(dependencies.typesToHierarchy) );
+            classToTypesBody.put( sc, new ArrayList(dependencies.typesToBody) );
         }
         reResolveHierarchy(sc);
     }

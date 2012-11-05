@@ -31,6 +31,7 @@ import soot.SootClass;
 import soot.SootResolver;
 import soot.ClassSource;
 import soot.CoffiClassSource;
+import soot.Scene;
 
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Collection;
+import java.util.Iterator;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -53,7 +55,7 @@ public class RootbeerClassLoader {
   private SubScene m_currSubScene;
   private Map<String, Set<String>> m_packageNameCache;
   private List<String> m_sourcePaths;
-  private Map<String, String> m_filenameToJar;
+  private Map<String, String> m_classToFilename;
   private String m_tempFolder;
   private List<String> m_classPaths;
   private int m_loadedCount;
@@ -61,7 +63,7 @@ public class RootbeerClassLoader {
   public RootbeerClassLoader(Singletons.Global g){
     m_subScenes = new HashMap<String, SubScene>();
     m_packageNameCache = new HashMap<String, Set<String>>();
-    m_filenameToJar = new HashMap<String, String>();
+    m_classToFilename = new HashMap<String, String>();
     m_tempFolder = "temp" + File.separator;
     m_loadedCount = 0;
   }
@@ -82,9 +84,11 @@ public class RootbeerClassLoader {
     }
     cachePackageNames();
     loadBuiltIns();
-    loadToHierarchies();
-    //doDfs(kernel_method);
-    //buildFullCallGraph(kernel_method);
+    loadToSignatures();
+    
+    SootMethod entry = findEntryPoint();
+    doDfs(entry);
+    buildFullCallGraph(entry);
     findReachableMethods();
     buildHierarchy();
   }
@@ -149,60 +153,60 @@ public class RootbeerClassLoader {
 
     System.out.println("loading built-ins...");
     addBasicClass("java.lang.Object");
-    addBasicClass("java.lang.Class");
+	  addBasicClass("java.lang.Class", SootClass.SIGNATURES);
 
-    addBasicClass("java.lang.Void");
-    addBasicClass("java.lang.Boolean");
-    addBasicClass("java.lang.Byte");
-    addBasicClass("java.lang.Character");
-    addBasicClass("java.lang.Short");
-    addBasicClass("java.lang.Integer");
-    addBasicClass("java.lang.Long");
-    addBasicClass("java.lang.Float");
-    addBasicClass("java.lang.Double");
+	  addBasicClass("java.lang.Void", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Boolean", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Byte", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Character", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Short", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Integer", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Long", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Float", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Double", SootClass.SIGNATURES);
 
-    addBasicClass("java.lang.String");
-    addBasicClass("java.lang.StringBuffer");
+	  addBasicClass("java.lang.String");
+	  addBasicClass("java.lang.StringBuffer", SootClass.SIGNATURES);
 
-    addBasicClass("java.lang.Error");
-    addBasicClass("java.lang.AssertionError");
-    addBasicClass("java.lang.Throwable");
-    addBasicClass("java.lang.NoClassDefFoundError");
-    addBasicClass("java.lang.ExceptionInInitializerError");
-    addBasicClass("java.lang.RuntimeException");
-    addBasicClass("java.lang.ClassNotFoundException");
-    addBasicClass("java.lang.ArithmeticException");
-    addBasicClass("java.lang.ArrayStoreException");
-    addBasicClass("java.lang.ClassCastException");
-    addBasicClass("java.lang.IllegalMonitorStateException");
-    addBasicClass("java.lang.IndexOutOfBoundsException");
-    addBasicClass("java.lang.ArrayIndexOutOfBoundsException");
-    addBasicClass("java.lang.NegativeArraySizeException");
-    addBasicClass("java.lang.NullPointerException");
-    addBasicClass("java.lang.InstantiationError");
-    addBasicClass("java.lang.InternalError");
-    addBasicClass("java.lang.OutOfMemoryError");
-    addBasicClass("java.lang.StackOverflowError");
-    addBasicClass("java.lang.UnknownError");
-    addBasicClass("java.lang.ThreadDeath");
-    addBasicClass("java.lang.ClassCircularityError");
-    addBasicClass("java.lang.ClassFormatError");
-    addBasicClass("java.lang.IllegalAccessError");
-    addBasicClass("java.lang.IncompatibleClassChangeError");
-    addBasicClass("java.lang.LinkageError");
-    addBasicClass("java.lang.VerifyError");
-    addBasicClass("java.lang.NoSuchFieldError");
-    addBasicClass("java.lang.AbstractMethodError");
-    addBasicClass("java.lang.NoSuchMethodError");
-    addBasicClass("java.lang.UnsatisfiedLinkError");
+	  addBasicClass("java.lang.Error");
+	  addBasicClass("java.lang.AssertionError", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Throwable", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.NoClassDefFoundError", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.ExceptionInInitializerError");
+	  addBasicClass("java.lang.RuntimeException");
+	  addBasicClass("java.lang.ClassNotFoundException");
+	  addBasicClass("java.lang.ArithmeticException");
+	  addBasicClass("java.lang.ArrayStoreException");
+	  addBasicClass("java.lang.ClassCastException");
+	  addBasicClass("java.lang.IllegalMonitorStateException");
+	  addBasicClass("java.lang.IndexOutOfBoundsException");
+	  addBasicClass("java.lang.ArrayIndexOutOfBoundsException");
+	  addBasicClass("java.lang.NegativeArraySizeException");
+	  addBasicClass("java.lang.NullPointerException");
+	  addBasicClass("java.lang.InstantiationError");
+	  addBasicClass("java.lang.InternalError");
+	  addBasicClass("java.lang.OutOfMemoryError");
+	  addBasicClass("java.lang.StackOverflowError");
+	  addBasicClass("java.lang.UnknownError");
+	  addBasicClass("java.lang.ThreadDeath");
+	  addBasicClass("java.lang.ClassCircularityError");
+	  addBasicClass("java.lang.ClassFormatError");
+	  addBasicClass("java.lang.IllegalAccessError");
+	  addBasicClass("java.lang.IncompatibleClassChangeError");
+	  addBasicClass("java.lang.LinkageError");
+	  addBasicClass("java.lang.VerifyError");
+	  addBasicClass("java.lang.NoSuchFieldError");
+	  addBasicClass("java.lang.AbstractMethodError");
+	  addBasicClass("java.lang.NoSuchMethodError");
+	  addBasicClass("java.lang.UnsatisfiedLinkError");
 
-    addBasicClass("java.lang.Thread");
-    addBasicClass("java.lang.Runnable");
-    addBasicClass("java.lang.Cloneable");
+	  addBasicClass("java.lang.Thread");
+	  addBasicClass("java.lang.Runnable");
+	  addBasicClass("java.lang.Cloneable");
 
-    addBasicClass("java.io.Serializable");
+	  addBasicClass("java.io.Serializable");	
 
-    addBasicClass("java.lang.ref.Finalizer");
+	  addBasicClass("java.lang.ref.Finalizer");
   }
 
   private void addBasicClass(String class_name) {
@@ -213,7 +217,7 @@ public class RootbeerClassLoader {
     SootResolver.v().resolveClass(class_name, level);
   }
 
-  private boolean findClass(Collection<String> jars, String filename) throws Exception {
+  private boolean findClass(Collection<String> jars, String filename, String class_name) throws Exception {
     for(String jar : jars){
       JarInputStream fin = new JarInputStream(new FileInputStream(jar));
       while(true){
@@ -224,7 +228,7 @@ public class RootbeerClassLoader {
         if(entry.getName().equals(filename) == false){
           continue;
         }
-        m_filenameToJar.put(filename, jar);
+        m_classToFilename.put(class_name, m_tempFolder + filename);
         WriteJarEntry writer = new WriteJarEntry();
         writer.write(entry, fin, m_tempFolder);
         fin.close();
@@ -248,18 +252,18 @@ public class RootbeerClassLoader {
     Set<String> jar_cache = m_packageNameCache.get(package_name);
     if(jar_cache == null){
       if(package_name.equals("")){
-        findClass(m_classPaths, filename);
+        findClass(m_classPaths, filename, className);
         return;
       } else {
         return;
       }
     }
-    if(findClass(jar_cache, filename)){
+    if(findClass(jar_cache, filename, className)){
       return;
     }
     //maybe there is a class in the default package, try all if not found in cache.
     if(package_name.equals("")){
-      findClass(m_classPaths, filename);
+      findClass(m_classPaths, filename, className);
     }
   }
 
@@ -269,20 +273,27 @@ public class RootbeerClassLoader {
     System.out.println("loading: "+class_name);
 
     File file = new File(m_tempFolder + filename);
-    if(!file.exists()){
-      if(m_filenameToJar.containsKey(filename) == false){
-        try {
-          findClass(class_name);
-        } catch(Exception ex){
-          //ignore
-        }
-      } 
+    if(file.exists()){
+      m_classToFilename.put(class_name, file.getAbsolutePath());
+    }
+
+    if(m_classToFilename.containsKey(class_name) == false){
+      try {
+        findClass(class_name);
+      } catch(Exception ex){
+        //ignore
+      }
     }
 
     m_loadedCount++;
 
+    if(m_classToFilename.containsKey(class_name) == false){
+      return null;
+    }
+
     try {
-      InputStream stream = new FileInputStream(m_tempFolder + filename);
+      String full_filename = m_classToFilename.get(class_name);
+      InputStream stream = new FileInputStream(full_filename);
 		  if(stream == null){
         return null;
       }
@@ -292,25 +303,48 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void loadToHierarchies(){ 
+  private void loadToSignatures(){ 
     System.out.println("loaded "+m_loadedCount+" classes");
     for(String src_folder : m_sourcePaths){
       File file = new File(src_folder);
-      loadToHierarchies(file);
+      loadToSignatures(file, file);
     }
   }
 
-  private void loadToHierarchies(File curr){
+  private void loadToSignatures(File curr, File src_file){
     File[] children = curr.listFiles();
     for(File child : children){
       if(child.isDirectory()){
-        loadToHierarchies(child);
+        loadToSignatures(child, src_file);
       } else {
         String name = child.getName();
         if(name.startsWith(".") || name.endsWith(".class") == false){
           continue;
         }
-        System.out.println("to_load: "+child.getAbsolutePath());
+
+        String full_name = child.getAbsolutePath();
+        String input_folder = src_file.getAbsolutePath() + File.separator;
+        String class_name = full_name.substring(input_folder.length());
+        class_name = class_name.replace(File.separator, ".");
+        class_name = class_name.substring(0, class_name.length() - ".class".length()); 
+        m_classToFilename.put(class_name, full_name);
+
+        SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
+        soot_class.setApplicationClass();        
+      }
+    }
+  }
+
+  private SootMethod findEntryPoint(){
+    String main_subsig = "void main(java.lang.String[])";
+    Iterator<SootClass> iter = Scene.v().getApplicationClasses().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      for(SootMethod method : curr.getMethods()){
+        if(method.getSubSignature().equals(main_subsig)){
+          Scene.v().setMainClass(curr);
+          return method;
+        }
       }
     }
   }
