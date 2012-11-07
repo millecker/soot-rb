@@ -166,25 +166,25 @@ public class RootbeerClassLoader {
 
     System.out.println("loading built-ins...");
     addBasicClass("java.lang.Object");
-	  addBasicClass("java.lang.Class", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Class");
 
-	  addBasicClass("java.lang.Void", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Boolean", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Byte", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Character", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Short", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Integer", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Long", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Float", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Double", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.Void");
+	  addBasicClass("java.lang.Boolean");
+	  addBasicClass("java.lang.Byte");
+	  addBasicClass("java.lang.Character");
+	  addBasicClass("java.lang.Short");
+	  addBasicClass("java.lang.Integer");
+	  addBasicClass("java.lang.Long");
+	  addBasicClass("java.lang.Float");
+	  addBasicClass("java.lang.Double");
 
 	  addBasicClass("java.lang.String");
-	  addBasicClass("java.lang.StringBuffer", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.StringBuffer");
 
 	  addBasicClass("java.lang.Error");
-	  addBasicClass("java.lang.AssertionError", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.Throwable", SootClass.SIGNATURES);
-	  addBasicClass("java.lang.NoClassDefFoundError", SootClass.SIGNATURES);
+	  addBasicClass("java.lang.AssertionError");
+	  addBasicClass("java.lang.Throwable");
+	  addBasicClass("java.lang.NoClassDefFoundError");
 	  addBasicClass("java.lang.ExceptionInInitializerError");
 	  addBasicClass("java.lang.RuntimeException");
 	  addBasicClass("java.lang.ClassNotFoundException");
@@ -288,8 +288,6 @@ public class RootbeerClassLoader {
   public ClassSource getClassSource(String class_name) {
     String filename = classNameToFilename(class_name);
 
-    System.out.println("loading: "+class_name);
-
     File file = new File(m_tempFolder + filename);
     if(file.exists()){
       m_classToFilename.put(class_name, file.getAbsolutePath());
@@ -304,6 +302,7 @@ public class RootbeerClassLoader {
     }
 
     m_loadedCount++;
+    System.out.println("loading: "+class_name+" count: "+m_loadedCount);
 
     if(m_classToFilename.containsKey(class_name) == false){
       return null;
@@ -347,7 +346,7 @@ public class RootbeerClassLoader {
         class_name = class_name.substring(0, class_name.length() - ".class".length()); 
         m_classToFilename.put(class_name, full_name);
 
-        SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.SIGNATURES);
+        SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
         soot_class.setApplicationClass();        
       }
     }
@@ -374,6 +373,8 @@ public class RootbeerClassLoader {
       return;
     }
     m_currSubScene.addMethod(signature);
+
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -383,6 +384,8 @@ public class RootbeerClassLoader {
 
     Set<SootFieldRef> fields = value_switch.getFieldRefs();
     for(SootFieldRef ref : fields){
+      System.out.println("field_ref: "+ref.getSignature());
+
       addType(ref.type());
       
       SootField field = ref.resolve();
@@ -398,14 +401,11 @@ public class RootbeerClassLoader {
     for(DfsMethodRef ref : methods){
       SootMethodRef mref = ref.getSootMethodRef();
       SootClass method_class = mref.declaringClass();
-      SootResolver.v().resolveClass(method_class.getName(), SootClass.BODIES);
       SootMethod dest = mref.resolve();
 
       if(dest.isConcrete() == false){
         continue;
       } 
-      
-      addType(method_class.getType());
       
       m_currSubScene.addCallGraphEdge(method, ref.getStmt(), dest);
       doDfs(dest);
@@ -447,7 +447,7 @@ public class RootbeerClassLoader {
       
       System.out.println("addType: "+type_class.getName());
 
-      type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.SIGNATURES);
+      type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
       
       if(type_class.hasSuperclass()){
         queue.add(type_class.getSuperclass().getType());

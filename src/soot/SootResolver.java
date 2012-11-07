@@ -94,6 +94,9 @@ public class SootResolver
     
     /** Returns true if we are resolving all class refs recursively. */
     private boolean resolveEverything() {
+      if(Options.v().rbclassload()){
+        return false;
+      }
         return( Options.v().whole_program() || Options.v().whole_shimple()
 	|| Options.v().full_resolver() 
 	|| Options.v().output_format() == Options.output_format_dava );
@@ -135,6 +138,7 @@ public class SootResolver
             while( !worklist[i].isEmpty() ) {
                 SootClass sc = (SootClass) worklist[i].removeFirst();
                 if( resolveEverything() ) {
+                    System.out.println("resolveEverything");
                     boolean onlySignatures = sc.isPhantom() || (
 	            			Options.v().no_bodies_for_excluded() &&
 	            			Scene.v().isExcluded(sc) &&
@@ -242,6 +246,18 @@ public class SootResolver
         }
     }
 
+    public void resolveMethod(SootMethod method){
+      addToResolveWorklist(method.getReturnType(), SootClass.HIERARCHY);
+      List<Type> params = method.getParameterTypes();
+      for(Type param : params){
+        addToResolveWorklist(param, SootClass.HIERARCHY);
+      }
+      List<SootClass> exceptions = method.getExceptions();
+      for(SootClass exception : exceptions){
+        addToResolveWorklist(exception, SootClass.HIERARCHY);
+      }
+    }
+
     /** Signatures - we know the signatures of all methods and fields
     * requires at least Hierarchy for all referred to types in these signatures.
     * */
@@ -257,7 +273,9 @@ public class SootResolver
             final SootField f = (SootField) fIt.next();
             addToResolveWorklist( f.getType(), SootClass.HIERARCHY );
         }
-        for( Iterator mIt = sc.getMethods().iterator(); mIt.hasNext(); ) {
+
+        if(Options.v().rbclassload() == false){
+          for( Iterator mIt = sc.getMethods().iterator(); mIt.hasNext(); ) {
             final SootMethod m = (SootMethod) mIt.next();
             addToResolveWorklist( m.getReturnType(), SootClass.HIERARCHY );
             for( Iterator ptypeIt = m.getParameterTypes().iterator(); ptypeIt.hasNext(); ) {
@@ -267,14 +285,15 @@ public class SootResolver
             for (SootClass exception : m.getExceptions()) {
                 addToResolveWorklist( exception, SootClass.HIERARCHY );
             }
+          }
         }
 
         // Bring superclasses to signatures
         if(sc.hasSuperclass()) 
-            addToResolveWorklist(sc.getSuperclass(), SootClass.SIGNATURES);
+            addToResolveWorklist(sc.getSuperclass(), SootClass.HIERARCHY);
         for( Iterator ifaceIt = sc.getInterfaces().iterator(); ifaceIt.hasNext(); ) {
             final SootClass iface = (SootClass) ifaceIt.next();
-            addToResolveWorklist(iface, SootClass.SIGNATURES);
+            addToResolveWorklist(iface, SootClass.HIERARCHY);
         }
     }
 
