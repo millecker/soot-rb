@@ -60,11 +60,11 @@ class SootMethodRefImpl implements SootMethodRef {
 
         if(Options.v().rbclassload()){
           String method_class_name = declaringClass.getName();
-          RootbeerClassLoader.v().resolveClass(method_class_name, SootClass.SIGNATURES);          
+          RootbeerClassLoader.v().resolveClass(method_class_name, SootClass.HIERARCHY);          
           if(returnType instanceof RefType){
             RefType ref_type = (RefType) returnType;
             String class_name = ref_type.getClassName();       
-            RootbeerClassLoader.v().resolveClass(class_name, SootClass.SIGNATURES);
+            RootbeerClassLoader.v().resolveClass(class_name, SootClass.HIERARCHY);
           }
         }
     }

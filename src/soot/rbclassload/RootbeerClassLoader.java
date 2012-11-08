@@ -321,7 +321,6 @@ public class RootbeerClassLoader {
   }
 
   private void loadToSignatures(){ 
-    System.out.println("loaded "+m_loadedCount+" classes");
     for(String src_folder : m_sourcePaths){
       File file = new File(src_folder);
       loadToSignatures(file, file);
@@ -374,7 +373,7 @@ public class RootbeerClassLoader {
     }
     m_currSubScene.addMethod(signature);
 
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -384,8 +383,6 @@ public class RootbeerClassLoader {
 
     Set<SootFieldRef> fields = value_switch.getFieldRefs();
     for(SootFieldRef ref : fields){
-      System.out.println("field_ref: "+ref.getSignature());
-
       addType(ref.type());
       
       SootField field = ref.resolve();
@@ -445,8 +442,6 @@ public class RootbeerClassLoader {
 
       m_currSubScene.addClass(type_class.getName());
       
-      System.out.println("addType: "+type_class.getName());
-
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
       
       if(type_class.hasSuperclass()){
