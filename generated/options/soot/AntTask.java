@@ -156,6 +156,10 @@ public class AntTask extends MatchingTask {
             if(arg) addArg("-rbclassload");
         }
   
+        public void setrbclassload_buildcg(boolean arg) {
+            if(arg) addArg("-rbclassload-buildcg");
+        }
+  
         public void setvalidate(boolean arg) {
             if(arg) addArg("-validate");
         }

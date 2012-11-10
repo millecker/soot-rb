@@ -1956,6 +1956,26 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 			getConfig().put(getGeneral_Optionswhole_shimple_widget().getAlias(), new Boolean(boolRes));
 		}
 		
+		boolRes = getGeneral_Optionsrbclassload_widget().getButton().getSelection();
+		
+		
+		defBoolRes = false;
+		
+
+		if (boolRes != defBoolRes) {
+			getConfig().put(getGeneral_Optionsrbclassload_widget().getAlias(), new Boolean(boolRes));
+		}
+		
+		boolRes = getGeneral_Optionsrbclassload_buildcg_widget().getButton().getSelection();
+		
+		
+		defBoolRes = false;
+		
+
+		if (boolRes != defBoolRes) {
+			getConfig().put(getGeneral_Optionsrbclassload_buildcg_widget().getAlias(), new Boolean(boolRes));
+		}
+		
 		boolRes = getGeneral_Optionsvalidate_widget().getButton().getSelection();
 		
 		
@@ -6453,6 +6473,26 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		return General_Optionswhole_shimple_widget;
 	}	
 	
+	private BooleanOptionWidget General_Optionsrbclassload_widget;
+	
+	private void setGeneral_Optionsrbclassload_widget(BooleanOptionWidget widget) {
+		General_Optionsrbclassload_widget = widget;
+	}
+	
+	public BooleanOptionWidget getGeneral_Optionsrbclassload_widget() {
+		return General_Optionsrbclassload_widget;
+	}	
+	
+	private BooleanOptionWidget General_Optionsrbclassload_buildcg_widget;
+	
+	private void setGeneral_Optionsrbclassload_buildcg_widget(BooleanOptionWidget widget) {
+		General_Optionsrbclassload_buildcg_widget = widget;
+	}
+	
+	public BooleanOptionWidget getGeneral_Optionsrbclassload_buildcg_widget() {
+		return General_Optionsrbclassload_buildcg_widget;
+	}	
+	
 	private BooleanOptionWidget General_Optionsvalidate_widget;
 	
 	private void setGeneral_Optionsvalidate_widget(BooleanOptionWidget widget) {
@@ -10045,6 +10085,38 @@ Composite dbdb_force_recompileChild = dbdb_force_recompileCreate(getPageContaine
 		}
 
 		setGeneral_Optionswhole_shimple_widget(new BooleanOptionWidget(editGroupGeneral_Options, SWT.NONE, new OptionData("Whole-Shimple Mode", "", "","ws", "\nRun in whole shimple mode, taking into consideration the whole \nprogram when performing Shimple analyses and transformations. \nSoot uses the Call Graph Constructor to build a call graph for \nthe program, then applies enabled transformations in the \nWhole-Shimple Transformation and Whole-Shimple Optimization \nbefore applying enabled intraprocedural transformations. Note \nthat the Whole-Shimple Optimization pack is normally disabled \n(and thus not applied by whole shimple mode), unless you also \nspecify the Whole Program Optimize option.", defaultBool)));
+		
+		
+		
+		defKey = ""+" "+""+" "+"rbcl";
+		defKey = defKey.trim();
+
+		if (isInDefList(defKey)) {
+			defaultBool = getBoolDef(defKey);	
+		}
+		else {
+			
+			defaultBool = false;
+			
+		}
+
+		setGeneral_Optionsrbclassload_widget(new BooleanOptionWidget(editGroupGeneral_Options, SWT.NONE, new OptionData("Rootbeer Class Loader", "", "","rbcl", "\nUse Rootbeer Sparse Whole Program Class Loader. This class \nloader is used for call graph analysis. It uses much less ram \nand time than the original soot whole program class loaders. ", defaultBool)));
+		
+		
+		
+		defKey = ""+" "+""+" "+"rbcl-buildcg";
+		defKey = defKey.trim();
+
+		if (isInDefList(defKey)) {
+			defaultBool = getBoolDef(defKey);	
+		}
+		else {
+			
+			defaultBool = false;
+			
+		}
+
+		setGeneral_Optionsrbclassload_buildcg_widget(new BooleanOptionWidget(editGroupGeneral_Options, SWT.NONE, new OptionData("Rootbeer Class Loader Build Call Graph", "", "","rbcl-buildcg", "\nBuild a call graph inside the Rootbeer Class Loader ", defaultBool)));
 		
 		
 		

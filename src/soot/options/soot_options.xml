@@ -227,6 +227,17 @@ for call graph analysis. It uses much less ram and time than the original
 soot whole program class loaders.
 </p>
       </long_desc>
+    </boolopt>    
+    <boolopt>
+      <name>Rootbeer Class Loader Build Call Graph</name>
+      <alias>rbcl-buildcg</alias>
+      <alias>rbclassload-buildcg</alias>
+      <short_desc>Build Call Graph with Rootbeer Class Loader</short_desc>
+      <long_desc>
+<p>
+Build a call graph inside the Rootbeer Class Loader
+</p>
+      </long_desc>
     </boolopt>
                 <boolopt>
 			<name>Validate</name>

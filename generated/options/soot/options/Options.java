@@ -161,6 +161,12 @@ public class Options extends OptionsBase {
                 rbclassload = true;
   
             else if( false 
+            || option.equals( "rbcl-buildcg" )
+            || option.equals( "rbclassload-buildcg" )
+            )
+                rbclassload_buildcg = true;
+  
+            else if( false 
             || option.equals( "validate" )
             )
                 validate = true;
@@ -1028,6 +1034,10 @@ public class Options extends OptionsBase {
     private boolean rbclassload = false;
     public void set_rbclassload( boolean setting ) { rbclassload = setting; }
   
+    public boolean rbclassload_buildcg() { return rbclassload_buildcg; }
+    private boolean rbclassload_buildcg = false;
+    public void set_rbclassload_buildcg( boolean setting ) { rbclassload_buildcg = setting; }
+  
     public boolean validate() { return validate; }
     private boolean validate = false;
     public void set_validate( boolean setting ) { validate = setting; }
@@ -1250,6 +1260,7 @@ public class Options extends OptionsBase {
 +padOpt(" -w -whole-program", "Run in whole-program mode" )
 +padOpt(" -ws -whole-shimple", "Run in whole-shimple mode" )
 +padOpt(" -rbcl -rbclassload", "Use Rootbeer Sparse Whole Program Class Loader" )
++padOpt(" -rbcl-buildcg -rbclassload-buildcg", "Build Call Graph with Rootbeer Class Loader" )
 +padOpt(" -validate", "Run internal validation on bodies" )
 +padOpt(" -debug", "Print various Soot debugging info" )
 +padOpt(" -debug-resolver", "Print debugging info from SootResolver" )

@@ -38,10 +38,14 @@ import soot.Scene;
 import soot.Type;
 import soot.ArrayType;
 import soot.RefType;
+import soot.options.Options;
 import soot.jimple.Stmt;
+import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.jar.JarEntry;
@@ -59,8 +63,8 @@ import java.io.FileNotFoundException;
 
 public class RootbeerClassLoader {
 
-  private Map<String, SubScene> m_subScenes;
-  private SubScene m_currSubScene;
+  private Map<String, DfsInfo> m_dfsInfos;
+  private DfsInfo m_currDfsInfo;
 
   private Map<String, Set<String>> m_packageNameCache;
   private List<String> m_sourcePaths;
@@ -68,13 +72,22 @@ public class RootbeerClassLoader {
   private String m_tempFolder;
   private List<String> m_classPaths;
   private int m_loadedCount;
+  private List<EntryPointDetector> m_entryDetectors;
+  private List<String> m_ignorePackages;
+  private List<String> m_keepPackages;
+  private List<String> m_runtimeClasses;
 
   public RootbeerClassLoader(Singletons.Global g){
-    m_subScenes = new HashMap<String, SubScene>();
+    m_dfsInfos = new HashMap<String, DfsInfo>();
     m_packageNameCache = new HashMap<String, Set<String>>();
     m_classToFilename = new HashMap<String, String>();
+    m_entryDetectors = new ArrayList<EntryPointDetector>();
     m_tempFolder = "temp" + File.separator;
     m_loadedCount = 0;
+
+    m_ignorePackages = new ArrayList<String>();    
+    m_keepPackages = new ArrayList<String>();    
+    m_runtimeClasses = new ArrayList<String>();
   }
 
   public static RootbeerClassLoader v() { 
@@ -82,8 +95,6 @@ public class RootbeerClassLoader {
   }
 
   public void loadNecessaryClasses(){
-    m_currSubScene = new SubScene();
-
     m_sourcePaths = SourceLocator.v().sourcePath();
     m_classPaths = SourceLocator.v().classPath();
     
@@ -95,15 +106,63 @@ public class RootbeerClassLoader {
     loadBuiltIns();
     loadToSignatures();
     
-    SootMethod entry = findEntryPoint();
-    doDfs(entry);
-    buildFullCallGraph(entry);
-    findReachableMethods();
-    buildHierarchy();
+    List<SootMethod> entries = findEntryPoints();
+    EntrySorter sorter = new EntrySorter();
+    sorter.sort(entries);
+
+    Scene.v().setEntryPoints(entries);
+
+    for(SootMethod entry : entries){
+      m_currDfsInfo = new DfsInfo(entry);
+      m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
+      doDfs(entry);
+      if(Options.v().rbclassload_buildcg()){
+        buildFullCallGraph(entry);
+      }
+      findReachableMethods();
+      buildHierarchy();
+    }
 
     Scene.v().loadDynamicClasses();
 
     System.out.println("loaded "+m_loadedCount+" classes");
+  }
+
+  public void remapClasses(){
+    System.out.println("remapping classes...");
+
+    List<SootMethod> entries = Scene.v().getEntryPoints();
+    for(SootMethod entry : entries){
+      loadDfsInfo(entry);
+      DfsInfo info = getDfsInfo();
+
+      List<String> sigs = info.getReachableMethodSigs();
+      ClassRemappingTransform transform = new ClassRemappingTransform(false);
+      transform.run(sigs);
+      transform.finishClone();  
+
+      Set<String> modified = transform.getModifiedClasses();
+      for(String mod : modified){
+        SootClass soot_class = Scene.v().getSootClass(mod);
+        Scene.v().addRemappedClass(soot_class);
+      }
+             
+      m_currDfsInfo = new DfsInfo(entry);
+      doDfs(entry);
+      if(Options.v().rbclassload_buildcg()){
+        buildFullCallGraph(entry);
+      }
+      buildHierarchy();
+    }
+  }
+
+  public void loadDfsInfo(SootMethod entry){
+    String sig = entry.getSignature();
+    m_currDfsInfo = m_dfsInfos.get(sig);
+  }
+
+  public void addEntryPointDetector(EntryPointDetector detector){
+    m_entryDetectors.add(detector);
   }
 
   private void cachePackageNames(){
@@ -231,7 +290,8 @@ public class RootbeerClassLoader {
   }
 
   public void resolveClass(String class_name, int level){
-    m_currSubScene.addClass(class_name);
+    //TODO: figure this out for builtins
+    //m_currDfsInfo.addType(RefType.v(class_name));
     SootResolver.v().resolveClass(class_name, level);
   }
 
@@ -351,27 +411,28 @@ public class RootbeerClassLoader {
     }
   }
 
-  private SootMethod findEntryPoint(){
-    String main_subsig = "void main(java.lang.String[])";
+  private List<SootMethod> findEntryPoints(){
+    List<SootMethod> ret = new ArrayList<SootMethod>();
     Iterator<SootClass> iter = Scene.v().getApplicationClasses().iterator();
     while(iter.hasNext()){
       SootClass curr = iter.next();
       for(SootMethod method : curr.getMethods()){
-        if(method.getSubSignature().equals(main_subsig)){
-          Scene.v().setMainClass(curr);
-          return method;
+        for(EntryPointDetector detector : m_entryDetectors){
+          if(detector.isEntryPoint(method)){
+            ret.add(method);
+          }
         }
       }
     }
-    return null;
+    return ret;
   }
 
   private void doDfs(SootMethod method){
     String signature = method.getSignature();
-    if(m_currSubScene.containsMethod(signature)){
+    if(m_currDfsInfo.containsMethod(signature)){
       return;
     }
-    m_currSubScene.addMethod(signature);
+    m_currDfsInfo.addMethod(signature);
 
     //System.out.println("doDfs: "+signature);
         
@@ -386,12 +447,12 @@ public class RootbeerClassLoader {
       addType(ref.type());
       
       SootField field = ref.resolve();
-      m_currSubScene.addField(field);
+      m_currDfsInfo.addField(field);
     }
     
     Set<Type> instance_ofs = value_switch.getInstanceOfs();
     for(Type type : instance_ofs){
-      m_currSubScene.addInstanceOf(type);
+      m_currDfsInfo.addInstanceOf(type);
     }
 
     Set<DfsMethodRef> methods = value_switch.getMethodRefs();
@@ -404,7 +465,7 @@ public class RootbeerClassLoader {
         continue;
       } 
       
-      m_currSubScene.addCallGraphEdge(method, ref.getStmt(), dest);
+      m_currDfsInfo.addCallGraphEdge(method, ref.getStmt(), dest);
       doDfs(dest);
     }
     
@@ -425,29 +486,23 @@ public class RootbeerClassLoader {
       Type curr = queue.get(0);
       queue.remove(0);
       
-      if(m_currSubScene.containsType(curr)){
+      if(m_currDfsInfo.containsType(curr)){
         continue;
       }
         
-      m_currSubScene.addType(curr);
+      m_currDfsInfo.addType(curr);
       
       SootClass type_class = findTypeClass(curr);
       if(type_class == null){
         continue;
       }
-
-      if(m_currSubScene.containsClass(type_class.getName())){
-        continue;
-      }
-
-      m_currSubScene.addClass(type_class.getName());
       
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
       
       if(type_class.hasSuperclass()){
         queue.add(type_class.getSuperclass().getType());
         
-        m_currSubScene.addSuperClass(curr, type_class.getSuperclass().getType());
+        m_currDfsInfo.addSuperClass(curr, type_class.getSuperclass().getType());
       }
       
       if(type_class.hasOuterClass()){
@@ -470,15 +525,144 @@ public class RootbeerClassLoader {
   }
 
   private void buildFullCallGraph(SootMethod method){
-
+    System.out.println("building full call graph for: "+method.getDeclaringClass().getName()+"...");
+    List<String> methods = new ArrayList<String>();
+    Iterator<SootClass> iter = Scene.v().getApplicationClasses().iterator();
+    while(iter.hasNext()){
+      SootClass soot_class = iter.next();
+      for(SootMethod curr_method : soot_class.getMethods()){
+        SootResolver.v().resolveMethod(curr_method);
+        methods.add(curr_method.getSignature());
+      }
+    }
+    
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    for(int i = 0; i < methods.size(); ++i){
+      String method_sig = methods.get(i);
+      util.parse(method_sig);
+      SootClass soot_class = Scene.v().getSootClass(util.getClassName());
+      SootMethod curr_method = soot_class.getMethod(util.getMethodSubSignature());
+      
+      if(curr_method.isConcrete() == false){
+        continue;
+      }
+        
+      DfsValueSwitch value_switch = new DfsValueSwitch();
+      value_switch.run(curr_method);
+        
+      Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
+      for(DfsMethodRef dfs_ref : method_refs){
+        m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
+      }
+    }
   }
 
   private void findReachableMethods(){
+    List<SootMethod> queue = new LinkedList<SootMethod>();
+    Set<SootMethod> visited = new HashSet<SootMethod>();
+    
+    SootMethod root_method = m_currDfsInfo.getRootMethod();
+    CallGraph call_graph = m_currDfsInfo.getCallGraph();
+            
+    SootClass soot_class = root_method.getDeclaringClass();
+    
+    for(SootMethod method : soot_class.getMethods()){
+      Iterator<Edge> into = call_graph.edgesInto(method);
+      addToQueue(into, queue, visited);
+    }
+    
+    while(queue.isEmpty() == false){
+      SootMethod curr = queue.get(0);
+      queue.remove(0);
+      
+      doDfs(curr);
+      
+      Iterator<Edge> curr_into = call_graph.edgesInto(curr);
+      
+      addToQueue(curr_into, queue, visited);
+    }
+  }
 
+  private void addToQueue(Iterator<Edge> edges, List<SootMethod> queue, Set<SootMethod> visited){
+    while(edges.hasNext()){
+      Edge edge = edges.next();
+      
+      SootMethod src = edge.src();
+      if(visited.contains(src) == false && shouldDfsMethod(src)){
+        queue.add(src);
+        visited.add(src);
+      }
+      
+      SootMethod dest = edge.tgt();
+      if(visited.contains(dest) == false && shouldDfsMethod(dest)){
+        queue.add(dest);
+        visited.add(dest);
+      }
+    }
+  }
+
+  private boolean shouldDfsMethod(SootMethod method){
+    SootClass soot_class = method.getDeclaringClass();
+    String pkg = soot_class.getPackageName();
+    if(ignorePackage(pkg)){
+      return false;
+    } 
+    return true;
+  }
+
+  private boolean ignorePackage(String class_name) {
+    for(String runtime_class : m_runtimeClasses){
+      if(class_name.equals(runtime_class)){
+        return false;
+      }
+    }
+    for(String keep_package : m_keepPackages){
+      if(class_name.startsWith(keep_package)){
+        return false;
+      }
+    }
+    for(String ignore_package : m_ignorePackages){
+      if(class_name.startsWith(ignore_package)){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public void addRuntimeClass(String class_name){
+    m_runtimeClasses.add(class_name);
+  }
+
+  public void addIgnorePackage(String pkg_name){
+    m_ignorePackages.add(pkg_name);
+  }
+
+  public void addKeepPackages(String pkg_name){
+    m_keepPackages.add(pkg_name);
   }
 
   private void buildHierarchy(){
+    System.out.println("building class hierarchy...");
+    m_currDfsInfo.expandArrayTypes();
+    m_currDfsInfo.orderTypes();
+    m_currDfsInfo.createClassHierarchy(); 
+  }
 
+  public SootMethod findMethod(SootClass curr, String subsig){
+    while(true){
+      if(curr.declaresMethod(subsig)){
+        return curr.getMethod(subsig);
+      }
+      if(curr.hasSuperclass()){
+        curr = curr.getSuperclass();
+      } else {
+        return null;
+      }
+    }
+  }
+
+  public DfsInfo getDfsInfo(){
+    return m_currDfsInfo;
   }
 
 }
