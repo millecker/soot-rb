@@ -116,6 +116,7 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
+      fixApplicationClasses();
       if(Options.v().rbclassload_buildcg()){
         buildFullCallGraph(entry);
       }
@@ -148,11 +149,37 @@ public class RootbeerClassLoader {
       }
              
       m_currDfsInfo = new DfsInfo(entry);
+      m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
+      fixApplicationClasses();
       if(Options.v().rbclassload_buildcg()){
         buildFullCallGraph(entry);
       }
       buildHierarchy();
+    }
+  }
+
+  private void fixApplicationClasses(){
+    Set<Type> types = m_currDfsInfo.getDfsTypes();
+    types.addAll(m_currDfsInfo.getBuiltInTypes());
+    Set<String> reachables = new HashSet<String>();
+    for(Type type : types){
+      SootClass type_class = findTypeClass(type);
+      if(type_class == null){
+        continue;
+      }
+      resolveClass(type_class.getName(), SootClass.HIERARCHY);
+      reachables.add(type_class.getName());
+    }
+    List<SootClass> classes = new ArrayList<SootClass>();
+    classes.addAll(Scene.v().getApplicationClasses());
+    Iterator<SootClass> iter = classes.iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      String name = curr.getName();
+      if(reachables.contains(name) == false){
+        curr.setLibraryClass();
+      }
     }
   }
 
@@ -362,7 +389,7 @@ public class RootbeerClassLoader {
     }
 
     m_loadedCount++;
-    System.out.println("loading: "+class_name+" count: "+m_loadedCount);
+    //System.out.println("loading: "+class_name+" count: "+m_loadedCount);
 
     if(m_classToFilename.containsKey(class_name) == false){
       return null;
@@ -402,7 +429,12 @@ public class RootbeerClassLoader {
         String input_folder = src_file.getAbsolutePath() + File.separator;
         String class_name = full_name.substring(input_folder.length());
         class_name = class_name.replace(File.separator, ".");
-        class_name = class_name.substring(0, class_name.length() - ".class".length()); 
+        class_name = class_name.substring(0, class_name.length() - ".class".length());
+
+        if(ignorePackage(class_name)){
+          continue;
+        } 
+
         m_classToFilename.put(class_name, full_name);
 
         SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
@@ -434,10 +466,14 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
+
+    if(ignorePackage(soot_class.getName())){
+      return;
+    }
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.run(method);
@@ -495,6 +531,10 @@ public class RootbeerClassLoader {
       SootClass type_class = findTypeClass(curr);
       if(type_class == null){
         continue;
+      }
+
+      if(type_class.getName().equals("edu.syr.pcpratts.rootbeer.test.TestSerialization")){
+        throw new RuntimeException("hello");
       }
       
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);

@@ -247,6 +247,10 @@ public class DfsInfo {
     return m_dfsTypes.contains(name);
   }
 
+  public Set<Type> getDfsTypes(){
+    return m_dfsTypes;
+  }
+
   public void addType(Type name) {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
@@ -294,9 +298,6 @@ public class DfsInfo {
 
   public List<Type> getHierarchy(SootClass input_class) {
     List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
-    if(nret == null){
-      System.out.println("hello");
-    }
     List<Type> ret = new ArrayList<Type>();
     for(NumberedType ntype : nret){
       ret.add(ntype.getType());
@@ -346,6 +347,10 @@ public class DfsInfo {
   private void addRefType(String class_name) {
     SootClass soot_class = Scene.v().getSootClass(class_name);
     m_builtInTypes.add(soot_class.getType());
+  }
+
+  public List<Type> getBuiltInTypes(){
+    return m_builtInTypes;
   }
 
   public List<NumberedType> getNumberedHierarchyUp(SootClass sootClass) {
