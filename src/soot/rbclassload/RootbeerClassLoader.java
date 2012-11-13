@@ -116,9 +116,10 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      fixApplicationClasses();
       if(Options.v().rbclassload_buildcg()){
         buildFullCallGraph(entry);
+      } else {
+        fixApplicationClasses();
       }
       findReachableMethods();
       buildHierarchy();
@@ -466,7 +467,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -531,10 +532,6 @@ public class RootbeerClassLoader {
       SootClass type_class = findTypeClass(curr);
       if(type_class == null){
         continue;
-      }
-
-      if(type_class.getName().equals("edu.syr.pcpratts.rootbeer.test.TestSerialization")){
-        throw new RuntimeException("hello");
       }
       
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
