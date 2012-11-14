@@ -76,6 +76,7 @@ public class RootbeerClassLoader {
   private List<String> m_ignorePackages;
   private List<String> m_keepPackages;
   private List<String> m_runtimeClasses;
+  private List<String> m_appClasses;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -88,10 +89,16 @@ public class RootbeerClassLoader {
     m_ignorePackages = new ArrayList<String>();    
     m_keepPackages = new ArrayList<String>();    
     m_runtimeClasses = new ArrayList<String>();
+
+    m_appClasses = new ArrayList<String>();
   }
 
   public static RootbeerClassLoader v() { 
     return G.v().soot_rbclassload_RootbeerClassLoader(); 
+  }
+
+  public List<String> getAllAppClasses(){
+    return m_appClasses;
   }
 
   public void loadNecessaryClasses(){
@@ -307,6 +314,24 @@ public class RootbeerClassLoader {
 	  addBasicClass("java.io.Serializable");	
 
 	  addBasicClass("java.lang.ref.Finalizer");
+
+    addBasicMethod("<edu.syr.pcpratts.rootbeer.runtime.Serializer: void <init>(edu.syr.pcpratts.rootbeer.runtime.memory.Memory,edu.syr.pcpratts.rootbeer.runtime.memory.Memory)>");
+    addBasicMethod("<edu.syr.pcpratts.rootbeer.runtime.Sentinal: void <init>()>");
+
+  }
+
+  private void addBasicMethod(String signature){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+
+    String cls = util.getClassName();
+    SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
+
+    String method_sub_sig = util.getMethodSubSignature();
+    SootClass soot_class = Scene.v().getSootClass(cls);
+
+    SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
+    SootResolver.v().resolveMethod(method);
   }
 
   private void addBasicClass(String class_name) {
@@ -440,6 +465,8 @@ public class RootbeerClassLoader {
 
         SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
         soot_class.setApplicationClass();        
+
+        m_appClasses.add(soot_class.getName());
       }
     }
   }
@@ -467,7 +494,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
