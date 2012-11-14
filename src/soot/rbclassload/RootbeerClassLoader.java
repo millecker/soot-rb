@@ -467,7 +467,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());

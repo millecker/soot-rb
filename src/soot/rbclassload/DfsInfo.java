@@ -341,10 +341,23 @@ public class DfsInfo {
   }
   
   private void addBuiltInMethod(String signature){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    
+    String cls = util.getClassName();
+    SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
+
+    String method_sub_sig = util.getMethodSubSignature();
+    SootClass soot_class = Scene.v().getSootClass(cls);
+
+    SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
+    SootResolver.v().resolveMethod(method);
+
     m_dfsMethods.add(signature);
   }
 
   private void addRefType(String class_name) {
+    SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
     SootClass soot_class = Scene.v().getSootClass(class_name);
     m_builtInTypes.add(soot_class.getType());
   }
