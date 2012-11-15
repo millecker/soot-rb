@@ -179,13 +179,11 @@ public class RootbeerClassLoader {
       resolveClass(type_class.getName(), SootClass.HIERARCHY);
       reachables.add(type_class.getName());
     }
-    List<SootClass> classes = new ArrayList<SootClass>();
-    classes.addAll(Scene.v().getApplicationClasses());
-    Iterator<SootClass> iter = classes.iterator();
-    while(iter.hasNext()){
-      SootClass curr = iter.next();
-      String name = curr.getName();
-      if(reachables.contains(name) == false){
+    for(String cls : m_appClasses){
+      SootClass curr = Scene.v().getSootClass(cls);
+      if(reachables.contains(cls)){
+        curr.setApplicationClass();
+      } else {
         curr.setLibraryClass();
       }
     }
