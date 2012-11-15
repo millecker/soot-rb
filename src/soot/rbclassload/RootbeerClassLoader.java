@@ -123,12 +123,9 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      if(Options.v().rbclassload_buildcg()){
-        buildFullCallGraph(entry);
-      } else {
-        fixApplicationClasses();
-      }
-      findReachableMethods();
+      buildFullCallGraph(entry);
+      System.out.println("fixing application classes...");
+      fixApplicationClasses();
       buildHierarchy();
     }
 
@@ -142,7 +139,8 @@ public class RootbeerClassLoader {
 
     List<SootMethod> entries = Scene.v().getEntryPoints();
     for(SootMethod entry : entries){
-      loadDfsInfo(entry);
+      String sig = entry.getSignature();
+      m_currDfsInfo = m_dfsInfos.get(sig);
       DfsInfo info = getDfsInfo();
 
       List<String> sigs = info.getReachableMethodSigs();
@@ -159,10 +157,9 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
+      buildFullCallGraph(entry);
+      System.out.println("fixing application classes...");
       fixApplicationClasses();
-      if(Options.v().rbclassload_buildcg()){
-        buildFullCallGraph(entry);
-      }
       buildHierarchy();
     }
   }
@@ -192,6 +189,7 @@ public class RootbeerClassLoader {
   public void loadDfsInfo(SootMethod entry){
     String sig = entry.getSignature();
     m_currDfsInfo = m_dfsInfos.get(sig);
+    fixApplicationClasses();
   }
 
   public void addEntryPointDetector(EntryPointDetector detector){
@@ -205,6 +203,10 @@ public class RootbeerClassLoader {
     Arrays.sort(to_cache);
     for(String jar : to_cache){
       if(jar.endsWith(".jar")){
+        File file = new File(jar);
+        if(file.exists() == false){
+          continue;
+        }
         System.out.println("caching package names for: "+jar);
         try {
           JarInputStream jin = new JarInputStream(new FileInputStream(jar));
@@ -492,7 +494,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -541,7 +543,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  public void addType(Type type) {
+  private void addType(Type type) {
     List<Type> queue = new LinkedList<Type>();
     queue.add(type);
     while(queue.isEmpty() == false){
@@ -588,56 +590,52 @@ public class RootbeerClassLoader {
 
   private void buildFullCallGraph(SootMethod method){
     System.out.println("building full call graph for: "+method.getDeclaringClass().getName()+"...");
-    List<String> methods = new ArrayList<String>();
-    Iterator<SootClass> iter = Scene.v().getApplicationClasses().iterator();
-    while(iter.hasNext()){
-      SootClass soot_class = iter.next();
-      for(SootMethod curr_method : soot_class.getMethods()){
-        SootResolver.v().resolveMethod(curr_method);
-        methods.add(curr_method.getSignature());
-      }
-    }
-    
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    for(int i = 0; i < methods.size(); ++i){
-      String method_sig = methods.get(i);
-      util.parse(method_sig);
-      SootClass soot_class = Scene.v().getSootClass(util.getClassName());
-      SootMethod curr_method = soot_class.getMethod(util.getMethodSubSignature());
-      
-      if(curr_method.isConcrete() == false){
-        continue;
-      }
-        
-      DfsValueSwitch value_switch = new DfsValueSwitch();
-      value_switch.run(curr_method);
-        
-      Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
-      for(DfsMethodRef dfs_ref : method_refs){
-        m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
-      }
-    }
-  }
 
-  private void findReachableMethods(){
     List<SootMethod> queue = new LinkedList<SootMethod>();
     Set<SootMethod> visited = new HashSet<SootMethod>();
-    
-    SootMethod root_method = m_currDfsInfo.getRootMethod();
+
     CallGraph call_graph = m_currDfsInfo.getCallGraph();
-            
-    SootClass soot_class = root_method.getDeclaringClass();
-    
-    for(SootMethod method : soot_class.getMethods()){
-      Iterator<Edge> into = call_graph.edgesInto(method);
-      addToQueue(into, queue, visited);
+
+    SootClass soot_class = method.getDeclaringClass();
+    for(SootMethod sibling_method : soot_class.getMethods()){
+      if(sibling_method.getName().equals("<init>")){
+        queue.add(sibling_method);
+      } 
     }
-    
+    queue.add(method);
+
+    Iterator<String> iter = m_appClasses.iterator();
+    while(iter.hasNext()){
+
+      SootClass curr_class = Scene.v().getSootClass(iter.next());
+
+      for(SootMethod curr_method : curr_class.getMethods()){
+      
+        DfsValueSwitch value_switch = new DfsValueSwitch();
+        value_switch.run(curr_method);
+        
+        Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
+        for(DfsMethodRef dfs_ref : method_refs){
+          m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
+        }
+      }
+    }
+
     while(queue.isEmpty() == false){
       SootMethod curr = queue.get(0);
       queue.remove(0);
-      
-      doDfs(curr);
+
+      m_currDfsInfo.addReachableMethodSig(curr.getSignature());
+
+      System.out.println("call graph dfs: "+curr.getSignature());
+
+      DfsValueSwitch value_switch = new DfsValueSwitch();
+      value_switch.run(curr);
+
+      Set<Type> all = value_switch.getAllTypes();
+      for(Type type : all){
+        addType(type);
+      }
       
       Iterator<Edge> curr_into = call_graph.edgesInto(curr);
       
@@ -650,13 +648,17 @@ public class RootbeerClassLoader {
       Edge edge = edges.next();
       
       SootMethod src = edge.src();
+      System.out.println("addToQueue: "+src.getSignature());
       if(visited.contains(src) == false && shouldDfsMethod(src)){
+        System.out.println("added...");
         queue.add(src);
         visited.add(src);
       }
       
       SootMethod dest = edge.tgt();
+      System.out.println("addToQueue: "+dest.getSignature());
       if(visited.contains(dest) == false && shouldDfsMethod(dest)){
+        System.out.println("added...");
         queue.add(dest);
         visited.add(dest);
       }

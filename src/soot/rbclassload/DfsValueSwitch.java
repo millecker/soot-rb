@@ -67,6 +67,26 @@ public class DfsValueSwitch implements JimpleValueSwitch {
       }
     }
   }
+
+  public Set<Type> getAllTypes(){
+    Set<Type> ret = new HashSet<Type>();
+    ret.addAll(m_types);
+    ret.addAll(m_instanceOfs);
+    for(SootFieldRef ref : m_fields){
+      ret.add(RefType.v(ref.declaringClass()));
+      ret.add(ref.type());
+    }
+    for(DfsMethodRef ref : m_methods){
+      SootMethodRef sref = ref.getSootMethodRef();
+      ret.add(RefType.v(sref.declaringClass()));
+      List<Type> params = sref.parameterTypes();
+      for(Type param : params){
+        ret.add(param);
+      }
+      ret.add(sref.returnType());
+    }
+    return ret;
+  }
   
   public Set<Type> getTypes(){
     return m_types;
@@ -87,7 +107,6 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   public void addType(Type type){
     if(m_types.contains(type) == false){
       m_types.add(type);
-      RootbeerClassLoader.v().addType(type);
     }
   }
   
