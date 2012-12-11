@@ -253,7 +253,6 @@ public class DfsInfo {
 
   public void addType(Type name) {
     if(m_dfsTypes.contains(name) == false){
-      System.out.println("adding m_dfsTypes: "+name.toString());
       m_dfsTypes.add(name);
     }
   }

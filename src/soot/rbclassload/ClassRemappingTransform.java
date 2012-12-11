@@ -287,7 +287,6 @@ public class ClassRemappingTransform {
       String curr_class = m_currMethod.getDeclaringClass().toString();
       if(m_modified.contains(curr_class) == false){
         m_modified.add(curr_class);
-        System.out.println("modified: "+curr_class);
       }
       return true;
     } else {

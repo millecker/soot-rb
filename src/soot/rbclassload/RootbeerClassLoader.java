@@ -436,7 +436,11 @@ public class RootbeerClassLoader {
   private void loadToSignatures(){ 
     for(String src_folder : m_sourcePaths){
       File file = new File(src_folder);
-      loadToSignatures(file, file);
+      if(file.exists()){
+        loadToSignatures(file, file);
+      } else {
+        System.out.println("file: "+src_folder+" does not exist!");
+      }
     }
   }
 
@@ -494,7 +498,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -627,7 +631,7 @@ public class RootbeerClassLoader {
 
       m_currDfsInfo.addReachableMethodSig(curr.getSignature());
 
-      System.out.println("call graph dfs: "+curr.getSignature());
+      //System.out.println("call graph dfs: "+curr.getSignature());
 
       DfsValueSwitch value_switch = new DfsValueSwitch();
       value_switch.run(curr);
@@ -648,17 +652,13 @@ public class RootbeerClassLoader {
       Edge edge = edges.next();
       
       SootMethod src = edge.src();
-      System.out.println("addToQueue: "+src.getSignature());
       if(visited.contains(src) == false && shouldDfsMethod(src)){
-        System.out.println("added...");
         queue.add(src);
         visited.add(src);
       }
       
       SootMethod dest = edge.tgt();
-      System.out.println("addToQueue: "+dest.getSignature());
       if(visited.contains(dest) == false && shouldDfsMethod(dest)){
-        System.out.println("added...");
         queue.add(dest);
         visited.add(dest);
       }
