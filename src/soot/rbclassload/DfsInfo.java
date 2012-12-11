@@ -321,6 +321,7 @@ public class DfsInfo {
     addRefType("java.lang.VirtualMachineError");                    //type 13.
     addRefType("java.lang.OutOfMemoryError");                       //type 14. this maps to 14 in edu.syr.pcpratts.rootbeer.Contants.OutOfMemoryNumber
     addRefType("edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu");
+    addRefType("edu.syr.pcpratts.rootbeer.runtime.PrivateFields");
     m_builtInTypes.add(ByteType.v());
     m_builtInTypes.add(CharType.v());
     m_builtInTypes.add(ShortType.v());

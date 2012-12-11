@@ -137,6 +137,13 @@ public class RootbeerClassLoader {
   public void remapClasses(){
     System.out.println("remapping classes...");
 
+    ClassRemapping remapping = new ClassRemapping();
+    Collection<String> values = remapping.getValues();
+
+    for(String value : values){
+      resolveClass(value, SootClass.SIGNATURES);
+    }
+
     List<SootMethod> entries = Scene.v().getEntryPoints();
     for(SootMethod entry : entries){
       String sig = entry.getSignature();
