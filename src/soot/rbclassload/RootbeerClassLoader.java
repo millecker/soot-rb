@@ -42,6 +42,9 @@ import soot.options.Options;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.Pack;
+import soot.PackManager;
+import soot.Body;
 
 import java.util.List;
 import java.util.LinkedList;
@@ -172,6 +175,27 @@ public class RootbeerClassLoader {
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
+    }
+  }
+
+  public void applyOptimizations(){
+    List<SootMethod> entries = Scene.v().getEntryPoints();
+    Pack jop = PackManager.v().getPack("jop");
+    
+    for(SootMethod entry : entries){
+      String entry_sig = entry.getSignature();
+      m_currDfsInfo = m_dfsInfos.get(entry_sig);
+
+      Set<String> methods = m_currDfsInfo.getMethods();
+      for(String curr_sig : methods){
+        MethodSignatureUtil util = new MethodSignatureUtil(curr_sig);
+        SootClass soot_class = Scene.v().getSootClass(util.getClassName());
+        SootMethod soot_method = soot_class.getMethod(util.getMethodSubSignature());
+        if(soot_method.isConcrete()){
+          Body body = soot_method.retrieveActiveBody();
+          jop.apply(body);
+        }
+      }
     }
   }
 
