@@ -83,7 +83,11 @@ public class RootbeerClassLoader {
     m_packageNameCache = new HashMap<String, Set<String>>();
     m_classToFilename = new HashMap<String, String>();
     m_entryDetectors = new ArrayList<EntryPointDetector>();
-    m_tempFolder = "temp" + File.separator;
+
+    String home = System.getProperty("user.home");
+    File soot_folder = new File(home + File.separator + ".soot" + File.separator + "rbcl_cache");
+    soot_folder.mkdirs();
+    m_tempFolder = soot_folder.getAbsolutePath() + File.separator;
     m_loadedCount = 0;
 
     m_ignorePackages = new ArrayList<String>();    
