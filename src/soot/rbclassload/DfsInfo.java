@@ -308,20 +308,20 @@ public class DfsInfo {
   }
 
   private void addBuiltInTypes() {
-    addRefType("java.lang.Object");                                 //type 1
-    addRefType("java.lang.Class");                                  //type 2
-    addRefType("java.lang.System");                                 //type 3
-    addRefType("java.lang.String");                                 //type 4
-    addRefType("java.lang.AbstractStringBuilder");                  //type 5
-    addRefType("java.lang.StringBuilder");                          //type 6
-    addRefType("java.lang.StackTraceElement");                      //type 7
-    addRefType("java.lang.Throwable");                              //type 8
-    addRefType("java.lang.Exception");                              //type 9
-    addRefType("java.lang.RuntimeException");                       //type 10
-    addRefType("java.lang.NullPointerException");                   //type 11. this maps to 11 in edu.syr.pcpratts.rootbeer.Contants.NullPointerNumber
-    addRefType("java.lang.Error");                                  //type 12.
-    addRefType("java.lang.VirtualMachineError");                    //type 13.
-    addRefType("java.lang.OutOfMemoryError");                       //type 14. this maps to 14 in edu.syr.pcpratts.rootbeer.Contants.OutOfMemoryNumber
+    addRefType("java.lang.Object");
+    addRefType("java.lang.Class");
+    addRefType("java.lang.System");
+    addRefType("java.lang.String");
+    addRefType("java.lang.AbstractStringBuilder");
+    addRefType("java.lang.StringBuilder");
+    addRefType("java.lang.StackTraceElement");
+    addRefType("java.lang.Throwable");
+    addRefType("java.lang.Exception");
+    addRefType("java.lang.RuntimeException");
+    addRefType("java.lang.NullPointerException");
+    addRefType("java.lang.Error");
+    addRefType("java.lang.VirtualMachineError");
+    addRefType("java.lang.OutOfMemoryError");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.PrivateFields");
     m_builtInTypes.add(ByteType.v());

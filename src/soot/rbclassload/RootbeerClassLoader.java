@@ -472,6 +472,7 @@ public class RootbeerClassLoader {
 
     try {
       String full_filename = m_classToFilename.get(class_name);
+      //System.out.println("loading: "+class_name+" from: "+full_filename);
       InputStream stream = new FileInputStream(full_filename);
 		  if(stream == null){
         return null;
