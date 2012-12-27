@@ -130,14 +130,11 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      buildFullCallGraph(entry);
-
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
       for(SootMethod other : others){
         doDfs(other);
-        buildFullCallGraph(other);
       }
-
+      buildFullCallGraph(entry);
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
@@ -178,14 +175,11 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      buildFullCallGraph(entry);
-
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
       for(SootMethod other : others){
         doDfs(other);
-        buildFullCallGraph(other);
       }
-
+      buildFullCallGraph(entry);
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
