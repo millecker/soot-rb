@@ -49,6 +49,7 @@ public class DfsInfo {
   private Set<Type> m_instanceOfs;
   private List<String> m_reachableMethodSigs;
   private SootMethod m_rootMethod;
+  private List<SootMethod> m_otherEntryPoints;
   private ClassRemapping m_classRemapping;
   private Set<String> m_modifiedClasses;
 
@@ -62,6 +63,7 @@ public class DfsInfo {
     m_reachableMethodSigs = new ArrayList<String>();
     m_parentsToChildren = new HashMap<String, List<Type>>();
     m_rootMethod = soot_method;
+    m_otherEntryPoints = new ArrayList<SootMethod>();
     addBuiltInTypes();
   }
   
@@ -354,7 +356,7 @@ public class DfsInfo {
     SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
     SootResolver.v().resolveMethod(method);
 
-    m_dfsMethods.add(signature);
+    m_otherEntryPoints.add(method);
   }
 
   private void addRefType(String class_name) {
@@ -434,6 +436,10 @@ public class DfsInfo {
 
   public SootMethod getRootMethod() {
     return m_rootMethod;
+  }
+
+  public List<SootMethod> getOtherEntryPoints(){
+    return m_otherEntryPoints;
   }
 
   public CallGraph getCallGraph() {

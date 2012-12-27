@@ -131,6 +131,13 @@ public class RootbeerClassLoader {
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
       buildFullCallGraph(entry);
+
+      List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
+      for(SootMethod other : others){
+        doDfs(other);
+        buildFullCallGraph(other);
+      }
+
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
@@ -172,6 +179,13 @@ public class RootbeerClassLoader {
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
       buildFullCallGraph(entry);
+
+      List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
+      for(SootMethod other : others){
+        doDfs(other);
+        buildFullCallGraph(other);
+      }
+
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
@@ -533,7 +547,7 @@ public class RootbeerClassLoader {
     }
     m_currDfsInfo.addMethod(signature);
 
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
