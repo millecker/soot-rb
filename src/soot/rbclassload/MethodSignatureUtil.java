@@ -25,6 +25,9 @@ package soot.rbclassload;
 
 import java.util.ArrayList;
 import java.util.List;
+import soot.Scene;
+import soot.options.Options;
+import soot.SootClass;
 
 public class MethodSignatureUtil {
 
@@ -67,7 +70,37 @@ public class MethodSignatureUtil {
       }
     }
   }
-  
+
+  public void remap(){
+    m_className = remapClass(m_className);
+    m_returnType = remapClass(m_returnType);
+    for(int i = 0; i < m_params.size(); ++i){
+      String param = m_params.get(i);
+      param = remapClass(param);
+      m_params.set(i, param);
+    }
+  }
+
+
+  private String remapClass(String cls){
+
+    String cls_no_array = cls.replace("[", "");
+    cls_no_array = cls_no_array.replace("]", "");
+
+    //containsType should return false for classes that are not RefTypes.
+    if(Scene.v().containsType(cls_no_array) == false){
+      return cls;
+    }
+
+    SootClass soot_class = Scene.v().getSootClass(cls_no_array);
+    if(soot_class.isApplicationClass()){
+      return cls;
+    } else {
+      String array_post_fix = cls.substring(cls_no_array.length());
+      return Options.v().rbcl_remap_prefix() + cls_no_array + array_post_fix;
+    }
+  }
+
   private void print(){
     System.out.println("return_type: ["+m_returnType+"]");
     System.out.println("class_name: ["+m_className+"]");
@@ -126,25 +159,20 @@ public class MethodSignatureUtil {
     ret.append(")");
     return ret.toString();
   }
-  
-  @Override
-  public String toString(){
+
+  public String getSignature(){
     StringBuilder ret = new StringBuilder();
     ret.append("<");
     ret.append(m_className);
     ret.append(": ");
-    ret.append(m_returnType);
-    ret.append(" ");
-    ret.append(m_methodName);
-    ret.append("(");
-    for(int i = 0; i < m_params.size(); ++i){
-      ret.append(m_params.get(i));
-      if(i < m_params.size() - 1){
-        ret.append(","); 
-      }
-    }
-    ret.append(")>");
+    ret.append(getMethodSubSignature());
+    ret.append(">");
     return ret.toString();
+  }
+  
+  @Override
+  public String toString(){
+    return getSignature();
   }
   
   public static void main(String[] args){

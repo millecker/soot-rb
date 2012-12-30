@@ -34,6 +34,7 @@ import java.util.*;
 import soot.Scene;
 import soot.SootClass;
 import soot.Type;
+import soot.options.Options;
 
 public class ClassRemapping {
 
@@ -60,18 +61,26 @@ public class ClassRemapping {
     m_runtimeClassesJar.add(value);
   }
   
-  public void cloneClass(String class_name){
+  public String cloneClass(String class_name){
+    System.out.println("cloning class: "+class_name);
     if(m_clonedMap.containsKey(class_name)){
-      return;
+      return m_clonedMap.get(class_name);
     } 
-    String new_name = "edu.syr.pcpratts.rootbeer.runtime.remap."+class_name;
+    String prefix = Options.v().rbcl_remap_prefix();
+    if(class_name.contains(prefix)){
+      m_map.put(class_name, class_name);
+      return class_name;
+    }
+    String new_name = prefix+class_name;
     m_clonedMap.put(class_name, new_name);
+    m_map.put(class_name, new_name);
     
     SootClass soot_class = Scene.v().getSootClass(class_name);
     CloneClass cloner = new CloneClass();
     SootClass new_class = cloner.execute(soot_class, new_name);
-    new_class.setApplicationClass();
     Scene.v().addGeneratedClass(new_class);
+    new_class.setApplicationClass();
+    return new_name;
   }
   
   
@@ -88,7 +97,12 @@ public class ClassRemapping {
   }
 
   public String get(String cls_name) {
-    return m_map.get(cls_name);
+    if(m_map.containsKey(cls_name)){
+      return m_map.get(cls_name);
+    } else {
+      String new_name = cloneClass(cls_name);
+      return new_name;
+    }
   }
 
   public String remap(String cls_name){

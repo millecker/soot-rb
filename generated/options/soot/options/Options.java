@@ -167,6 +167,28 @@ public class Options extends OptionsBase {
                 rbclassload_buildcg = true;
   
             else if( false 
+            || option.equals( "rbcl-remap-all" )
+            )
+                rbcl_remap_all = true;
+  
+            else if( false
+            || option.equals( "rbcl-remap-prefix" )
+            ) {
+                if( !hasMoreOptions() ) {
+                    G.v().out.println( "No value given for option -"+option );
+                    return false;
+                }
+                String value = nextOption();
+    
+                if( rbcl_remap_prefix.length() == 0 )
+                    rbcl_remap_prefix = value;
+                else {
+                    G.v().out.println( "Duplicate values "+rbcl_remap_prefix+" and "+value+" for option -"+option );
+                    return false;
+                }
+            }
+  
+            else if( false 
             || option.equals( "validate" )
             )
                 validate = true;
@@ -1038,6 +1060,13 @@ public class Options extends OptionsBase {
     private boolean rbclassload_buildcg = false;
     public void set_rbclassload_buildcg( boolean setting ) { rbclassload_buildcg = setting; }
   
+    public boolean rbcl_remap_all() { return rbcl_remap_all; }
+    private boolean rbcl_remap_all = false;
+    public void set_rbcl_remap_all( boolean setting ) { rbcl_remap_all = setting; }
+  
+    public String rbcl_remap_prefix() { return rbcl_remap_prefix; }
+    public void set_rbcl_remap_prefix( String setting ) { rbcl_remap_prefix = setting; }
+    private String rbcl_remap_prefix = "";
     public boolean validate() { return validate; }
     private boolean validate = false;
     public void set_validate( boolean setting ) { validate = setting; }
@@ -1261,6 +1290,8 @@ public class Options extends OptionsBase {
 +padOpt(" -ws -whole-shimple", "Run in whole-shimple mode" )
 +padOpt(" -rbcl -rbclassload", "Use Rootbeer Sparse Whole Program Class Loader" )
 +padOpt(" -rbcl-buildcg -rbclassload-buildcg", "Build Call Graph with Rootbeer Class Loader" )
++padOpt(" -rbcl-remap-all", "Remap All Library Classes with Rootbeer Class Loader" )
++padOpt(" -rbcl-remap-prefix ARG", "The prefix that will be prepended to remapped classes." )
 +padOpt(" -validate", "Run internal validation on bodies" )
 +padOpt(" -debug", "Print various Soot debugging info" )
 +padOpt(" -debug-resolver", "Print debugging info from SootResolver" )

@@ -238,7 +238,28 @@ soot whole program class loaders.
 Build a call graph inside the Rootbeer Class Loader
 </p>
       </long_desc>
+    </boolopt>    
+    <boolopt>
+      <name>Rootbeer Class Loader Remap All</name>
+      <alias>rbcl-remap-all</alias>
+      <short_desc>Remap All Library Classes with Rootbeer Class Loader</short_desc>
+      <long_desc>
+<p>
+Remap all library classes to versions that do not have protected prefix (say java.lang).          
+</p>
+      </long_desc>
     </boolopt>
+
+    <stropt>
+			<name>Rootbeer Class Loader Remap Prefix</name>
+			<alias>rbcl-remap-prefix</alias>
+			<short_desc>The prefix that will be prepended to remapped classes.</short_desc>
+			<long_desc>
+<p>
+The prefix that will be prepended to remapped classes.
+</p>
+</long_desc>
+		</stropt>
                 <boolopt>
 			<name>Validate</name>
 			<alias>validate</alias>

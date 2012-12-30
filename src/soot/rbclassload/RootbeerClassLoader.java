@@ -168,7 +168,7 @@ public class RootbeerClassLoader {
       DfsInfo info = getDfsInfo();
 
       List<String> sigs = info.getReachableMethodSigs();
-      ClassRemappingTransform transform = new ClassRemappingTransform(false);
+      ClassRemappingTransform transform = new ClassRemappingTransform();
       transform.run(sigs);
       transform.finishClone();  
 
@@ -185,6 +185,7 @@ public class RootbeerClassLoader {
       for(SootMethod other : others){
         doDfs(other);
       }
+      m_currDfsInfo.loadBuiltInMethods();
       buildFullCallGraph(entry);
       System.out.println("fixing application classes...");
       fixApplicationClasses();

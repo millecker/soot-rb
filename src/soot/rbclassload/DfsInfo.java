@@ -28,6 +28,7 @@ import soot.*;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.options.Options;
 
 public class DfsInfo {
 
@@ -52,6 +53,7 @@ public class DfsInfo {
   private List<SootMethod> m_otherEntryPoints;
   private ClassRemapping m_classRemapping;
   private Set<String> m_modifiedClasses;
+  private List<String> m_builtInMethods;
 
   public DfsInfo(SootMethod soot_method) {
     m_dfsMethods = new HashSet<String>();
@@ -64,6 +66,7 @@ public class DfsInfo {
     m_parentsToChildren = new HashMap<String, List<Type>>();
     m_rootMethod = soot_method;
     m_otherEntryPoints = new ArrayList<SootMethod>();
+    m_builtInMethods = new ArrayList<String>();
     addBuiltInTypes();
   }
   
@@ -324,6 +327,7 @@ public class DfsInfo {
     addRefType("java.lang.OutOfMemoryError");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.PrivateFields");
+
     m_builtInTypes.add(ByteType.v());
     m_builtInTypes.add(CharType.v());
     m_builtInTypes.add(ShortType.v());
@@ -342,21 +346,41 @@ public class DfsInfo {
     addBuiltInMethod("<java.lang.StackTraceElement: void <init>(java.lang.String,java.lang.String,java.lang.String,int)>");
     addBuiltInMethod("<java.lang.OutOfMemoryError: void <init>()>");
   }
-  
+
   private void addBuiltInMethod(String signature){
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
-    
-    String cls = util.getClassName();
-    SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
 
-    String method_sub_sig = util.getMethodSubSignature();
-    SootClass soot_class = Scene.v().getSootClass(cls);
+    if(Options.v().rbcl_remap_all()){
+      util.remap(); 
+    }
 
-    SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
-    SootResolver.v().resolveMethod(method);
+    m_builtInMethods.add(util.getSignature());
+  }
 
-    m_otherEntryPoints.add(method);
+  public void loadBuiltInMethods(){
+    for(String signature : m_builtInMethods){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(signature);
+
+      String cls = util.getClassName();
+      SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
+
+      String method_sub_sig = util.getMethodSubSignature();
+      SootClass soot_class = Scene.v().getSootClass(cls);
+
+      SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
+      if(method == null){
+        System.out.println("null: "+signature);
+        List<SootMethod> soot_methods = soot_class.getMethods();
+        for(SootMethod curr_method : soot_methods){
+          System.out.println("sig: "+curr_method.getSignature());
+        }
+      }
+      SootResolver.v().resolveMethod(method);
+
+      m_otherEntryPoints.add(method);
+    }
   }
 
   private void addRefType(String class_name) {

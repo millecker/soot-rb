@@ -40,6 +40,7 @@ import soot.jimple.NewMultiArrayExpr;
 import soot.jimple.ParameterRef;
 import soot.jimple.ThisRef;
 import soot.util.NumberedString;
+import soot.options.Options;
 
 public class ClassRemappingTransform {
 
@@ -48,15 +49,15 @@ public class ClassRemappingTransform {
   private Set<String> m_modified;
   private List<SootMethod> m_addedMethods;
   private SootMethod m_currMethod;
+  private Set<String> m_visitedMethods;
   
-  public ClassRemappingTransform(boolean map_runtime){
+  public ClassRemappingTransform(){
     m_classRemapping = new ClassRemapping();
-    if(!map_runtime){
-      m_classRemapping.loadMap();
-    }
+    m_classRemapping.loadMap();
     m_fieldsToFix = new HashMap<SootField, List<FieldRef>>();
     m_modified = new HashSet<String>();
     m_addedMethods = new ArrayList<SootMethod>();
+    m_visitedMethods = new HashSet<String>();
   }
     
   public void run(List<String> reachable_methods){
@@ -148,6 +149,12 @@ public class ClassRemappingTransform {
     if(m_classRemapping.containsKey(soot_class.getName())){
       return;
     }
+    if(m_visitedMethods.contains(method.getSignature())){
+      return;
+    }
+    m_visitedMethods.add(method.getSignature());
+    System.out.println("visiting: "+method.getSignature());
+
     if(method.isConcrete() == false){
       return;
     } 
@@ -283,6 +290,13 @@ public class ClassRemappingTransform {
   }
 
   private boolean shouldMap(SootClass soot_class) {
+    if(Options.v().rbcl_remap_all() && soot_class.isLibraryClass()){
+      String curr_class = m_currMethod.getDeclaringClass().toString();
+      if(m_modified.contains(curr_class) == false){
+        m_modified.add(curr_class);
+      }
+      return true;
+    }
     if(m_classRemapping.containsKey(soot_class.getName())){
       String curr_class = m_currMethod.getDeclaringClass().toString();
       if(m_modified.contains(curr_class) == false){
@@ -316,7 +330,15 @@ public class ClassRemappingTransform {
 
   private SootClass getMapping(SootClass soot_class) {
     String new_class = m_classRemapping.get(soot_class.getName());
-    return Scene.v().getSootClass(new_class);
+    SootClass ret = Scene.v().getSootClass(new_class);
+ 
+    if(Options.v().rbcl_remap_all()){
+      List<SootMethod> methods = ret.getMethods();
+      for(SootMethod method : methods){
+        visit(method);
+      }
+    }
+    return ret;
   }
 
   private void addField(SootField field, FieldRef ref) {
