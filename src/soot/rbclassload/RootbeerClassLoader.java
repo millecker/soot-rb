@@ -632,6 +632,14 @@ public class RootbeerClassLoader {
       if(type_class.hasOuterClass()){
         queue.add(type_class.getOuterClass().getType());
       }
+
+      Iterator<SootField> iter = type_class.getFields().iterator();
+      while(iter.hasNext()){
+        SootField curr_field = iter.next();
+        Type field_type = curr_field.getType();
+        addType(field_type);
+        addType(curr_field.getDeclaringClass().getType());
+      }
     }
   }
 

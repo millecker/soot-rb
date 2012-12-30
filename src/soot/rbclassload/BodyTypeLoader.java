@@ -64,7 +64,6 @@ public class BodyTypeLoader {
     while(iter2.hasNext()){
       Trap curr = iter2.next();
       SootClass except = curr.getException();
-      System.out.println("except: "+except.getName());
       RootbeerClassLoader.v().resolveClass(except.getName(), SootClass.HIERARCHY);
     }   
   }
