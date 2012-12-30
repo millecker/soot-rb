@@ -80,6 +80,7 @@ public class RootbeerClassLoader {
   private List<String> m_keepPackages;
   private List<String> m_runtimeClasses;
   private List<String> m_appClasses;
+  private String m_userJar;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -98,6 +99,7 @@ public class RootbeerClassLoader {
     m_runtimeClasses = new ArrayList<String>();
 
     m_appClasses = new ArrayList<String>();
+    m_userJar = null;
   }
 
   public static RootbeerClassLoader v() { 
@@ -106,6 +108,10 @@ public class RootbeerClassLoader {
 
   public List<String> getAllAppClasses(){
     return m_appClasses;
+  }
+
+  public void setUserJar(String filename){
+    m_userJar = filename;
   }
 
   public void loadNecessaryClasses(){
@@ -241,8 +247,13 @@ public class RootbeerClassLoader {
 
   private void cachePackageNames(){
     List<String> paths = SourceLocator.v().classPath();
-    String[] to_cache = new String[paths.size()];
-    to_cache = paths.toArray(to_cache);
+    List<String> local_paths = new ArrayList<String>();
+    local_paths.addAll(paths);
+    if(m_userJar != null){
+      local_paths.add(m_userJar);
+    }
+    String[] to_cache = new String[local_paths.size()];
+    to_cache = local_paths.toArray(to_cache);
     Arrays.sort(to_cache);
     for(String jar : to_cache){
       if(jar.endsWith(".jar")){
@@ -473,6 +484,7 @@ public class RootbeerClassLoader {
       }
 		  return new CoffiClassSource(class_name, stream);
     } catch(FileNotFoundException ex){
+      ex.printStackTrace();
       return null;
     }
   }
