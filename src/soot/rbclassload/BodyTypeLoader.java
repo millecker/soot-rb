@@ -30,6 +30,7 @@ import soot.Type;
 import soot.RefType;
 import soot.SootResolver;
 import soot.SootClass;
+import soot.Trap;
 import soot.SootMethodRef;
 import soot.jimple.JimpleBody;
 import soot.jimple.NewExpr;
@@ -58,5 +59,13 @@ public class BodyTypeLoader {
 
       }
     }
+
+    Iterator<Trap> iter2 = jb.getTraps().iterator();
+    while(iter2.hasNext()){
+      Trap curr = iter2.next();
+      SootClass except = curr.getException();
+      System.out.println("except: "+except.getName());
+      RootbeerClassLoader.v().resolveClass(except.getName(), SootClass.HIERARCHY);
+    }   
   }
 }
