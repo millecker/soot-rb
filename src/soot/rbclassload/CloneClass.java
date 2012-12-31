@@ -34,11 +34,19 @@ import soot.SootMethod;
 public class CloneClass {
   
   public SootClass execute(SootClass soot_class, String new_class_name) {
+    DfsInfo info = RootbeerClassLoader.v().getDfsInfo();
+    List<String> sigs = info.getReachableMethodSigs();
+
     SootClass ret = new SootClass(new_class_name, Modifier.PUBLIC);
     List<SootMethod> methods = soot_class.getMethods();
     for(SootMethod method : methods){
+      String sig = method.getSignature();
+      if(sigs.contains(sig) == false){
+        continue;
+      }
       SootMethod new_method = new SootMethod(method.getName(), method.getParameterTypes(), method.getReturnType(), method.getModifiers(), method.getExceptions());
       if(method.isConcrete()){
+        System.out.println("cloning method: "+sig);
         Body body = method.retrieveActiveBody();
         new_method.setActiveBody((Body) body.clone());
       }

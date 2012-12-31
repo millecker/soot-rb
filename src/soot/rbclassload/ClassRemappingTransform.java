@@ -24,6 +24,7 @@
 package soot.rbclassload;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -50,6 +51,8 @@ public class ClassRemappingTransform {
   private List<SootMethod> m_addedMethods;
   private SootMethod m_currMethod;
   private Set<String> m_visitedMethods;
+  private List<SootMethod> m_visitQueue;
+  private Set<String> m_reachableMethods;
   
   public ClassRemappingTransform(){
     m_classRemapping = new ClassRemapping();
@@ -58,9 +61,12 @@ public class ClassRemappingTransform {
     m_modified = new HashSet<String>();
     m_addedMethods = new ArrayList<SootMethod>();
     m_visitedMethods = new HashSet<String>();
+    m_visitQueue = new LinkedList<SootMethod>();
   }
     
   public void run(List<String> reachable_methods){
+    m_reachableMethods = new HashSet<String>();
+    m_reachableMethods.addAll(reachable_methods);
     Set<SootClass> reachable_classes = new HashSet<SootClass>();
     for(String method : reachable_methods){
       MethodSignatureUtil sig_util = new MethodSignatureUtil(method);
@@ -74,9 +80,10 @@ public class ClassRemappingTransform {
     for(SootClass curr : reachable_classes){
       List<SootMethod> methods = curr.getMethods();
       for(SootMethod method : methods){
-        visit(method);
+        m_visitQueue.add(method);
       }
     }
+    processVisitQueue();
   }
   
   public void run(String cls) {
@@ -88,10 +95,19 @@ public class ClassRemappingTransform {
     SootClass soot_class = Scene.v().getSootClass(cls);
     List<SootMethod> methods = soot_class.getMethods();
     for(SootMethod method : methods){
-      visit(method);
+      m_visitQueue.add(method);
     }
+    processVisitQueue();
   }
   
+  private void processVisitQueue(){
+    while(m_visitQueue.isEmpty() == false){
+      SootMethod soot_method = m_visitQueue.get(0);
+      m_visitQueue.remove(0);
+      visit(soot_method);
+    }
+  }
+
   public void finishClone(){
     List<String> cloned = m_classRemapping.getCloned();
     for(String cls : cloned){
@@ -111,6 +127,7 @@ public class ClassRemappingTransform {
     Iterator<SootField> iter = m_fieldsToFix.keySet().iterator();
     while(iter.hasNext()){
       SootField curr = iter.next();
+      System.out.println("fixing field: "+curr.toString());
       SootClass soot_class = curr.getDeclaringClass();
       SootField orig = curr;
       SootClass field_cls = curr.getDeclaringClass();
@@ -335,7 +352,11 @@ public class ClassRemappingTransform {
     if(Options.v().rbcl_remap_all()){
       List<SootMethod> methods = ret.getMethods();
       for(SootMethod method : methods){
-        visit(method);
+        String sig = method.getSignature();
+        if(m_reachableMethods.contains(sig) == false){
+          continue;
+        }
+        m_visitQueue.add(method);
       }
     }
     return ret;

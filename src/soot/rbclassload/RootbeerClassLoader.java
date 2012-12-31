@@ -136,11 +136,14 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
+      m_currDfsInfo.loadBuiltInMethods();
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
+      System.out.println("others.size(): "+others.size());
       for(SootMethod other : others){
+        System.out.println("other doDfs: "+other.getSignature());
         doDfs(other);
       }
-      buildFullCallGraph(entry);
+      buildStringCallGraph(entry);
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
@@ -166,6 +169,7 @@ public class RootbeerClassLoader {
       String sig = entry.getSignature();
       m_currDfsInfo = m_dfsInfos.get(sig);
       DfsInfo info = getDfsInfo();
+      StringCallGraph string_cg = m_currDfsInfo.getStringCallGraph();
 
       List<String> sigs = info.getReachableMethodSigs();
       ClassRemappingTransform transform = new ClassRemappingTransform();
@@ -181,12 +185,14 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
+      m_currDfsInfo.loadBuiltInMethods();
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
       for(SootMethod other : others){
         doDfs(other);
       }
-      m_currDfsInfo.loadBuiltInMethods();
-      buildFullCallGraph(entry);
+      
+      string_cg.remap();
+      buildFullCallGraph(entry, string_cg);
       System.out.println("fixing application classes...");
       fixApplicationClasses();
       buildHierarchy();
@@ -551,11 +557,12 @@ public class RootbeerClassLoader {
   private void doDfs(SootMethod method){
     String signature = method.getSignature();
     if(m_currDfsInfo.containsMethod(signature)){
+      System.out.println("no doDfs: "+signature);
       return;
     }
     m_currDfsInfo.addMethod(signature);
 
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
         
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
@@ -593,15 +600,6 @@ public class RootbeerClassLoader {
       m_currDfsInfo.addCallGraphEdge(method, ref.getStmt(), dest);
       doDfs(dest);
     }
-    
-    while(soot_class.hasSuperclass()){
-      SootClass super_class = soot_class.getSuperclass();
-      if(super_class.declaresMethod(method.getSubSignature())){
-        SootMethod super_method = super_class.getMethod(method.getSubSignature());
-        doDfs(super_method);
-      }
-      soot_class = super_class;
-    }
   }
 
   private void addType(Type type) {
@@ -634,6 +632,12 @@ public class RootbeerClassLoader {
         queue.add(type_class.getOuterClass().getType());
       }
 
+      Iterator<SootClass> iter0 = type_class.getInterfaces().iterator();
+      while(iter0.hasNext()){
+        SootClass soot_class = iter0.next();
+        addType(soot_class.getType());
+      }
+
       Iterator<SootField> iter = type_class.getFields().iterator();
       while(iter.hasNext()){
         SootField curr_field = iter.next();
@@ -657,8 +661,11 @@ public class RootbeerClassLoader {
     } 
   }
 
-  private void buildFullCallGraph(SootMethod method){
-    System.out.println("building full call graph for: "+method.getDeclaringClass().getName()+"...");
+  private void buildStringCallGraph(SootMethod method){
+    System.out.println("building string call graph for: "+method.getDeclaringClass().getName()+"...");
+    string_cg = new StringCallGraph();
+    m_currDfsInfo.setStringCallGraph(string_cg);
+
 
     List<SootMethod> queue = new LinkedList<SootMethod>();
     Set<SootMethod> visited = new HashSet<SootMethod>();
@@ -685,11 +692,57 @@ public class RootbeerClassLoader {
         
         Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
         for(DfsMethodRef dfs_ref : method_refs){
-          m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
+          string_cg.addEdge(curr_method.getSignature(), dfs_ref.getSootMethodRef().getSignature());
         }
       }
     }
 
+    processCallGraphQueue();
+  }
+
+  private void buildFullCallGraph(SootMethod method, StringCallGraph string_cg){
+    System.out.println("building full call graph for: "+method.getDeclaringClass().getName()+"...");
+
+    List<SootMethod> queue = new LinkedList<SootMethod>();
+    Set<SootMethod> visited = new HashSet<SootMethod>();
+
+    CallGraph call_graph = m_currDfsInfo.getCallGraph();
+
+    SootClass soot_class = method.getDeclaringClass();
+    for(SootMethod sibling_method : soot_class.getMethods()){
+      if(sibling_method.getName().equals("<init>")){
+        queue.add(sibling_method);
+      } 
+    }
+    queue.add(method);
+
+    List<String> cg_queue = new LinkedList<SootMethod>();
+    cg_queue.add(method.getSignature());
+
+    while(cg_queue.isEmpty() == false){
+      String curr_dest = cg_queue.get(0);
+      cg_queue.remove(0);
+
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(curr_dest);
+
+      //TODO: load curr class and method
+
+      DfsValueSwitch value_switch = new DfsValueSwitch();
+      value_switch.run(curr_method);
+        
+      Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
+      for(DfsMethodRef dfs_ref : method_refs){
+        m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
+      }
+
+      //TODO: load edges into curr_dest from string_cg
+    }
+
+    processCallGraphQueue();
+  }
+
+  private void processCallGraphQueue(){
     while(queue.isEmpty() == false){
       SootMethod curr = queue.get(0);
       queue.remove(0);

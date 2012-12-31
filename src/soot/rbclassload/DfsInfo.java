@@ -54,6 +54,7 @@ public class DfsInfo {
   private ClassRemapping m_classRemapping;
   private Set<String> m_modifiedClasses;
   private List<String> m_builtInMethods;
+  private StringCallGraph m_stringCallGraph;
 
   public DfsInfo(SootMethod soot_method) {
     m_dfsMethods = new HashSet<String>();
@@ -68,6 +69,14 @@ public class DfsInfo {
     m_otherEntryPoints = new ArrayList<SootMethod>();
     m_builtInMethods = new ArrayList<String>();
     addBuiltInTypes();
+  }
+
+  public void setStringCallGraph(StringCallGraph cg){
+    m_stringCallGraph = cg;
+  }
+
+  public StringCallGraph getStringCallGraph(){
+    return m_stringCallGraph; 
   }
   
   public void expandArrayTypes(){  
@@ -351,10 +360,9 @@ public class DfsInfo {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
 
-    if(Options.v().rbcl_remap_all()){
-      util.remap(); 
-    }
-
+    //add regular and remapped versions
+    m_builtInMethods.add(util.getSignature());
+    util.remap();
     m_builtInMethods.add(util.getSignature());
   }
 
@@ -371,11 +379,9 @@ public class DfsInfo {
 
       SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
       if(method == null){
-        System.out.println("null: "+signature);
-        List<SootMethod> soot_methods = soot_class.getMethods();
-        for(SootMethod curr_method : soot_methods){
-          System.out.println("sig: "+curr_method.getSignature());
-        }
+        //this will happen if this is a remapped sig and remapping hasn't
+        //happened yet. 
+        continue;
       }
       SootResolver.v().resolveMethod(method);
 

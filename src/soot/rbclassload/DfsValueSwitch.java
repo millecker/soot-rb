@@ -37,6 +37,8 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   private ClassConstantReader m_classConstantReader;
   
   public void run(SootMethod method) {
+    System.out.println("DfsValueSwitch: "+method.getSignature());
+
     m_types = new LinkedHashSet<Type>();
     m_methods = new LinkedHashSet<DfsMethodRef>();
     m_fields = new LinkedHashSet<SootFieldRef>();   
