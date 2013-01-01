@@ -37,12 +37,16 @@ public class StringCallGraph {
   private Map<String, Set<String>> m_reverseEdges;
   private Set<String> m_allSignatures;
   private Set<String> m_entryPoints;
+  private Set<String> m_applicationClasses;
+  private Set<String> m_libraryClasses;
 
   public StringCallGraph(){
     m_forwardEdges = new HashMap<String, Set<String>>();
     m_reverseEdges = new HashMap<String, Set<String>>();
     m_allSignatures = new HashSet<String>();
     m_entryPoints = new HashSet<String>();
+    m_applicationClasses = new HashSet<String>();
+    m_libraryClasses = new HashSet<String>();
   }
 
   public void addEdge(String source_sig, String dest_sig){
@@ -54,6 +58,28 @@ public class StringCallGraph {
     if(m_allSignatures.contains(dest_sig) == false){
       m_allSignatures.add(dest_sig); 
     }
+  }
+ 
+  public void setApplicationClass(String class_name){
+    if(m_libraryClasses.contains(class_name)){
+      m_libraryClasses.remove(class_name);
+    }
+    if(m_applicationClasses.contains(class_name) == false){
+      m_applicationClasses.add(class_name);
+    }
+  }
+
+  public void setLibraryClass(String class_name){
+    if(m_applicationClasses.contains(class_name)){
+      m_applicationClasses.remove(class_name);
+    }
+    if(m_libraryClasses.contains(class_name) == false){
+      m_libraryClasses.add(class_name);
+    }
+  }
+
+  public Set<String> getLibraryClasses(){
+    return m_libraryClasses;
   }
 
   public void addEntryPoint(String signature){
@@ -68,6 +94,10 @@ public class StringCallGraph {
     } else {
       return false;
     }
+  }
+
+  public Set<String> getAllSignatures(){
+    return m_allSignatures;
   }
 
   public int size(){

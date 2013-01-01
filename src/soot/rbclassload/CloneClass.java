@@ -25,6 +25,7 @@ package soot.rbclassload;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import soot.Body;
 import soot.Modifier;
 import soot.SootClass;
@@ -33,9 +34,7 @@ import soot.SootMethod;
 
 public class CloneClass {
   
-  public SootClass execute(SootClass soot_class, String new_class_name) {
-    DfsInfo info = RootbeerClassLoader.v().getDfsInfo();
-    StringCallGraph string_cg = info.getStringCallGraph();
+  public SootClass execute(SootClass soot_class, String new_class_name, StringCallGraph string_cg, Set<String> reachable_fields) {
 
     SootClass ret = new SootClass(new_class_name, Modifier.PUBLIC);
     List<SootMethod> methods = soot_class.getMethods();
@@ -46,7 +45,6 @@ public class CloneClass {
       }
       SootMethod new_method = new SootMethod(method.getName(), method.getParameterTypes(), method.getReturnType(), method.getModifiers(), method.getExceptions());
       if(method.isConcrete()){
-        System.out.println("cloning method: "+sig);
         Body body = method.retrieveActiveBody();
         new_method.setActiveBody((Body) body.clone());
       }
@@ -55,6 +53,10 @@ public class CloneClass {
     Iterator<SootField> iter = soot_class.getFields().iterator();
     while(iter.hasNext()){
       SootField next = iter.next();
+      String field_sig = next.getSignature();
+      if(reachable_fields.contains(field_sig) == false){
+        continue;
+      }
       SootField cloned = new SootField(next.getName(), next.getType(), next.getModifiers());
       ret.addField(cloned);
     }

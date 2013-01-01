@@ -84,6 +84,8 @@ public class RootbeerClassLoader {
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
+  private Set<String> m_reachableFields;
+  private Map<String, String> m_remapping;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -128,9 +130,10 @@ public class RootbeerClassLoader {
     findEntryPoints();
     loadForwardStringCallGraph();
     loadReverseStringCallGraph();
-
-    System.out.println(m_stringCG.toString());
-    System.exit(0);
+    segmentLibraryClasses();
+    collectFields();
+    cloneLibraryClasses();
+    remapFields();
 
     Scene.v().loadDynamicClasses();
   }
@@ -206,6 +209,115 @@ public class RootbeerClassLoader {
 
   private void sortApplicationClasses(){
     java.util.Collections.sort(m_appClasses);
+  }
+
+  private void segmentLibraryClasses(){
+    for(String app_class : m_appClasses){
+      m_stringCG.setApplicationClass(app_class);
+    }
+
+    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      String name = curr.getName();
+      if(m_appClasses.contains(name) == false){
+        m_stringCG.setLibraryClass(name);
+      }
+    }        
+  }
+
+  private void collectFields(){
+    m_reachableFields = new HashSet<String>();
+    Set<String> all = m_stringCG.getAllSignatures();
+    for(String sig : all){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(sig);
+
+      SootMethod method = util.getSootMethod();
+                
+      DfsValueSwitch value_switch = new DfsValueSwitch();
+      value_switch.run(method);
+
+      System.out.println("collectingFields: "+sig);
+      Set<SootFieldRef> fields = value_switch.getFieldRefs();
+      for(SootFieldRef ref : fields){
+        String field_sig = ref.getSignature();
+        System.out.println("  sig: "+field_sig+" sub_sig: "+ref.resolve().getSubSignature());
+        if(m_reachableFields.contains(field_sig) == false){
+          m_reachableFields.add(field_sig);          
+        }
+      }
+    }
+  }
+
+  private void cloneLibraryClasses(){
+    m_remapping = new HashMap<String, String>();
+
+    BuiltInRemaps built_in = new BuiltInRemaps();
+
+    Set<String> lib_classes = m_stringCG.getLibraryClasses();
+    String prefix = Options.v().rbcl_remap_prefix();
+
+    for(String lib_class : lib_classes){
+      if(built_in.containsKey(lib_class)){
+        String target = built_in.get(lib_class);
+        m_remapping.put(lib_class, target);
+        continue;
+      }
+
+      String new_name = prefix+lib_class;
+    
+      SootClass soot_class = Scene.v().getSootClass(lib_class);
+      CloneClass cloner = new CloneClass();
+      SootClass new_class = cloner.execute(soot_class, new_name, m_stringCG, m_reachableFields);
+
+      Scene.v().addGeneratedClass(new_class);
+      m_remapping.put(lib_class, new_name);
+    }
+  }
+
+  private void remapFields(){
+    Set<String> lib_classes = m_stringCG.getLibraryClasses();
+    String prefix = Options.v().rbcl_remap_prefix();
+
+    for(String field_sig : m_reachableFields){
+      FieldSignatureUtil util = new FieldSignatureUtil();
+      util.parse(field_sig);
+
+      String declaring_class = util.getDeclaringClass();
+      if(lib_classes.contains(declaring_class)){
+        String new_class = prefix+declaring_class;
+        util.setDeclaringClass(new_class);
+      }
+
+      StringToType converter = new StringToType();
+      Type field_type = converter.toType(util.getType());
+
+      SootField soot_field = util.getSootField();
+      if(field_type instanceof RefType){
+        String type_string = util.getType();
+        if(lib_classes.contains(type_string)){
+          String new_type_string = prefix+type_string;
+          Type new_type = converter.toType(new_type_string);
+          soot_field.setType(new_type);          
+        }
+      } else if(field_type instanceof ArrayType){
+        ArrayType array_type = (ArrayType) field_type;
+        Type base_type = array_type.baseType;
+        if(base_type instanceof RefType){
+          RefType ref_type = (RefType) base_type;
+          String class_name = ref_type.getClassName();
+          if(lib_classes.contains(class_name)){
+            String new_type_string = prefix+class_name;
+            Type new_base_type = converter.toType(new_type_string);
+            Type new_type = ArrayType.v(new_base_type, array_type.numDimensions);
+            soot_field.setType(new_type); 
+          }
+        }
+      }
+
+      System.out.println("field_remap: "+field_sig+" "+soot_field.getSignature());
+    }
   }
 
 /*
@@ -321,32 +433,9 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void fixApplicationClasses(){
-    Set<Type> types = m_currDfsInfo.getDfsTypes();
-    types.addAll(m_currDfsInfo.getBuiltInTypes());
-    Set<String> reachables = new HashSet<String>();
-    for(Type type : types){
-      SootClass type_class = findTypeClass(type);
-      if(type_class == null){
-        continue;
-      }
-      resolveClass(type_class.getName(), SootClass.HIERARCHY);
-      reachables.add(type_class.getName());
-    }
-    for(String cls : m_appClasses){
-      SootClass curr = Scene.v().getSootClass(cls);
-      if(reachables.contains(cls)){
-        curr.setApplicationClass();
-      } else {
-        curr.setLibraryClass();
-      }
-    }
-  }
-
   public void loadDfsInfo(SootMethod entry){
     String sig = entry.getSignature();
     m_currDfsInfo = m_dfsInfos.get(sig);
-    fixApplicationClasses();
   }
 
   public void addEntryPointDetector(EntryPointDetector detector){
