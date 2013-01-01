@@ -28,6 +28,8 @@ import java.util.List;
 import soot.Scene;
 import soot.options.Options;
 import soot.SootClass;
+import soot.SootMethod;
+import soot.SootResolver;
 
 public class MethodSignatureUtil {
 
@@ -157,6 +159,14 @@ public class MethodSignatureUtil {
     }
     ret.append(")");
     return ret.toString();
+  }
+
+  public SootMethod getSootMethod(){
+    SootResolver.v().resolveClass(m_className, SootClass.HIERARCHY);
+    SootClass soot_class = Scene.v().getSootClass(m_className);
+    SootMethod soot_method = soot_class.getMethod(getMethodSubSignature());
+    SootResolver.v().resolveMethod(soot_method);
+    return soot_method;
   }
 
   public String getSignature(){

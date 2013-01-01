@@ -80,7 +80,10 @@ public class RootbeerClassLoader {
   private List<String> m_keepPackages;
   private List<String> m_runtimeClasses;
   private List<String> m_appClasses;
+  private List<String> m_entryPoints;
+  private Set<String> m_visited;
   private String m_userJar;
+  private StringCallGraph m_stringCG;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -117,6 +120,98 @@ public class RootbeerClassLoader {
   public void loadNecessaryClasses(){
     m_sourcePaths = SourceLocator.v().sourcePath();
     m_classPaths = SourceLocator.v().classPath();
+
+    cachePackageNames();
+    loadBuiltIns();
+    loadToSignatures();
+    sortApplicationClasses();
+    findEntryPoints();
+    loadForwardStringCallGraph();
+    loadReverseStringCallGraph();
+
+    System.out.println(m_stringCG.toString());
+    System.exit(0);
+
+    Scene.v().loadDynamicClasses();
+  }
+
+  private void loadForwardStringCallGraph(){
+    m_stringCG = new StringCallGraph();
+    m_visited = new HashSet<String>();
+    for(String entry : m_entryPoints){
+      m_stringCG.addEntryPoint(entry);
+      dfs(entry);     
+    }
+  }
+
+  private void dfs(String signature){
+    if(m_visited.contains(signature)){
+      return;
+    }
+    m_visited.add(signature);
+
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+
+    SootMethod method = util.getSootMethod();
+
+    if(method.isConcrete() == false){
+      return;
+    }
+
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
+
+    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
+    for(DfsMethodRef ref : methods){
+      SootMethodRef mref = ref.getSootMethodRef();
+      String dest_sig = mref.getSignature();
+      m_stringCG.addEdge(signature, dest_sig);
+      dfs(dest_sig);
+    }    
+  }
+
+  private void loadReverseStringCallGraph(){
+    int prev_size = -1;
+    while(m_stringCG.size() != prev_size){
+      prev_size = m_stringCG.size();
+      for(String app_class : m_appClasses){
+        SootClass soot_class = Scene.v().getSootClass(app_class);
+        List<SootMethod> methods = soot_class.getMethods();
+        for(SootMethod method : methods){
+          reverseDfs(method);
+        }
+      }
+    }
+  }
+
+  private void reverseDfs(SootMethod method){
+    String signature = method.getSignature();
+    if(method.isConcrete() == false){
+      return;
+    }
+
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
+
+    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
+    for(DfsMethodRef ref : methods){
+      SootMethodRef mref = ref.getSootMethodRef();
+      String dest_sig = mref.getSignature();
+      if(m_stringCG.isReachable(dest_sig)){
+        m_stringCG.addEdge(signature, dest_sig);
+      }
+    }
+  }
+
+  private void sortApplicationClasses(){
+    java.util.Collections.sort(m_appClasses);
+  }
+
+/*
+  public void loadNecessaryClassesOld(){
+    m_sourcePaths = SourceLocator.v().sourcePath();
+    m_classPaths = SourceLocator.v().classPath();
     
     System.out.println("source_paths: ");
     for(String path : m_sourcePaths){
@@ -125,6 +220,11 @@ public class RootbeerClassLoader {
     cachePackageNames();
     loadBuiltIns();
     loadToSignatures();
+
+    //print app classes
+    for(String cls : m_appClasses){
+      System.out.println("app class: "+cls);
+    }
     
     List<SootMethod> entries = findEntryPoints();
     EntrySorter sorter = new EntrySorter();
@@ -136,7 +236,7 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      m_currDfsInfo.loadBuiltInMethods();
+      m_currDfsInfo.loadBuiltInMethods(false);
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
       System.out.println("others.size(): "+others.size());
       for(SootMethod other : others){
@@ -185,7 +285,7 @@ public class RootbeerClassLoader {
       m_currDfsInfo = new DfsInfo(entry);
       m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
       doDfs(entry);
-      m_currDfsInfo.loadBuiltInMethods();
+      m_currDfsInfo.loadBuiltInMethods(true);
       List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
       for(SootMethod other : others){
         doDfs(other);
@@ -198,6 +298,7 @@ public class RootbeerClassLoader {
       buildHierarchy();
     }
   }
+*/
 
   public void applyOptimizations(){
     List<SootMethod> entries = Scene.v().getEntryPoints();
@@ -371,14 +472,8 @@ public class RootbeerClassLoader {
 	  addBasicClass("java.lang.Thread");
 	  addBasicClass("java.lang.Runnable");
 	  addBasicClass("java.lang.Cloneable");
-
 	  addBasicClass("java.io.Serializable");	
-
 	  addBasicClass("java.lang.ref.Finalizer");
-
-    addBasicMethod("<edu.syr.pcpratts.rootbeer.runtime.Serializer: void <init>(edu.syr.pcpratts.rootbeer.runtime.memory.Memory,edu.syr.pcpratts.rootbeer.runtime.memory.Memory)>");
-    addBasicMethod("<edu.syr.pcpratts.rootbeer.runtime.Sentinal: void <init>()>");
-
   }
 
   private void addBasicMethod(String signature){
@@ -538,20 +633,18 @@ public class RootbeerClassLoader {
     }
   }
 
-  private List<SootMethod> findEntryPoints(){
-    List<SootMethod> ret = new ArrayList<SootMethod>();
-    Iterator<SootClass> iter = Scene.v().getApplicationClasses().iterator();
-    while(iter.hasNext()){
-      SootClass curr = iter.next();
+  private void findEntryPoints(){
+    m_entryPoints = new ArrayList<String>();
+    for(String app_class : m_appClasses){
+      SootClass curr = Scene.v().getSootClass(app_class);
       for(SootMethod method : curr.getMethods()){
         for(EntryPointDetector detector : m_entryDetectors){
           if(detector.isEntryPoint(method)){
-            ret.add(method);
+            m_entryPoints.add(method.getSignature());
           }
         }
       }
     }
-    return ret;
   }
 
   private void doDfs(SootMethod method){
@@ -679,10 +772,12 @@ public class RootbeerClassLoader {
     }
     queue.add(method);
 
+    System.out.println("m_appClasses.size(): "+m_appClasses.size());
     Iterator<String> iter = m_appClasses.iterator();
     while(iter.hasNext()){
 
       SootClass curr_class = Scene.v().getSootClass(iter.next());
+      System.out.println("app class: "+curr_class);
 
       for(SootMethod curr_method : curr_class.getMethods()){
       
@@ -714,7 +809,7 @@ public class RootbeerClassLoader {
     queue.add(method);
 
     List<String> cg_queue = new LinkedList<String>();
-    cg_queue.add(method.getSignature());
+    cg_queue.add("<edu.syr.pcpratts.rootbeer.runtime.remap.edu.syr.pcpratts.rootbeer.runtime.Rootbeer: void runAll(edu.syr.pcpratts.rootbeer.runtime.remap.java.util.List)>");
     Set<String> cg_visited = new HashSet<String>();
 
     while(cg_queue.isEmpty() == false){
@@ -730,6 +825,13 @@ public class RootbeerClassLoader {
       util.parse(curr_dest);
 
       SootClass curr_class = Scene.v().getSootClass(util.getClassName());
+      if(curr_class.declaresMethod(util.getMethodSubSignature()) == false){
+        System.out.println("cannot find method: "+curr_dest);
+        List<SootMethod> methods = curr_class.getMethods();
+        for(SootMethod smethod : methods){
+          System.out.println("  "+smethod.getSignature());
+        }
+      }
       SootMethod curr_method = curr_class.getMethod(util.getMethodSubSignature());
 
       DfsValueSwitch value_switch = new DfsValueSwitch();
@@ -741,6 +843,14 @@ public class RootbeerClassLoader {
       }
 
       Set<String> edges_into = string_cg.getReverseEdges(curr_dest);
+      if(edges_into == null){
+        System.out.println("edges_into null: "+curr_dest);
+      } else {
+        System.out.println("edges_into: ");
+        for(String edge : edges_into){
+          System.out.println("  "+edge);
+        }
+      }
       for(String edge_into : edges_into){
         cg_queue.add(edge_into);
       }

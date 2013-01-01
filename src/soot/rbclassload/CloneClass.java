@@ -35,13 +35,13 @@ public class CloneClass {
   
   public SootClass execute(SootClass soot_class, String new_class_name) {
     DfsInfo info = RootbeerClassLoader.v().getDfsInfo();
-    List<String> sigs = info.getReachableMethodSigs();
+    StringCallGraph string_cg = info.getStringCallGraph();
 
     SootClass ret = new SootClass(new_class_name, Modifier.PUBLIC);
     List<SootMethod> methods = soot_class.getMethods();
     for(SootMethod method : methods){
       String sig = method.getSignature();
-      if(sigs.contains(sig) == false){
+      if(string_cg.isReachable(sig) == false){
         continue;
       }
       SootMethod new_method = new SootMethod(method.getName(), method.getParameterTypes(), method.getReturnType(), method.getModifiers(), method.getExceptions());

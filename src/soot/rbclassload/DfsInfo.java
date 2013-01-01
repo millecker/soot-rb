@@ -354,22 +354,23 @@ public class DfsInfo {
     addBuiltInMethod("<java.lang.Throwable: java.lang.StackTraceElement[] getStackTrace()>");
     addBuiltInMethod("<java.lang.StackTraceElement: void <init>(java.lang.String,java.lang.String,java.lang.String,int)>");
     addBuiltInMethod("<java.lang.OutOfMemoryError: void <init>()>");
+
+    addBuiltInMethod("<edu.syr.pcpratts.rootbeer.runtime.Serializer: void <init>(edu.syr.pcpratts.rootbeer.runtime.memory.Memory,edu.syr.pcpratts.rootbeer.runtime.memory.Memory)>");
+    addBuiltInMethod("<edu.syr.pcpratts.rootbeer.runtime.Sentinal: void <init>()>");
   }
 
   private void addBuiltInMethod(String signature){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-
-    //add regular and remapped versions
-    m_builtInMethods.add(util.getSignature());
-    util.remap();
-    m_builtInMethods.add(util.getSignature());
+    m_builtInMethods.add(signature);
   }
 
-  public void loadBuiltInMethods(){
+  public void loadBuiltInMethods(boolean remap){
     for(String signature : m_builtInMethods){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
+
+      if(remap){
+        util.remap();
+      }
 
       String cls = util.getClassName();
       SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
@@ -379,9 +380,12 @@ public class DfsInfo {
 
       SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
       if(method == null){
-        //this will happen if this is a remapped sig and remapping hasn't
-        //happened yet. 
-        continue;
+        System.out.println("cannot find method: "+util.getSignature());
+        List<SootMethod> methods = soot_class.getMethods();
+        for(SootMethod smethod : methods){
+          System.out.println("  "+smethod.getSignature());
+        }
+        System.exit(0);
       }
       SootResolver.v().resolveMethod(method);
 
