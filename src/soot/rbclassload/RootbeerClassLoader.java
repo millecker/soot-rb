@@ -191,7 +191,7 @@ public class RootbeerClassLoader {
         doDfs(other);
       }
       
-      string_cg.remap();
+      string_cg.remapAll();
       buildFullCallGraph(entry, string_cg);
       System.out.println("fixing application classes...");
       fixApplicationClasses();
@@ -663,9 +663,8 @@ public class RootbeerClassLoader {
 
   private void buildStringCallGraph(SootMethod method){
     System.out.println("building string call graph for: "+method.getDeclaringClass().getName()+"...");
-    string_cg = new StringCallGraph();
+    StringCallGraph string_cg = new StringCallGraph();
     m_currDfsInfo.setStringCallGraph(string_cg);
-
 
     List<SootMethod> queue = new LinkedList<SootMethod>();
     Set<SootMethod> visited = new HashSet<SootMethod>();
@@ -697,7 +696,7 @@ public class RootbeerClassLoader {
       }
     }
 
-    processCallGraphQueue();
+    processCallGraphQueue(queue, visited);
   }
 
   private void buildFullCallGraph(SootMethod method, StringCallGraph string_cg){
@@ -705,8 +704,6 @@ public class RootbeerClassLoader {
 
     List<SootMethod> queue = new LinkedList<SootMethod>();
     Set<SootMethod> visited = new HashSet<SootMethod>();
-
-    CallGraph call_graph = m_currDfsInfo.getCallGraph();
 
     SootClass soot_class = method.getDeclaringClass();
     for(SootMethod sibling_method : soot_class.getMethods()){
@@ -716,17 +713,24 @@ public class RootbeerClassLoader {
     }
     queue.add(method);
 
-    List<String> cg_queue = new LinkedList<SootMethod>();
+    List<String> cg_queue = new LinkedList<String>();
     cg_queue.add(method.getSignature());
+    Set<String> cg_visited = new HashSet<String>();
 
     while(cg_queue.isEmpty() == false){
       String curr_dest = cg_queue.get(0);
       cg_queue.remove(0);
 
+      if(cg_visited.contains(curr_dest)){
+        continue;
+      }
+      cg_visited.add(curr_dest);
+
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(curr_dest);
 
-      //TODO: load curr class and method
+      SootClass curr_class = Scene.v().getSootClass(util.getClassName());
+      SootMethod curr_method = curr_class.getMethod(util.getMethodSubSignature());
 
       DfsValueSwitch value_switch = new DfsValueSwitch();
       value_switch.run(curr_method);
@@ -736,13 +740,19 @@ public class RootbeerClassLoader {
         m_currDfsInfo.addCallGraphEdge(curr_method, dfs_ref.getStmt(), dfs_ref.getSootMethodRef().resolve());
       }
 
-      //TODO: load edges into curr_dest from string_cg
+      Set<String> edges_into = string_cg.getReverseEdges(curr_dest);
+      for(String edge_into : edges_into){
+        cg_queue.add(edge_into);
+      }
     }
 
-    processCallGraphQueue();
+    processCallGraphQueue(queue, visited);
   }
 
-  private void processCallGraphQueue(){
+  private void processCallGraphQueue(List<SootMethod> queue, Set<SootMethod> visited){
+
+    CallGraph call_graph = m_currDfsInfo.getCallGraph();
+
     while(queue.isEmpty() == false){
       SootMethod curr = queue.get(0);
       queue.remove(0);
