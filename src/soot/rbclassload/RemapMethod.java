@@ -89,34 +89,8 @@ public class RemapMethod {
     } else if(value instanceof InvokeExpr){
       InvokeExpr expr = (InvokeExpr) value;
       SootMethodRef ref = expr.getMethodRef();
-      SootClass soot_class = ref.declaringClass();
-      final NumberedString subSignature = ref.getSubSignature();
-      if(shouldMap(soot_class)){
-    	  SootClass new_class = getMapping(soot_class);
-    	  if (new_class.declaresMethod(subSignature)) {
-    		  SootMethod new_method = RootbeerClassLoader.v().findMethod(new_class, subSignature.getString());
-    		  fixArguments(new_method);
-          RootbeerClassLoader.v().getDfsInfo().addReachableMethodSig(new_method.getSignature());
-    		  expr.setMethodRef(new_method.makeRef());
-    	  }
-      } else {
-    	  if(soot_class.declaresMethod(ref.getSubSignature())){
-    		  SootMethod method = soot_class.getMethod(ref.getSubSignature());
-    		  fixArguments(method);
-        }     
-      }
       ref = remapRef(ref);
-      try {
-        if(shouldMap(soot_class)){
-          soot_class = getMapping(soot_class);
-        }
-        SootMethod method = soot_class.getMethod(ref.getSubSignature());
-        RootbeerClassLoader.v().getDfsInfo().addReachableMethodSig(method.getSignature());
-        expr.setMethodRef(method.makeRef());
-      } catch(Exception ex){
-        //ex.printStackTrace();
-      }
-      return value;
+      expr.setMethodRef(ref);
     } else if(value instanceof NewExpr){
       NewExpr expr = (NewExpr) value;
       RefType base_type = expr.getBaseType();
