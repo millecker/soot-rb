@@ -134,6 +134,8 @@ public class RootbeerClassLoader {
     collectFields();
     cloneLibraryClasses();
     remapFields();
+    remapTypes();
+    dfsForRootbeer();
 
     Scene.v().loadDynamicClasses();
   }
@@ -246,11 +248,6 @@ public class RootbeerClassLoader {
         }
       }
     }
-
-    System.out.println("reachable_fields: ");
-    for(String field_sig : m_reachableFields){
-      System.out.println("  "+field_sig);
-    }
   }
 
   private void cloneLibraryClasses(){
@@ -318,9 +315,24 @@ public class RootbeerClassLoader {
           }
         }
       }
-
-      System.out.println("field_remap: "+field_sig+" "+soot_field.getSignature());
     }
+  }
+
+  private void remapTypes(){
+    Set<String> all = m_stringCG.getAllSignatures();
+    for(String signature : all){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(signature);
+
+      SootMethod soot_method = util.getSootMethod();
+
+      RemapMethod remapper = new RemapMethod();
+      remapper.visit(soot_method);
+    }
+  }
+
+  private void dfsForRootbeer(){
+
   }
 
 /*

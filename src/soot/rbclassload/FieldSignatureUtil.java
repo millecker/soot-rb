@@ -27,6 +27,8 @@ import soot.Scene;
 import soot.SootClass;
 import soot.SootField;
 import java.util.Iterator;
+import soot.Type;
+import soot.Modifier;
 
 public class FieldSignatureUtil {
 
@@ -93,14 +95,11 @@ public class FieldSignatureUtil {
     try {
       return soot_class.getField(getSubSignature());
     } catch(Exception ex){
-      System.out.println("cannot find field: "+getSignature());
-      Iterator<SootField> iter = soot_class.getFields().iterator();
-      while(iter.hasNext()){
-        SootField curr = iter.next();
-        System.out.println("  "+curr.getSignature());        
-      }
-      System.exit(0);
-      return null;
+      StringToType converter = new StringToType();
+      Type type = converter.toType(m_type);
+      SootField soot_field = new SootField(m_name, type, Modifier.PUBLIC);
+      soot_class.addField(soot_field);
+      return soot_field;
     }
   }
 
