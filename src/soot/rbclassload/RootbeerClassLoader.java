@@ -238,15 +238,18 @@ public class RootbeerClassLoader {
       DfsValueSwitch value_switch = new DfsValueSwitch();
       value_switch.run(method);
 
-      System.out.println("collectingFields: "+sig);
       Set<SootFieldRef> fields = value_switch.getFieldRefs();
       for(SootFieldRef ref : fields){
         String field_sig = ref.getSignature();
-        System.out.println("  sig: "+field_sig+" sub_sig: "+ref.resolve().getSubSignature());
         if(m_reachableFields.contains(field_sig) == false){
           m_reachableFields.add(field_sig);          
         }
       }
+    }
+
+    System.out.println("reachable_fields: ");
+    for(String field_sig : m_reachableFields){
+      System.out.println("  "+field_sig);
     }
   }
 
@@ -278,7 +281,7 @@ public class RootbeerClassLoader {
 
   private void remapFields(){
     Set<String> lib_classes = m_stringCG.getLibraryClasses();
-    String prefix = Options.v().rbcl_remap_prefix();
+    BuiltInRemaps built_ins = new BuiltInRemaps();
 
     for(String field_sig : m_reachableFields){
       FieldSignatureUtil util = new FieldSignatureUtil();
@@ -286,7 +289,7 @@ public class RootbeerClassLoader {
 
       String declaring_class = util.getDeclaringClass();
       if(lib_classes.contains(declaring_class)){
-        String new_class = prefix+declaring_class;
+        String new_class = built_ins.remap(declaring_class);
         util.setDeclaringClass(new_class);
       }
 
@@ -297,7 +300,7 @@ public class RootbeerClassLoader {
       if(field_type instanceof RefType){
         String type_string = util.getType();
         if(lib_classes.contains(type_string)){
-          String new_type_string = prefix+type_string;
+          String new_type_string = built_ins.remap(type_string);
           Type new_type = converter.toType(new_type_string);
           soot_field.setType(new_type);          
         }
@@ -308,7 +311,7 @@ public class RootbeerClassLoader {
           RefType ref_type = (RefType) base_type;
           String class_name = ref_type.getClassName();
           if(lib_classes.contains(class_name)){
-            String new_type_string = prefix+class_name;
+            String new_type_string = built_ins.remap(class_name);
             Type new_base_type = converter.toType(new_type_string);
             Type new_type = ArrayType.v(new_base_type, array_type.numDimensions);
             soot_field.setType(new_type); 

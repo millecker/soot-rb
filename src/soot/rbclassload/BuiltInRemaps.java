@@ -25,6 +25,7 @@ package soot.rbclassload;
 
 import java.util.Map;
 import java.util.HashMap;
+import soot.options.Options;
 
 public class BuiltInRemaps {
 
@@ -44,5 +45,14 @@ public class BuiltInRemaps {
 
   public String get(String key){
     return m_mapping.get(key);
+  }
+
+  public String remap(String key){
+    if(containsKey(key)){
+      return get(key);
+    } else { 
+      String prefix = Options.v().rbcl_remap_prefix();
+      return prefix+key;
+    }
   }
 }

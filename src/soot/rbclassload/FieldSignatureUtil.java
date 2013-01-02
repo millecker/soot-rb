@@ -26,6 +26,7 @@ package soot.rbclassload;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootField;
+import java.util.Iterator;
 
 public class FieldSignatureUtil {
 
@@ -89,7 +90,18 @@ public class FieldSignatureUtil {
 
   public SootField getSootField(){
     SootClass soot_class = Scene.v().getSootClass(m_declaringClass);
-    return soot_class.getField(getSubSignature());
+    try {
+      return soot_class.getField(getSubSignature());
+    } catch(Exception ex){
+      System.out.println("cannot find field: "+getSignature());
+      Iterator<SootField> iter = soot_class.getFields().iterator();
+      while(iter.hasNext()){
+        SootField curr = iter.next();
+        System.out.println("  "+curr.getSignature());        
+      }
+      System.exit(0);
+      return null;
+    }
   }
 
   @Override
