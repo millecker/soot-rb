@@ -155,6 +155,20 @@ public class DfsInfo {
     }
   }
   
+  private NumberedType getNumberedType(String str){
+    if(m_numberedTypeMap.containsKey(str)){
+      return m_numberedTypeMap.get(str);
+    } else {
+      System.out.println("cannot find numbered type: "+str);
+      Iterator<String> iter = m_numberedTypeMap.keySet().iterator();
+      while(iter.hasNext()){
+        System.out.println("  "+iter.next());
+      }      
+      System.exit(0);
+      return null;
+    }
+  }
+
   public void createClassHierarchy(){
     m_childrenToParents = new HashMap<String, List<NumberedType>>();
     Set<Type> to_process = new HashSet<Type>();
@@ -162,18 +176,18 @@ public class DfsInfo {
     to_process.addAll(m_builtInTypes);
     for(Type type : to_process){
       List<NumberedType> parents = new ArrayList<NumberedType>();
-      NumberedType curr_type = m_numberedTypeMap.get(type.toString());
+      NumberedType curr_type = getNumberedType(type.toString());
       parents.add(curr_type);
       if(type instanceof RefType){
         RefType ref_type = (RefType) type;
         SootClass curr_class = ref_type.getSootClass();
         while(curr_class.hasSuperclass()){
           curr_class = curr_class.getSuperclass();
-          parents.add(m_numberedTypeMap.get(curr_class.getType().toString()));
+          parents.add(getNumberedType(curr_class.getType().toString()));
         }
       } else if(type instanceof ArrayType){
         SootClass obj_cls = Scene.v().getSootClass("java.lang.Object");
-        parents.add(m_numberedTypeMap.get(obj_cls.getType().toString()));
+        parents.add(getNumberedType(obj_cls.getType().toString()));
       } else {
         continue;
       }
@@ -318,8 +332,27 @@ public class DfsInfo {
 
   public List<Type> getHierarchy(SootClass input_class) {
     List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
+    if(nret == null){
+      System.out.println("nret == nul for: "+input_class.getName());
+      Iterator<String> iter = m_childrenToParents.keySet().iterator();
+      while(iter.hasNext()){
+        System.out.println("  "+iter.next());
+      }
+      System.exit(0);
+    }
     List<Type> ret = new ArrayList<Type>();
     for(NumberedType ntype : nret){
+      if(ntype == null){
+        System.out.println("ntype == null");
+        for(NumberedType ntype2 : nret){
+          if(ntype2 == null){
+            System.out.println("null");
+          } else {
+            System.out.println(ntype2.toString());
+          }
+        }   
+        System.exit(0);
+      }
       ret.add(ntype.getType());
     }
     return ret;

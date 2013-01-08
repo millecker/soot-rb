@@ -47,4 +47,9 @@ public class NumberedType implements Comparable<NumberedType> {
     return Long.valueOf(o.m_number).compareTo(Long.valueOf(m_number));
   }
 
+  @Override
+  public String toString(){
+    String ret = "NumberedType: ["+m_number+", "+m_type.toString()+"]";
+    return ret;    
+  }
 }

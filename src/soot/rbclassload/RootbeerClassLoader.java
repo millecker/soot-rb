@@ -385,11 +385,8 @@ public class RootbeerClassLoader {
       System.out.println("building class hierarchy for: "+entry+"...");
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
-      m_currDfsInfo.createClassHierarchy(); 
-
-      m_currDfsInfo.print();
+      m_currDfsInfo.createClassHierarchy();
     }
-    System.exit(0);
   }
 
   public void applyOptimizations(){
@@ -401,17 +398,11 @@ public class RootbeerClassLoader {
       util.remap();
 
       SootMethod soot_method = util.getSootMethod();
-      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
-      if(m_currDfsInfo == null){
-        System.out.println("entry: "+entry);
-        System.out.println("soot_method: "+soot_method.getSignature());
-        Iterator<String> iter = m_dfsInfos.keySet().iterator();
-        while(iter.hasNext()){
-          System.out.println("  "+iter.next());
-        }
-        System.exit(0);
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
       }
 
+      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
       Set<String> methods = m_currDfsInfo.getMethods();
       for(String curr_sig : methods){
         util.parse(curr_sig);
@@ -755,10 +746,8 @@ public class RootbeerClassLoader {
       return;
     }
 
-    System.out.println("doDfs: "+signature);
     m_currDfsInfo.addMethod(signature);    
-
-    addType(soot_class.getType());
+    m_currDfsInfo.addType(soot_class.getType());
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.setQuit();
@@ -766,7 +755,7 @@ public class RootbeerClassLoader {
 
     Set<SootFieldRef> fields = value_switch.getFieldRefs();
     for(SootFieldRef ref : fields){
-      addType(ref.type());
+      m_currDfsInfo.addType(ref.type());
       
       SootField field = ref.resolve();
       m_currDfsInfo.addField(field);
@@ -787,7 +776,6 @@ public class RootbeerClassLoader {
         continue;
       } 
       
-      System.out.println("  calling doDfs from: "+signature+" -> "+dest.getSignature()+" / "+ref.getStmt().toString());
       doDfs(dest, visited);
     }
   }
@@ -831,6 +819,8 @@ public class RootbeerClassLoader {
       Iterator<SootField> iter = type_class.getFields().iterator();
       while(iter.hasNext()){
         SootField curr_field = iter.next();
+        String field_sig = curr_field.getSignature();
+        
         Type field_type = curr_field.getType();
         addType(field_type);
         addType(curr_field.getDeclaringClass().getType());

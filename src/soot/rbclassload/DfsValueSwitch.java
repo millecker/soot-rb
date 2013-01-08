@@ -116,6 +116,17 @@ public class DfsValueSwitch implements JimpleValueSwitch {
     if(m_types.contains(type) == false){
       m_types.add(type);
     }
+    if(type instanceof ArrayType){
+      ArrayType array_type = (ArrayType) type;
+      Type base_type = array_type.baseType;
+      if(base_type instanceof RefType){
+        RefType ref_type = (RefType) base_type;
+        String class_name = ref_type.getClassName();
+        if(class_name.equals("java.security.cert.Certificate")){
+          throw new RuntimeException("gotcha!");
+        }
+      }
+    }
   }
   
   public void addMethodRef(SootMethodRef ref){
@@ -128,12 +139,6 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   public void addFieldRef(SootFieldRef ref){
     if(m_fields.contains(ref) == false){
       m_fields.add(ref);
-    }
-    if(ref.getSignature().equals("<java.lang.Double: double value>") && m_quit){
-      System.out.println("ref <java.lang.Double: double value>");
-      System.out.println("method: "+m_method.getSignature());
-      System.out.println("stmt: "+m_currStmt.toString());
-      System.exit(0);
     }
   }
 

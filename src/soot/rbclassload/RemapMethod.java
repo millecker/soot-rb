@@ -129,17 +129,9 @@ public class RemapMethod {
       return value;      
     } else if(value instanceof NewMultiArrayExpr){
       NewMultiArrayExpr expr = (NewMultiArrayExpr) value;
-      ArrayType array_type = expr.getBaseType();
-      Type base_type = array_type.baseType;
-      if(base_type instanceof RefType){
-        RefType ref_type = (RefType) base_type;
-        SootClass soot_class = ref_type.getSootClass();
-        if(shouldMap(soot_class)){
-          SootClass new_class = getMapping(soot_class);
-          ArrayType new_type = ArrayType.v(new_class.getType(), array_type.numDimensions);
-          expr.setBaseType(new_type);
-        }
-      }
+      ArrayType type = expr.getBaseType();
+      ArrayType new_type = (ArrayType) fixType(type);
+      expr.setBaseType(new_type);
       return value;
     } else if(value instanceof CastExpr){
       CastExpr expr = (CastExpr) value;
