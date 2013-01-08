@@ -57,7 +57,7 @@ public class DfsInfo {
   private StringCallGraph m_stringCallGraph;
 
   public DfsInfo(SootMethod soot_method) {
-    m_dfsMethods = new HashSet<String>();
+    m_dfsMethods = new LinkedHashSet<String>();
     m_dfsTypes = new HashSet<Type>();
     m_dfsFields = new HashSet<SootField>();
     m_callGraph = new CallGraph();
@@ -222,7 +222,12 @@ public class DfsInfo {
   }
 
   public void print() {
-    printSet("methods: ", m_dfsMethods);
+    printSet("methods: ", getMethods());
+    printSet("fields: ", getFields());
+    printSet("array_types: ", getArrayTypes());
+    printSet("instance_ofs: ", getInstanceOfs());
+    
+    /*
     System.out.println("parentsToChildren: ");
     for(String parent : m_parentsToChildren.keySet()){
       List<Type> children = m_parentsToChildren.get(parent);
@@ -231,12 +236,13 @@ public class DfsInfo {
         System.out.println("    "+child);
       }
     }
+    */
   }
 
-  private void printSet(String name, Set<String> curr_set) {
+  private void printSet(String name, Set curr_set) {
     System.out.println(name);
-    for(String curr : curr_set){
-      System.out.println("  "+curr);
+    for(Object curr : curr_set){
+      System.out.println("  "+curr.toString());
     }
   }
 

@@ -318,11 +318,39 @@ public class RootbeerClassLoader {
     }
   }
 
+  private String remapClassOfMethodSignature(String signature){
+    String prefix = Options.v().rbcl_remap_prefix();
+
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+ 
+    String class_name = util.getClassName();
+    if(m_stringCG.isLibraryClass(class_name)){
+      class_name = prefix + class_name;
+      util.setClassName(class_name);        
+    }
+
+    return util.getSignature();
+  }
+
   private void remapTypes(){
     Set<String> all = m_stringCG.getAllSignatures();
     for(String signature : all){
+      signature = remapClassOfMethodSignature(signature);      
+      
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
+
+      SootMethod soot_method = util.getSootMethod();
+
+      RemapMethod remapper = new RemapMethod();
+      remapper.fixArguments(soot_method);
+    }
+
+    for(String signature : all){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(signature);
+      util.remap();
 
       SootMethod soot_method = util.getSootMethod();
 
@@ -332,40 +360,84 @@ public class RootbeerClassLoader {
   }
 
   private void dfsForRootbeer(){
+    System.out.println("entry_points: ");
+    for(String entry : m_entryPoints){
+      System.out.println("  "+entry);
+    }
     for(String entry : m_entryPoints){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(entry);
+      util.remap();
 
       SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
 
       DfsInfo dfs_info = new DfsInfo(soot_method);
       m_currDfsInfo = dfs_info;
-      m_dfsInfos.put(entry, dfs_info);
+      m_dfsInfos.put(soot_method.getSignature(), dfs_info);
 
       Set<String> visited = new HashSet<String>();
+      System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
       doDfs(soot_method, visited);     
+
+      System.out.println("building class hierarchy for: "+entry+"...");
+      m_currDfsInfo.expandArrayTypes();
+      m_currDfsInfo.orderTypes();
+      m_currDfsInfo.createClassHierarchy(); 
+
+      m_currDfsInfo.print();
     }
+    System.exit(0);
   }
 
   public void applyOptimizations(){
-    List<SootMethod> entries = Scene.v().getEntryPoints();
     Pack jop = PackManager.v().getPack("jop");
     
-    for(SootMethod entry : entries){
-      String entry_sig = entry.getSignature();
-      m_currDfsInfo = m_dfsInfos.get(entry_sig);
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+      util.remap();
+
+      SootMethod soot_method = util.getSootMethod();
+      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
+      if(m_currDfsInfo == null){
+        System.out.println("entry: "+entry);
+        System.out.println("soot_method: "+soot_method.getSignature());
+        Iterator<String> iter = m_dfsInfos.keySet().iterator();
+        while(iter.hasNext()){
+          System.out.println("  "+iter.next());
+        }
+        System.exit(0);
+      }
 
       Set<String> methods = m_currDfsInfo.getMethods();
       for(String curr_sig : methods){
-        MethodSignatureUtil util = new MethodSignatureUtil(curr_sig);
+        util.parse(curr_sig);
         SootClass soot_class = Scene.v().getSootClass(util.getClassName());
-        SootMethod soot_method = soot_class.getMethod(util.getMethodSubSignature());
-        if(soot_method.isConcrete()){
-          Body body = soot_method.retrieveActiveBody();
+        SootMethod curr_method = soot_class.getMethod(util.getMethodSubSignature());
+        if(curr_method.isConcrete()){
+          Body body = curr_method.retrieveActiveBody();
           jop.apply(body);
         }
       }
     }
+  }
+
+  public List<SootMethod> getEntryPoints(){
+    List<SootMethod> ret = new ArrayList<SootMethod>();
+    
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+      
+      String method = util.getMethodName();
+      if(method.equals("gpuMethod")){
+        ret.add(util.getSootMethod());
+      }
+    }
+    return ret;
   }
 
   public void loadDfsInfo(SootMethod entry){
@@ -677,13 +749,16 @@ public class RootbeerClassLoader {
       return;
     }
     visited.add(signature);
-
+    
     SootClass soot_class = method.getDeclaringClass();
-    addType(soot_class.getType());
-
     if(ignorePackage(soot_class.getName())){
       return;
     }
+
+    System.out.println("doDfs: "+signature);
+    m_currDfsInfo.addMethod(signature);    
+
+    addType(soot_class.getType());
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.run(method);
@@ -711,6 +786,7 @@ public class RootbeerClassLoader {
         continue;
       } 
       
+      System.out.println("  calling doDfs from: "+signature+" -> "+dest.getSignature()+" / "+ref.getStmt().toString());
       doDfs(dest, visited);
     }
   }

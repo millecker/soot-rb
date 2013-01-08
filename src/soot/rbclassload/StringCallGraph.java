@@ -78,6 +78,14 @@ public class StringCallGraph {
     }
   }
 
+  public boolean isLibraryClass(String class_name){
+    if(m_libraryClasses.contains(class_name)){
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   public Set<String> getLibraryClasses(){
     return m_libraryClasses;
   }

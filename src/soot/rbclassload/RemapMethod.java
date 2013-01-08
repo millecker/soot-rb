@@ -69,7 +69,6 @@ public class RemapMethod {
     if(body == null)
       return;
     
-    fixArguments(method);
     Iterator<Unit> iter = body.getUnits().iterator();
     while(iter.hasNext()){
       Unit curr = iter.next();
@@ -159,6 +158,10 @@ public class RemapMethod {
   }
 
   private boolean shouldMap(SootClass soot_class) {
+    String prefix = Options.v().rbcl_remap_prefix();
+    if(soot_class.getName().contains(prefix)){
+      return false;
+    }
     if(Options.v().rbcl_remap_all() && soot_class.isLibraryClass()){
       return true;
     }
@@ -169,12 +172,15 @@ public class RemapMethod {
     }
   }
  
-  private void fixArguments(SootMethod method) {
+  public void fixArguments(SootMethod method) {
+    String original_sig = method.getSignature();
     Type ret_type = method.getReturnType();
     method.setReturnType(fixType(ret_type));
     List param_types = method.getParameterTypes();
     List new_types = fixParameterList(param_types);
     method.setParameterTypes(new_types);    
+    String new_sig = method.getSignature();
+    System.out.println("remap arguments: "+original_sig+" to "+new_sig);
   }
   
   private List fixParameterList(List param_types){
