@@ -332,100 +332,20 @@ public class RootbeerClassLoader {
   }
 
   private void dfsForRootbeer(){
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
 
-  }
+      SootMethod soot_method = util.getSootMethod();
 
-/*
-  public void loadNecessaryClassesOld(){
-    m_sourcePaths = SourceLocator.v().sourcePath();
-    m_classPaths = SourceLocator.v().classPath();
-    
-    System.out.println("source_paths: ");
-    for(String path : m_sourcePaths){
-      System.out.println(path);
-    }
-    cachePackageNames();
-    loadBuiltIns();
-    loadToSignatures();
+      DfsInfo dfs_info = new DfsInfo(soot_method);
+      m_currDfsInfo = dfs_info;
+      m_dfsInfos.put(entry, dfs_info);
 
-    //print app classes
-    for(String cls : m_appClasses){
-      System.out.println("app class: "+cls);
-    }
-    
-    List<SootMethod> entries = findEntryPoints();
-    EntrySorter sorter = new EntrySorter();
-    sorter.sort(entries);
-
-    Scene.v().setEntryPoints(entries);
-
-    for(SootMethod entry : entries){
-      m_currDfsInfo = new DfsInfo(entry);
-      m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
-      doDfs(entry);
-      m_currDfsInfo.loadBuiltInMethods(false);
-      List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
-      System.out.println("others.size(): "+others.size());
-      for(SootMethod other : others){
-        System.out.println("other doDfs: "+other.getSignature());
-        doDfs(other);
-      }
-      buildStringCallGraph(entry);
-      System.out.println("fixing application classes...");
-      fixApplicationClasses();
-      buildHierarchy();
-    }
-
-    Scene.v().loadDynamicClasses();
-
-    System.out.println("loaded "+m_loadedCount+" classes");
-  }
-
-  public void remapClasses(){
-    System.out.println("remapping classes...");
-
-    ClassRemapping remapping = new ClassRemapping();
-    Collection<String> values = remapping.getValues();
-
-    for(String value : values){
-      resolveClass(value, SootClass.SIGNATURES);
-    }
-
-    List<SootMethod> entries = Scene.v().getEntryPoints();
-    for(SootMethod entry : entries){
-      String sig = entry.getSignature();
-      m_currDfsInfo = m_dfsInfos.get(sig);
-      DfsInfo info = getDfsInfo();
-      StringCallGraph string_cg = m_currDfsInfo.getStringCallGraph();
-
-      List<String> sigs = info.getReachableMethodSigs();
-      ClassRemappingTransform transform = new ClassRemappingTransform();
-      transform.run(sigs);
-      transform.finishClone();  
-
-      Set<String> modified = transform.getModifiedClasses();
-      for(String mod : modified){
-        SootClass soot_class = Scene.v().getSootClass(mod);
-        Scene.v().addRemappedClass(soot_class);
-      }
-             
-      m_currDfsInfo = new DfsInfo(entry);
-      m_dfsInfos.put(entry.getSignature(), m_currDfsInfo);
-      doDfs(entry);
-      m_currDfsInfo.loadBuiltInMethods(true);
-      List<SootMethod> others = m_currDfsInfo.getOtherEntryPoints();
-      for(SootMethod other : others){
-        doDfs(other);
-      }
-      
-      string_cg.remapAll();
-      buildFullCallGraph(entry, string_cg);
-      System.out.println("fixing application classes...");
-      fixApplicationClasses();
-      buildHierarchy();
+      Set<String> visited = new HashSet<String>();
+      doDfs(soot_method, visited);     
     }
   }
-*/
 
   public void applyOptimizations(){
     List<SootMethod> entries = Scene.v().getEntryPoints();
@@ -751,16 +671,13 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void doDfs(SootMethod method){
+  private void doDfs(SootMethod method, Set<String> visited){
     String signature = method.getSignature();
-    if(m_currDfsInfo.containsMethod(signature)){
-      System.out.println("no doDfs: "+signature);
+    if(visited.contains(signature)){
       return;
     }
-    m_currDfsInfo.addMethod(signature);
+    visited.add(signature);
 
-    System.out.println("doDfs: "+signature);
-        
     SootClass soot_class = method.getDeclaringClass();
     addType(soot_class.getType());
 
@@ -794,8 +711,7 @@ public class RootbeerClassLoader {
         continue;
       } 
       
-      m_currDfsInfo.addCallGraphEdge(method, ref.getStmt(), dest);
-      doDfs(dest);
+      doDfs(dest, visited);
     }
   }
 

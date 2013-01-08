@@ -50,6 +50,7 @@ import soot.jimple.CastExpr;
 import soot.jimple.ThisRef;
 import soot.options.Options;
 import soot.Modifier;
+import soot.Scene;
 
 public class RemapMethod {
 
@@ -82,10 +83,23 @@ public class RemapMethod {
 
   private Value mutate(Value value) {
     if(value instanceof FieldRef){
-      FieldRef ref = (FieldRef) value;  
-      SootField field = ref.getField();
-      //TODO: remap declaring class
-      return value;
+      FieldRef ref = (FieldRef) value; 
+      SootFieldRef field_ref = ref.getFieldRef();
+      Type type = field_ref.getType();
+      type = fixType(type);
+      
+      TypeToString converter = new TypeToString();
+      String type_string = converter.toString(type);
+
+      FieldSignatureUtil util = FieldSignatureUtil();
+      util.parse(field_ref.getSignature());
+      util.setType(type_string);
+
+      SootField soot_field = util.getSootField();
+      field_ref = soot_field.makeRef();
+      ref.setFieldRef(field_ref);
+
+      return reft;
     } else if(value instanceof InvokeExpr){
       InvokeExpr expr = (InvokeExpr) value;
       SootMethodRef ref = expr.getMethodRef();
@@ -139,9 +153,8 @@ public class RemapMethod {
       Type type = local.getType();
       local.setType(fixType(type));
       return value;
-    } else {
-      return value;
-    }
+    } 
+    return value;
   }
 
   private boolean shouldMap(SootClass soot_class) {
@@ -208,6 +221,8 @@ public class RemapMethod {
   } 
 
   private SootClass getMapping(SootClass soot_class){
-    throw new RuntimeException("fill this in...");
+    String old_name = soot_class.getName();
+    String new_name = Options.v().rbcl_remap_prefix() + old_name;
+    return Scene.v().getSootClass(new_name);
   }
 }
