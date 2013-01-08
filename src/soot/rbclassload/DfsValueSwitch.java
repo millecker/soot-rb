@@ -35,8 +35,19 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   private Set<SootFieldRef> m_fields;
   private Stmt m_currStmt;
   private ClassConstantReader m_classConstantReader;
+  private SootMethod m_method;
+  private boolean m_quit;
+
+  public DfsValueSwitch(){
+    m_quit = false;
+  }
+
+  public void setQuit(){
+    m_quit = true;
+  }
   
   public void run(SootMethod method) {
+    m_method = method;
     m_types = new LinkedHashSet<Type>();
     m_methods = new LinkedHashSet<DfsMethodRef>();
     m_fields = new LinkedHashSet<SootFieldRef>();   
@@ -117,6 +128,12 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   public void addFieldRef(SootFieldRef ref){
     if(m_fields.contains(ref) == false){
       m_fields.add(ref);
+    }
+    if(ref.getSignature().equals("<java.lang.Double: double value>") && m_quit){
+      System.out.println("ref <java.lang.Double: double value>");
+      System.out.println("method: "+m_method.getSignature());
+      System.out.println("stmt: "+m_currStmt.toString());
+      System.exit(0);
     }
   }
 

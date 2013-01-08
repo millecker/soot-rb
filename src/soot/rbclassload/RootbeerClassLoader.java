@@ -761,6 +761,7 @@ public class RootbeerClassLoader {
     addType(soot_class.getType());
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.setQuit();
     value_switch.run(method);
 
     Set<SootFieldRef> fields = value_switch.getFieldRefs();

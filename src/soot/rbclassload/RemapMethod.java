@@ -95,6 +95,12 @@ public class RemapMethod {
       util.parse(field_ref.getSignature());
       util.setType(type_string);
 
+      SootClass soot_class = field_ref.declaringClass();
+      if(shouldMap(soot_class)){
+        SootClass new_class = getMapping(soot_class);
+        util.setDeclaringClass(new_class.getName());
+      }
+
       SootField soot_field = util.getSootField();
       field_ref = soot_field.makeRef();
       ref.setFieldRef(field_ref);
@@ -105,6 +111,7 @@ public class RemapMethod {
       SootMethodRef ref = expr.getMethodRef();
       ref = remapRef(ref);
       expr.setMethodRef(ref);
+      return expr;
     } else if(value instanceof NewExpr){
       NewExpr expr = (NewExpr) value;
       RefType base_type = expr.getBaseType();
@@ -153,8 +160,9 @@ public class RemapMethod {
       Type type = local.getType();
       local.setType(fixType(type));
       return value;
-    } 
-    return value;
+    } else {
+      return value;
+    }
   }
 
   private boolean shouldMap(SootClass soot_class) {
@@ -180,7 +188,6 @@ public class RemapMethod {
     List new_types = fixParameterList(param_types);
     method.setParameterTypes(new_types);    
     String new_sig = method.getSignature();
-    System.out.println("remap arguments: "+original_sig+" to "+new_sig);
   }
   
   private List fixParameterList(List param_types){

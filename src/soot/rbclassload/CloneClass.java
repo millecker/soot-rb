@@ -43,7 +43,6 @@ public class CloneClass {
       if(string_cg.isReachable(sig) == false){
         continue;
       }
-      System.out.println("Cloning method: "+method.getSignature());
       SootMethod new_method = new SootMethod(method.getName(), method.getParameterTypes(), method.getReturnType(), method.getModifiers(), method.getExceptions());
       if(method.isConcrete()){
         Body body = method.retrieveActiveBody();
