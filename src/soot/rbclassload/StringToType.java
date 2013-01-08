@@ -32,6 +32,7 @@ import soot.IntType;
 import soot.LongType;
 import soot.FloatType;
 import soot.DoubleType;
+import soot.VoidType;
 import soot.ArrayType;
 import soot.RefType;
 import soot.Scene;
@@ -65,6 +66,8 @@ public class StringToType {
         base_type = FloatType.v();
       } else if(input_no_array.equals("double")){
         base_type = DoubleType.v();
+      } else if(input_no_array.equals("void")){
+        base_type = VoidType.v();
       } else {
         throw new RuntimeException("unknown type: "+input_no_array);
       }

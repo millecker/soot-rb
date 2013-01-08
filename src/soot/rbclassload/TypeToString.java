@@ -23,13 +23,60 @@
 
 package soot.rbclassload;
 
+import soot.Type;
+import soot.ArrayType;
+import soot.RefType;
+import soot.BooleanType;
+import soot.ByteType;
+import soot.CharType;
+import soot.ShortType;
+import soot.IntType;
+import soot.LongType;
+import soot.FloatType;
+import soot.DoubleType;
+import soot.VoidType;
+
 public class TypeToString {
 
-  public TypeToString()
+  public TypeToString(){
 
   }
 
   public String convert(Type type){
-
+    if(type instanceof ArrayType){
+      ArrayType array_type = (ArrayType) type;
+      String base_type = convert(array_type.baseType);
+      for(int i = 0; i < array_type.numDimensions; ++i){
+        base_type += "[]";
+      }
+      return base_type;
+    } else if(type instanceof RefType){
+      RefType ref_type = (RefType) type;
+      return ref_type.getClassName();
+    } else {
+      if(type instanceof BooleanType){
+        return "boolean";
+      } else if(type instanceof ByteType){
+        return "byte";
+      } else if(type instanceof CharType){
+        return "char";
+      } else if(type instanceof ShortType){
+        return "short";
+      } else if(type instanceof IntType){
+        return "int";
+      } else if(type instanceof LongType){
+        return "long";
+      } else if(type instanceof FloatType){
+        return "float";
+      } else if(type instanceof DoubleType){
+        return "double";
+      } else if(type instanceof VoidType){
+        return "void";
+      } else {
+        System.out.println("unknown type: "+type.toString());
+        System.exit(0);
+        return "";
+      }
+    }
   }
 }

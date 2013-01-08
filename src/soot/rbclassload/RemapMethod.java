@@ -39,6 +39,7 @@ import soot.ArrayType;
 import soot.SootClass;
 import soot.SootField;
 import soot.SootMethodRef;
+import soot.SootFieldRef;
 import soot.util.NumberedString;
 import soot.jimple.ParameterRef;
 import soot.jimple.FieldRef;
@@ -85,13 +86,13 @@ public class RemapMethod {
     if(value instanceof FieldRef){
       FieldRef ref = (FieldRef) value; 
       SootFieldRef field_ref = ref.getFieldRef();
-      Type type = field_ref.getType();
+      Type type = field_ref.type();
       type = fixType(type);
       
       TypeToString converter = new TypeToString();
-      String type_string = converter.toString(type);
+      String type_string = converter.convert(type);
 
-      FieldSignatureUtil util = FieldSignatureUtil();
+      FieldSignatureUtil util = new FieldSignatureUtil();
       util.parse(field_ref.getSignature());
       util.setType(type_string);
 
@@ -99,7 +100,7 @@ public class RemapMethod {
       field_ref = soot_field.makeRef();
       ref.setFieldRef(field_ref);
 
-      return reft;
+      return ref;
     } else if(value instanceof InvokeExpr){
       InvokeExpr expr = (InvokeExpr) value;
       SootMethodRef ref = expr.getMethodRef();
