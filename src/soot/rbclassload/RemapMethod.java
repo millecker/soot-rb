@@ -49,9 +49,12 @@ import soot.jimple.NewArrayExpr;
 import soot.jimple.NewMultiArrayExpr;
 import soot.jimple.CastExpr;
 import soot.jimple.ThisRef;
+import soot.jimple.CaughtExceptionRef;
 import soot.options.Options;
 import soot.Modifier;
 import soot.Scene;
+import soot.Trap;
+import soot.UnitBox;
 
 public class RemapMethod {
 
@@ -77,6 +80,25 @@ public class RemapMethod {
         Value value = box.getValue();
         value = mutate(value);
         box.setValue(value);
+      }
+    }
+    Iterator<Trap> iter2 = body.getTraps().iterator();
+    while(iter2.hasNext()){
+      Trap curr_trap = iter2.next();
+      List<UnitBox> unit_boxes = curr_trap.getUnitBoxes();
+      for(UnitBox unit_box : unit_boxes){
+        Unit unit = unit_box.getUnit();
+        List<ValueBox> boxes = unit.getUseAndDefBoxes();
+        for(ValueBox value_box : boxes){
+          Value value = value_box.getValue();
+          value = mutate(value);
+          value_box.setValue(value);
+        } 
+      }
+      SootClass exception = curr_trap.getException();
+      if(shouldMap(exception)){
+        exception = getMapping(exception);
+        curr_trap.setException(exception);
       }
     }
   }
@@ -147,7 +169,7 @@ public class RemapMethod {
       ThisRef ref = (ThisRef) value;
       Type new_type = fixType(ref.getType());
       return new ThisRef((RefType) new_type);
-    }else if(value instanceof Local){
+    } else if(value instanceof Local){
       Local local = (Local) value;
       Type type = local.getType();
       local.setType(fixType(type));
