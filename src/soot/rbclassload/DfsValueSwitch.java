@@ -36,14 +36,8 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   private Stmt m_currStmt;
   private ClassConstantReader m_classConstantReader;
   private SootMethod m_method;
-  private boolean m_quit;
 
   public DfsValueSwitch(){
-    m_quit = false;
-  }
-
-  public void setQuit(){
-    m_quit = true;
   }
   
   public void run(SootMethod method) {
@@ -115,17 +109,6 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   public void addType(Type type){
     if(m_types.contains(type) == false){
       m_types.add(type);
-    }
-    if(type instanceof ArrayType){
-      ArrayType array_type = (ArrayType) type;
-      Type base_type = array_type.baseType;
-      if(base_type instanceof RefType){
-        RefType ref_type = (RefType) base_type;
-        String class_name = ref_type.getClassName();
-        if(class_name.equals("java.security.cert.Certificate")){
-          throw new RuntimeException("gotcha!");
-        }
-      }
     }
   }
   

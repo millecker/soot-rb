@@ -47,30 +47,26 @@ public class StringToType {
     input_no_array = input_no_array.replace("]", "");
 
     Type base_type;
-    if(isRefType(input_no_array)){
-      base_type = RefType.v(input_no_array);
+    if(input_no_array.equals("byte")){
+      base_type = ByteType.v();
+    } else if(input_no_array.equals("boolean")){
+      base_type = BooleanType.v();
+    } else if(input_no_array.equals("char")){
+      base_type = CharType.v();
+    } else if(input_no_array.equals("short")){
+      base_type = ShortType.v();
+    } else if(input_no_array.equals("int")){
+      base_type = IntType.v();
+    } else if(input_no_array.equals("long")){
+      base_type = LongType.v();
+    } else if(input_no_array.equals("float")){
+      base_type = FloatType.v();
+    } else if(input_no_array.equals("double")){
+      base_type = DoubleType.v();
+    } else if(input_no_array.equals("void")){
+      base_type = VoidType.v();
     } else {
-      if(input_no_array.equals("byte")){
-        base_type = ByteType.v();
-      } else if(input_no_array.equals("boolean")){
-        base_type = BooleanType.v();
-      } else if(input_no_array.equals("char")){
-        base_type = CharType.v();
-      } else if(input_no_array.equals("short")){
-        base_type = ShortType.v();
-      } else if(input_no_array.equals("int")){
-        base_type = IntType.v();
-      } else if(input_no_array.equals("long")){
-        base_type = LongType.v();
-      } else if(input_no_array.equals("float")){
-        base_type = FloatType.v();
-      } else if(input_no_array.equals("double")){
-        base_type = DoubleType.v();
-      } else if(input_no_array.equals("void")){
-        base_type = VoidType.v();
-      } else {
-        throw new RuntimeException("unknown type: "+input_no_array);
-      }
+      base_type = RefType.v(input_no_array);
     }
     
     String array_post_fix = input.substring(input_no_array.length());

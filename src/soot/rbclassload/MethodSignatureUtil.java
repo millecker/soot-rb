@@ -30,6 +30,7 @@ import soot.options.Options;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.SootResolver;
+import soot.Type;
 
 public class MethodSignatureUtil {
 
@@ -37,8 +38,10 @@ public class MethodSignatureUtil {
   private String m_returnType;
   private String m_methodName;
   private List<String> m_params;
+  private RemapClassName m_remapClassName;
 
   public MethodSignatureUtil(){  
+    m_remapClassName = new RemapClassName();
   }
   
   public MethodSignatureUtil(String method_signature) {
@@ -84,22 +87,13 @@ public class MethodSignatureUtil {
   }
 
   private String remapClass(String cls){
+    StringToType converter = new StringToType();
+    Type type = converter.toType(cls);
 
-    String cls_no_array = cls.replace("[", "");
-    cls_no_array = cls_no_array.replace("]", "");
+    type = m_remapClassName.getMapping(type);
 
-    //containsType should return false for classes that are not RefTypes.
-    if(Scene.v().containsType(cls_no_array) == false){
-      return cls;
-    }
-
-    SootClass soot_class = Scene.v().getSootClass(cls_no_array);
-    if(soot_class.isApplicationClass()){
-      return cls;
-    } else {
-      String array_post_fix = cls.substring(cls_no_array.length());
-      return Options.v().rbcl_remap_prefix() + cls_no_array + array_post_fix;
-    }
+    TypeToString to_string = new TypeToString();
+    return to_string.convert(type);
   }
 
   private void print(){

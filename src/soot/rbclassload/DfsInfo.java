@@ -51,7 +51,6 @@ public class DfsInfo {
   private List<String> m_reachableMethodSigs;
   private SootMethod m_rootMethod;
   private List<SootMethod> m_otherEntryPoints;
-  private ClassRemapping m_classRemapping;
   private Set<String> m_modifiedClasses;
   private List<String> m_builtInMethods;
   private StringCallGraph m_stringCallGraph;
@@ -287,13 +286,16 @@ public class DfsInfo {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
     }
+    if(name instanceof ArrayType){
+      SootClass object_class = Scene.v().getSootClass("java.lang.Object");
+      addSuperClass(name, object_class.getType());
+      return;
+    }
     SootClass type_class = getSootClassIfPossible(name);
     if(type_class == null){
-      System.out.println("type_class == null: "+name.toString());
       return;
     }
     if(type_class.hasSuperclass() == false){
-      System.out.println("type_class has no super class: "+name.toString());
       return;
     }
     SootClass parent_class = type_class.getSuperclass();
@@ -354,27 +356,8 @@ public class DfsInfo {
 
   public List<Type> getHierarchy(SootClass input_class) {
     List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
-    if(nret == null){
-      System.out.println("nret == nul for: "+input_class.getName());
-      Iterator<String> iter = m_childrenToParents.keySet().iterator();
-      while(iter.hasNext()){
-        System.out.println("  "+iter.next());
-      }
-      System.exit(0);
-    }
     List<Type> ret = new ArrayList<Type>();
     for(NumberedType ntype : nret){
-      if(ntype == null){
-        System.out.println("ntype == null");
-        for(NumberedType ntype2 : nret){
-          if(ntype2 == null){
-            System.out.println("null");
-          } else {
-            System.out.println(ntype2.toString());
-          }
-        }   
-        System.exit(0);
-      }
       ret.add(ntype.getType());
     }
     return ret;
@@ -382,7 +365,7 @@ public class DfsInfo {
 
   private void addBuiltInTypes() {
     String prefix = Options.v().rbcl_remap_prefix();
-    addRefType(prefix+"java.lang.Object");
+    addRefType("java.lang.Object");
     addRefType(prefix+"java.lang.Class");
     addRefType(prefix+"java.lang.System");
     addRefType(prefix+"java.lang.String");
@@ -474,12 +457,7 @@ public class DfsInfo {
   }
   
   public int getClassNumber(Type type) {
-    try {
     return (int) m_numberedTypeMap.get(type.toString()).getNumber();
-    } catch(Exception ex){
-      ex.printStackTrace();
-      return 0;
-    }
   }
 
   public List<Type> getOrderedRefLikeTypes() {
@@ -524,10 +502,6 @@ public class DfsInfo {
     ret.addAll(m_dfsMethods);
     ret.addAll(m_reachableMethodSigs);
     return ret;
-  }
-
-  public void setClassRemapping(ClassRemapping class_remapping) {
-    m_classRemapping = class_remapping;
   }
 
   public SootMethod getRootMethod() {

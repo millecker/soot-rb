@@ -37,6 +37,7 @@ public class BuiltInRemaps {
     m_mapping.put("java.util.Random", "edu.syr.pcpratts.rootbeer.runtime.remap.Random");
     m_mapping.put("edu.syr.pcpratts.rootbeer.testcases.rootbeertest.remaptest.CallsPrivateMethod", "edu.syr.pcpratts.rootbeer.runtime.remap.DoesntCallPrivateMethod");
     m_mapping.put("java.lang.Math", "edu.syr.pcpratts.rootbeer.runtime.remap.java.lang.Math");
+    m_mapping.put("java.lang.Object", "java.lang.Object");
   }
 
   public boolean containsKey(String key){
@@ -45,14 +46,5 @@ public class BuiltInRemaps {
 
   public String get(String key){
     return m_mapping.get(key);
-  }
-
-  public String remap(String key){
-    if(containsKey(key)){
-      return get(key);
-    } else { 
-      String prefix = Options.v().rbcl_remap_prefix();
-      return prefix+key;
-    }
   }
 }

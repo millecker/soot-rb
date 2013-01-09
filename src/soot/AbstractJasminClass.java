@@ -650,6 +650,8 @@ public abstract class AbstractJasminClass
        if (method.isPhantom())
            return;
 
+       System.out.println("emitMethod: "+method.getSignature());
+
        // Emit prologue
             emit(".method " + Modifier.toString(method.getModifiers()) + " " +
                  method.getName() + jasminDescriptorOf(method.makeRef()));

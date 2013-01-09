@@ -55,10 +55,10 @@ import soot.Scene;
 
 public class RemapMethod {
 
-  private BuiltInRemaps m_remaps;
+  private RemapClassName m_remapClassName;
 
   public RemapMethod(){
-    m_remaps = new BuiltInRemaps();
+    m_remapClassName = new RemapClassName();
   }
 
   public void visit(SootMethod method) { 
@@ -158,18 +158,7 @@ public class RemapMethod {
   }
 
   private boolean shouldMap(SootClass soot_class) {
-    String prefix = Options.v().rbcl_remap_prefix();
-    if(soot_class.getName().contains(prefix)){
-      return false;
-    }
-    if(Options.v().rbcl_remap_all() && soot_class.isLibraryClass()){
-      return true;
-    }
-    if(m_remaps.containsKey(soot_class.getName())){
-      return true;
-    } else {
-      return false;
-    }
+    return m_remapClassName.shouldMap(soot_class); 
   }
  
   public void fixArguments(SootMethod method) {
@@ -227,8 +216,6 @@ public class RemapMethod {
   } 
 
   private SootClass getMapping(SootClass soot_class){
-    String old_name = soot_class.getName();
-    String new_name = Options.v().rbcl_remap_prefix() + old_name;
-    return Scene.v().getSootClass(new_name);
+    return m_remapClassName.getMapping(soot_class);
   }
 }
