@@ -162,21 +162,25 @@ public class RootbeerClassLoader {
     for(String method_sig : all_method_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(method_sig);
+      util.remap();
       String class_name = util.getClassName();
       if(ret_set.contains(class_name) == false){
         ret_set.add(class_name);
       }
+      System.out.println("reachable method: "+util.getSignature());
     }  
 
     //collect class names from reachable fields
     for(String field_sig : m_reachableFields){
       FieldSignatureUtil util = new FieldSignatureUtil();
       util.parse(field_sig);
+      util.remap();
 
       String declaring_class = util.getDeclaringClass();
       if(ret_set.contains(declaring_class) == false){
         ret_set.add(declaring_class);
       }
+      System.out.println("reachable field: "+util.getSignature());
     }
     
     //collect class names from generated classes
@@ -189,6 +193,37 @@ public class RootbeerClassLoader {
     }
 
     ret.addAll(ret_set);
+
+    //trim things in classes that are not reachable
+    for(String class_name : ret){
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      List<SootMethod> methods = soot_class.getMethods();
+      List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
+      for(SootMethod method : methods){
+        String method_sig = method.getSignature();
+        if(all_method_sigs.contains(method_sig) == false){
+          methods_to_delete.add(method);
+        }
+      }
+      for(SootMethod to_delete : methods_to_delete){
+        System.out.println("removing method: "+to_delete.getSignature());
+        soot_class.removeMethod(to_delete);
+      }
+      List<SootField> fields_to_delete = new ArrayList<SootField>();
+      Iterator<SootField> field_iter = soot_class.getFields().iterator();
+      while(field_iter.hasNext()){
+        SootField curr_field = field_iter.next();
+        String field_sig = curr_field.getSignature();
+        if(m_reachableFields.contains(field_sig) == false){
+          fields_to_delete.add(curr_field);
+        }
+      }
+      for(SootField to_delete : fields_to_delete){
+        soot_class.removeField(to_delete);
+        System.out.println("removing field: "+to_delete.getSignature());
+      }
+    }
+
     return ret;
   }
 

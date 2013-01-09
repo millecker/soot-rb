@@ -36,8 +36,10 @@ public class FieldSignatureUtil {
   private String m_type;
   private String m_name;
 
-  public FieldSignatureUtil(){
+  private RemapClassName m_remapClassName;
 
+  public FieldSignatureUtil(){
+    m_remapClassName = new RemapClassName();
   }
 
   public void parse(String field_sig){
@@ -64,6 +66,21 @@ public class FieldSignatureUtil {
     ret.append(" ");
     ret.append(m_name);
     return ret.toString();
+  }
+
+  public void remap(){
+    m_declaringClass = remapClass(m_declaringClass);
+    m_type = remapClass(m_type);
+  }
+
+  private String remapClass(String cls){
+    StringToType converter = new StringToType();
+    Type type = converter.toType(cls);
+
+    type = m_remapClassName.getMapping(type);
+
+    TypeToString to_string = new TypeToString();
+    return to_string.convert(type);
   }
 
   public void setDeclaringClass(String value){

@@ -38,6 +38,7 @@ public class BuiltInRemaps {
     m_mapping.put("edu.syr.pcpratts.rootbeer.testcases.rootbeertest.remaptest.CallsPrivateMethod", "edu.syr.pcpratts.rootbeer.runtime.remap.DoesntCallPrivateMethod");
     m_mapping.put("java.lang.Math", "edu.syr.pcpratts.rootbeer.runtime.remap.java.lang.Math");
     m_mapping.put("java.lang.Object", "java.lang.Object");
+    m_mapping.put("java.lang.String", "java.lang.String");
   }
 
   public boolean containsKey(String key){

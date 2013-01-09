@@ -321,7 +321,6 @@ public class DfsInfo {
   }
 
   public void addSuperClass(Type curr, Type superclass) {
-    System.out.println("addSuperClass: "+curr.toString()+" "+superclass.toString());
     if(m_parentsToChildren.containsKey(superclass.toString())){
       List<Type> children = m_parentsToChildren.get(superclass.toString());
       if(children.contains(curr) == false){
@@ -368,7 +367,7 @@ public class DfsInfo {
     addRefType("java.lang.Object");
     addRefType(prefix+"java.lang.Class");
     addRefType(prefix+"java.lang.System");
-    addRefType(prefix+"java.lang.String");
+    addRefType("java.lang.String");
     addRefType(prefix+"java.lang.AbstractStringBuilder");
     addRefType(prefix+"java.lang.StringBuilder");
     addRefType(prefix+"java.lang.StackTraceElement");
