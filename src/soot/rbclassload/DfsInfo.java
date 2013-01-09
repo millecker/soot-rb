@@ -241,7 +241,6 @@ public class DfsInfo {
     printSet("array_types: ", getArrayTypes());
     printSet("instance_ofs: ", getInstanceOfs());
     
-    /*
     System.out.println("parentsToChildren: ");
     for(String parent : m_parentsToChildren.keySet()){
       List<Type> children = m_parentsToChildren.get(parent);
@@ -250,7 +249,6 @@ public class DfsInfo {
         System.out.println("    "+child);
       }
     }
-    */
   }
 
   private void printSet(String name, Set curr_set) {
@@ -289,6 +287,29 @@ public class DfsInfo {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
     }
+    SootClass type_class = getSootClassIfPossible(name);
+    if(type_class == null){
+      System.out.println("type_class == null: "+name.toString());
+      return;
+    }
+    if(type_class.hasSuperclass() == false){
+      System.out.println("type_class has no super class: "+name.toString());
+      return;
+    }
+    SootClass parent_class = type_class.getSuperclass();
+    addSuperClass(name, parent_class.getType());
+  }
+
+  private SootClass getSootClassIfPossible(Type type){
+    if(type instanceof ArrayType){
+      ArrayType array_type = (ArrayType) type;
+      return getSootClassIfPossible(array_type.baseType);
+    } else if(type instanceof RefType){
+      RefType ref_type = (RefType) type;
+      return ref_type.getSootClass();
+    } else {
+      return null;
+    }
   }
   
   public void addField(SootField field){
@@ -298,6 +319,7 @@ public class DfsInfo {
   }
 
   public void addSuperClass(Type curr, Type superclass) {
+    System.out.println("addSuperClass: "+curr.toString()+" "+superclass.toString());
     if(m_parentsToChildren.containsKey(superclass.toString())){
       List<Type> children = m_parentsToChildren.get(superclass.toString());
       if(children.contains(curr) == false){
@@ -359,20 +381,21 @@ public class DfsInfo {
   }
 
   private void addBuiltInTypes() {
-    addRefType("java.lang.Object");
-    addRefType("java.lang.Class");
-    addRefType("java.lang.System");
-    addRefType("java.lang.String");
-    addRefType("java.lang.AbstractStringBuilder");
-    addRefType("java.lang.StringBuilder");
-    addRefType("java.lang.StackTraceElement");
-    addRefType("java.lang.Throwable");
-    addRefType("java.lang.Exception");
-    addRefType("java.lang.RuntimeException");
-    addRefType("java.lang.NullPointerException");
-    addRefType("java.lang.Error");
-    addRefType("java.lang.VirtualMachineError");
-    addRefType("java.lang.OutOfMemoryError");
+    String prefix = Options.v().rbcl_remap_prefix();
+    addRefType(prefix+"java.lang.Object");
+    addRefType(prefix+"java.lang.Class");
+    addRefType(prefix+"java.lang.System");
+    addRefType(prefix+"java.lang.String");
+    addRefType(prefix+"java.lang.AbstractStringBuilder");
+    addRefType(prefix+"java.lang.StringBuilder");
+    addRefType(prefix+"java.lang.StackTraceElement");
+    addRefType(prefix+"java.lang.Throwable");
+    addRefType(prefix+"java.lang.Exception");
+    addRefType(prefix+"java.lang.RuntimeException");
+    addRefType(prefix+"java.lang.NullPointerException");
+    addRefType(prefix+"java.lang.Error");
+    addRefType(prefix+"java.lang.VirtualMachineError");
+    addRefType(prefix+"java.lang.OutOfMemoryError");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu");
     addRefType("edu.syr.pcpratts.rootbeer.runtime.PrivateFields");
 

@@ -45,6 +45,7 @@ import soot.jimple.toolkits.callgraph.Edge;
 import soot.Pack;
 import soot.PackManager;
 import soot.Body;
+import soot.util.Chain;
 
 import java.util.List;
 import java.util.LinkedList;
@@ -318,22 +319,60 @@ public class RootbeerClassLoader {
     }
   }
 
-  private String remapClassOfMethodSignature(String signature){
-    String prefix = Options.v().rbcl_remap_prefix();
+  private SootClass remapClass(SootClass soot_class){
+    String class_name = soot_class.getName();
+    class_name = remapClass(class_name);
+    return Scene.v().getSootClass(class_name);
+  }
 
+  private String remapClass(String class_name){
+    if(m_stringCG.isLibraryClass(class_name)){
+      String prefix = Options.v().rbcl_remap_prefix();
+      return prefix + class_name;
+    } else {
+      return class_name;
+    }
+  }
+
+  private String remapClassOfMethodSignature(String signature){
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
  
     String class_name = util.getClassName();
-    if(m_stringCG.isLibraryClass(class_name)){
-      class_name = prefix + class_name;
-      util.setClassName(class_name);        
-    }
+    class_name = remapClass(class_name);
+    util.setClassName(class_name);        
 
     return util.getSignature();
   }
 
-  private void remapTypes(){
+  private void remapTypes(){    
+    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
+    while(iter.hasNext()){
+      SootClass soot_class = iter.next();
+      if(soot_class.hasSuperclass()){
+        SootClass super_class = soot_class.getSuperclass();
+        super_class = remapClass(super_class);
+        soot_class.setSuperclass(super_class);
+      }
+      Chain<SootClass> interfaces = soot_class.getInterfaces();
+      if(interfaces.size() != 0){
+        SootClass curr = interfaces.getFirst();
+        while(curr != null){
+          SootClass next = interfaces.getSuccOf(curr);
+          SootClass remapped = remapClass(curr);
+          if(remapped.equals(curr) == false){
+            interfaces.swapWith(curr, remapped);
+          }
+          curr = next;  
+        }
+      }
+      if(soot_class.hasOuterClass()){
+        SootClass outer_class = soot_class.getOuterClass();
+        outer_class = remapClass(outer_class);
+        soot_class.setOuterClass(outer_class);        
+      }
+    }
+
     Set<String> all = m_stringCG.getAllSignatures();
     for(String signature : all){
       signature = remapClassOfMethodSignature(signature);      
@@ -746,7 +785,7 @@ public class RootbeerClassLoader {
       return;
     }
 
-    m_currDfsInfo.addMethod(signature);    
+    m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
     
     DfsValueSwitch value_switch = new DfsValueSwitch();
