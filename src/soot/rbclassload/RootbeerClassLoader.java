@@ -156,6 +156,7 @@ public class RootbeerClassLoader {
     List<String> ret = new ArrayList<String>();
 
     Set<String> ret_set = new HashSet<String>();
+    Set<String> main_classes = new HashSet<String>();
     
     //collect class names from reachable method signatures
     Set<String> all_method_sigs = m_stringCG.getAllSignatures();
@@ -167,7 +168,12 @@ public class RootbeerClassLoader {
       if(ret_set.contains(class_name) == false){
         ret_set.add(class_name);
       }
-      System.out.println("reachable method: "+util.getSignature());
+      String subsig = util.getMethodSubSignature();
+      if(subsig.equals("void main(java.lang.String[])")){
+        if(main_classes.contains(class_name) == false){
+          main_classes.add(class_name);
+        }
+      }
     }  
 
     //collect class names from reachable fields
@@ -180,7 +186,6 @@ public class RootbeerClassLoader {
       if(ret_set.contains(declaring_class) == false){
         ret_set.add(declaring_class);
       }
-      System.out.println("reachable field: "+util.getSignature());
     }
     
     //collect class names from generated classes
@@ -194,6 +199,25 @@ public class RootbeerClassLoader {
 
     ret.addAll(ret_set);
 
+    //find <init> and <clinit> of main classes and don't delete them
+    for(String main_class : main_classes){
+      SootClass soot_class = Scene.v().getSootClass(main_class);
+      if(soot_class.declaresMethod("void <init>()")){
+        SootMethod init_method = soot_class.getMethod("void <init>()");
+        String init_sig = init_method.getSignature();
+        if(all_method_sigs.contains(init_sig) == false){
+          all_method_sigs.add(init_sig);
+        }
+      }
+      if(soot_class.declaresMethod("void <clinit>()")){
+        SootMethod clinit_method = soot_class.getMethod("void <clinit>()");
+        String clinit_sig = clinit_method.getSignature();
+        if(all_method_sigs.contains(clinit_sig) == false){
+          all_method_sigs.add(clinit_sig);
+        }
+      }
+    }
+
     //trim things in classes that are not reachable
     for(String class_name : ret){
       SootClass soot_class = Scene.v().getSootClass(class_name);
@@ -206,7 +230,6 @@ public class RootbeerClassLoader {
         }
       }
       for(SootMethod to_delete : methods_to_delete){
-        System.out.println("removing method: "+to_delete.getSignature());
         soot_class.removeMethod(to_delete);
       }
       List<SootField> fields_to_delete = new ArrayList<SootField>();
@@ -220,7 +243,6 @@ public class RootbeerClassLoader {
       }
       for(SootField to_delete : fields_to_delete){
         soot_class.removeField(to_delete);
-        System.out.println("removing field: "+to_delete.getSignature());
       }
     }
 
