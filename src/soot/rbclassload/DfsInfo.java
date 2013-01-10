@@ -364,6 +364,9 @@ public class DfsInfo {
 
   private void addBuiltInTypes() {
     String prefix = Options.v().rbcl_remap_prefix();
+    if(Options.v().rbcl_remap_all() == false){
+      prefix = "";
+    }
     addRefType("java.lang.Object");
     addRefType(prefix+"java.lang.Class");
     addRefType(prefix+"java.lang.System");
@@ -452,11 +455,45 @@ public class DfsInfo {
   }
 
   public int getClassNumber(SootClass soot_class) {
-    return m_classToNumber.get(soot_class);
+    if(m_classToNumber.containsKey(soot_class)){
+      return m_classToNumber.get(soot_class);
+    } else {
+      System.out.println("cannot find number for soot_class: "+soot_class.getName());
+      Iterator<SootClass> iter = m_classToNumber.keySet().iterator();
+      while(iter.hasNext()){
+        SootClass key = iter.next();
+        int value = m_classToNumber.get(key);
+        System.out.println("  ["+key.getName()+", "+value+"]");
+      }
+      try {
+        throw new RuntimeException("quit");
+      } catch(Exception ex){
+        ex.printStackTrace();
+        System.exit(0);
+      }
+      return 0;
+    }
   }
   
   public int getClassNumber(Type type) {
-    return (int) m_numberedTypeMap.get(type.toString()).getNumber();
+    if(m_numberedTypeMap.containsKey(type.toString())){
+      return (int) m_numberedTypeMap.get(type.toString()).getNumber();
+    } else {
+      System.out.println("cannot find class number for type: "+type.toString());
+      Iterator<String> iter = m_numberedTypeMap.keySet().iterator();
+      while(iter.hasNext()){
+        String key = iter.next();
+        NumberedType value = m_numberedTypeMap.get(key);
+        System.out.println("  ["+key+", "+value.getNumber()+"]");
+      }
+      try {
+        throw new RuntimeException("quit");
+      } catch(Exception ex){
+        ex.printStackTrace();
+        System.exit(0);
+      }
+      return 0;
+    }   
   }
 
   public List<Type> getOrderedRefLikeTypes() {

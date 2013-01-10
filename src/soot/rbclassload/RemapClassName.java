@@ -56,7 +56,11 @@ public class RemapClassName {
     if(class_name.contains(prefix)){
       return false;
     }    
-    return true;   
+    if(Options.v().rbcl_remap_all()){
+      return true;   
+    } else {
+      return false;
+    }
   }
 
   private boolean isLibraryClass(String class_name){
