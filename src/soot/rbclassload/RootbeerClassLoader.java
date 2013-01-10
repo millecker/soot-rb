@@ -271,20 +271,22 @@ public class RootbeerClassLoader {
   }
 
   private void loadReverseStringCallGraph(){
+    Set<String> reachable = new HashSet<String>();    
+    reachable.addAll(m_entryPoints);
     int prev_size = -1;
-    while(m_stringCG.size() != prev_size){
-      prev_size = m_stringCG.size();
+    while(reachable.size() != prev_size){
+      prev_size = reachable.size();
       for(String app_class : m_appClasses){
         SootClass soot_class = Scene.v().getSootClass(app_class);
         List<SootMethod> methods = soot_class.getMethods();
         for(SootMethod method : methods){
-          reverseDfs(method);
+          reverseDfs(method, reachable);
         }
       }
     }
   }
 
-  private void reverseDfs(SootMethod method){
+  private void reverseDfs(SootMethod method, Set<String> reachable){
     String signature = method.getSignature();
     if(method.isConcrete() == false){
       return;
@@ -297,8 +299,9 @@ public class RootbeerClassLoader {
     for(DfsMethodRef ref : methods){
       SootMethodRef mref = ref.getSootMethodRef();
       String dest_sig = mref.getSignature();
-      if(m_stringCG.isReachable(dest_sig)){
+      if(reachable.contains(dest_sig)){
         m_stringCG.addEdge(signature, dest_sig);
+        reachable.add(signature);
       }
     }
   }

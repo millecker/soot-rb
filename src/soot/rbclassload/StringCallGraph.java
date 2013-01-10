@@ -125,6 +125,24 @@ public class StringCallGraph {
     }
   }
 
+  //for debugging
+  private void printDfsTrace(String heading, Map<String, Set<String>> map, String source){
+    List<String> queue = new LinkedList<String>();
+    System.out.println(heading);
+    queue.add(source);
+    while(queue.isEmpty() == false){
+      String curr = queue.get(0);
+      queue.remove(0);
+
+      System.out.println("key: "+curr);
+      Set<String> targets = map.get(curr);
+      for(String target : targets){
+        System.out.println("  value: "+target);
+      }
+      queue.addAll(targets);
+    }
+  }
+
   public void remapAll(){
     m_forwardEdges = remapAll(m_forwardEdges);
     m_reverseEdges = remapAll(m_reverseEdges);
