@@ -160,6 +160,12 @@ public class RootbeerClassLoader {
     
     //collect class names from reachable method signatures
     Set<String> all_method_sigs = m_stringCG.getAllSignatures();
+    System.out.println("reachable sigs: ");
+    for(String sig : all_method_sigs){
+      System.out.println("  "+sig);
+    }
+    System.exit(0);
+
     for(String method_sig : all_method_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(method_sig);
@@ -185,6 +191,10 @@ public class RootbeerClassLoader {
       String declaring_class = util.getDeclaringClass();
       if(ret_set.contains(declaring_class) == false){
         ret_set.add(declaring_class);
+      }
+      String field_type = util.getType();
+      if(ret_set.contains(field_type) == false){
+        ret_set.add(field_type);
       }
     }
     
