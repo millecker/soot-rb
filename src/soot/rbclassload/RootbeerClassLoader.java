@@ -142,6 +142,7 @@ public class RootbeerClassLoader {
     findEntryPoints();
     loadForwardStringCallGraph();
     loadReverseStringCallGraph();
+    loadAllReachables();
     segmentLibraryClasses();
     collectFields();
     cloneLibraryClasses();
@@ -271,6 +272,14 @@ public class RootbeerClassLoader {
     }
   }
 
+  private void loadAllReachables(){
+    m_visited = new HashSet<String>();
+    Set<String> all = m_stringCG.getAllSignatures();
+    for(String sig : all){
+      dfs(sig);     
+    }
+  }
+
   public boolean isLoaded(){
     return m_loaded;
   }
@@ -283,7 +292,7 @@ public class RootbeerClassLoader {
 
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
-
+    
     SootMethod method = util.getSootMethod();
 
     if(method.isConcrete() == false){
@@ -298,7 +307,12 @@ public class RootbeerClassLoader {
       SootMethodRef mref = ref.getSootMethodRef();
       String dest_sig = mref.getSignature();
       m_stringCG.addEdge(signature, dest_sig);
-      dfs(dest_sig);
+      try {
+        dfs(dest_sig);
+      } catch(RuntimeException ex){
+        System.out.println("dfs walk: "+signature);
+        throw ex;
+      }
     }    
   }
 
