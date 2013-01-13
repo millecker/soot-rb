@@ -1059,6 +1059,11 @@ public class RootbeerClassLoader {
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.run(method);
 
+    Set<Type> all_types = value_switch.getAllTypes();
+    for(Type type : all_types){
+      m_currDfsInfo.addType(type);
+    }
+
     Set<SootFieldRef> fields = value_switch.getFieldRefs();
     for(SootFieldRef ref : fields){
       m_currDfsInfo.addType(ref.type());
@@ -1185,13 +1190,6 @@ public class RootbeerClassLoader {
 
   public void addKeepPackages(String pkg_name){
     m_keepPackages.add(pkg_name);
-  }
-
-  private void buildHierarchy(){
-    System.out.println("building class hierarchy...");
-    m_currDfsInfo.expandArrayTypes();
-    m_currDfsInfo.orderTypes();
-    m_currDfsInfo.createClassHierarchy(); 
   }
 
   public SootMethod findMethod(SootClass curr, String subsig){

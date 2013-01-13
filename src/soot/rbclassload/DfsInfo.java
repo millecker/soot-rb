@@ -399,6 +399,8 @@ public class DfsInfo {
     m_builtInTypes.add(FloatType.v());
     m_builtInTypes.add(DoubleType.v());
     m_builtInTypes.add(BooleanType.v());
+    m_builtInTypes.add(VoidType.v());
+    m_builtInTypes.add(NullType.v());
     
     ArrayType char_arr = ArrayType.v(CharType.v(), 1);
     m_builtInTypes.add(char_arr);
