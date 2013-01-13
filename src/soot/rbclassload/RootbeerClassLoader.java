@@ -208,11 +208,19 @@ public class RootbeerClassLoader {
     return ret;    
   }
 
+  private void findFieldsReachableFromGeneratedMethods(){
+    for(String sig : m_generatedMethods){
+      collectFieldsForMethod(sig); 
+    }
+  }
+
   public List<String> getClassesToOutput(){
     List<String> ret = new ArrayList<String>();
 
     Set<String> main_classes = new HashSet<String>();
     Set<String> all_method_sigs = m_stringCG.getAllSignatures();
+
+    findFieldsReachableFromGeneratedMethods();
     List<String> reachable_classes = getReachableClasses();
 
     //collect class names and main_classes
@@ -432,20 +440,24 @@ public class RootbeerClassLoader {
     m_reachableFields = new HashSet<String>();
     Set<String> all = m_stringCG.getAllSignatures();
     for(String sig : all){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(sig);
+      collectFieldsForMethod(sig);
+    }
+  }
 
-      SootMethod method = util.getSootMethod();
+  private void collectFieldsForMethod(String sig){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(sig);
+
+    SootMethod method = util.getSootMethod();
                 
-      DfsValueSwitch value_switch = new DfsValueSwitch();
-      value_switch.run(method);
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
 
-      Set<SootFieldRef> fields = value_switch.getFieldRefs();
-      for(SootFieldRef ref : fields){
-        String field_sig = ref.getSignature();
-        if(m_reachableFields.contains(field_sig) == false){
-          m_reachableFields.add(field_sig);          
-        }
+    Set<SootFieldRef> fields = value_switch.getFieldRefs();
+    for(SootFieldRef ref : fields){
+      String field_sig = ref.getSignature();
+      if(m_reachableFields.contains(field_sig) == false){
+        m_reachableFields.add(field_sig);          
       }
     }
   }
