@@ -250,6 +250,20 @@ public class RootbeerClassLoader {
 
     //trim things in classes that are not reachable
     for(String class_name : reachable_classes){
+        
+      //don't trim the runtime classes in the keep_packages
+      boolean should_skip = false;
+      for(String keep_package : m_keepPackages){
+        if(class_name.startsWith(keep_package)){
+          should_skip = true;
+          break;
+        }
+      }
+
+      if(should_skip){
+        continue;
+      }
+
       SootClass soot_class = Scene.v().getSootClass(class_name);
       List<SootMethod> methods = soot_class.getMethods();
       List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
@@ -1025,7 +1039,7 @@ public class RootbeerClassLoader {
     }
     visited.add(signature);
     
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
