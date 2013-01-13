@@ -82,6 +82,7 @@ public class RootbeerClassLoader {
   private List<String> m_runtimeClasses;
   private List<String> m_appClasses;
   private List<String> m_entryPoints;
+  private List<String> m_cudaEntryPoints;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -119,6 +120,10 @@ public class RootbeerClassLoader {
 
   public static RootbeerClassLoader v() { 
     return G.v().soot_rbclassload_RootbeerClassLoader(); 
+  }
+
+  public void setCudaEntryPoints(List<String> entries){
+    m_cudaEntryPoints = entries;
   }
 
   public void addGeneratedMethod(String signature){
@@ -675,6 +680,12 @@ public class RootbeerClassLoader {
       System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
       doDfs(soot_method, visited);     
 
+      for(String cuda_entry : m_cudaEntryPoints){
+        util.parse(cuda_entry);
+        soot_method = util.getSootMethod();
+        doDfs(soot_method, visited);
+      }
+
       System.out.println("building class hierarchy for: "+entry+"...");
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
@@ -1040,7 +1051,7 @@ public class RootbeerClassLoader {
     }
     visited.add(signature);
     
-    System.out.println("doDfs: "+signature);
+    //System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());

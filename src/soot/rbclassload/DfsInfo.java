@@ -284,7 +284,6 @@ public class DfsInfo {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
     }
-    System.out.println("addType: "+name);
     if(name instanceof ArrayType){
       SootClass object_class = Scene.v().getSootClass("java.lang.Object");
       addSuperClass(name, object_class.getType());
@@ -292,11 +291,9 @@ public class DfsInfo {
     }
     SootClass type_class = getSootClassIfPossible(name);
     if(type_class == null){
-      System.out.println("  type_class == null");
       return;
     }
     if(type_class.hasSuperclass() == false){
-      System.out.println("  type_class has no super class");
       return;
     }
     SootClass parent_class = type_class.getSuperclass();
@@ -322,7 +319,6 @@ public class DfsInfo {
   }
 
   public void addSuperClass(Type curr, Type superclass) {
-    System.out.println("addSuperClass: curr: "+curr.toString()+" parent: "+superclass.toString());
     if(m_parentsToChildren.containsKey(superclass.toString())){
       List<Type> children = m_parentsToChildren.get(superclass.toString());
       if(children.contains(curr) == false){
