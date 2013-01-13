@@ -25,6 +25,7 @@
 package soot.rbclassload;
 
 import soot.SootMethod;
+import java.util.List;
 
 /**
  * Plain interface for a detector of entry points.
@@ -34,9 +35,13 @@ import soot.SootMethod;
  */
 public interface EntryPointDetector {
 
-    /**
-     * Checks if the given method is an entry point
-     * @return true if the SootMethod should be an entry point.
-     */
-    public boolean isEntryPoint(SootMethod sm);
+  /**
+    * Tests if the given method is an entry point
+    */
+  public void testEntryPoint(SootMethod sm);
+
+  /**
+    * Returns the entry points
+    */
+  public List<String> getEntryPoints();
 }

@@ -52,7 +52,6 @@ public class DfsInfo {
   private SootMethod m_rootMethod;
   private List<SootMethod> m_otherEntryPoints;
   private Set<String> m_modifiedClasses;
-  private List<String> m_builtInMethods;
   private StringCallGraph m_stringCallGraph;
 
   public DfsInfo(SootMethod soot_method) {
@@ -66,7 +65,6 @@ public class DfsInfo {
     m_parentsToChildren = new HashMap<String, List<Type>>();
     m_rootMethod = soot_method;
     m_otherEntryPoints = new ArrayList<SootMethod>();
-    m_builtInMethods = new ArrayList<String>();
     addBuiltInTypes();
   }
 
@@ -286,6 +284,7 @@ public class DfsInfo {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
     }
+    System.out.println("addType: "+name);
     if(name instanceof ArrayType){
       SootClass object_class = Scene.v().getSootClass("java.lang.Object");
       addSuperClass(name, object_class.getType());
@@ -293,9 +292,11 @@ public class DfsInfo {
     }
     SootClass type_class = getSootClassIfPossible(name);
     if(type_class == null){
+      System.out.println("  type_class == null");
       return;
     }
     if(type_class.hasSuperclass() == false){
+      System.out.println("  type_class has no super class");
       return;
     }
     SootClass parent_class = type_class.getSuperclass();
@@ -321,6 +322,7 @@ public class DfsInfo {
   }
 
   public void addSuperClass(Type curr, Type superclass) {
+    System.out.println("addSuperClass: curr: "+curr.toString()+" parent: "+superclass.toString());
     if(m_parentsToChildren.containsKey(superclass.toString())){
       List<Type> children = m_parentsToChildren.get(superclass.toString());
       if(children.contains(curr) == false){
@@ -330,6 +332,17 @@ public class DfsInfo {
       List<Type> children = new ArrayList<Type>();
       children.add(curr);
       m_parentsToChildren.put(superclass.toString(), children);
+    }
+    if(superclass instanceof RefType){
+      RefType super_ref = (RefType) superclass;
+      SootClass super_soot_class = super_ref.getSootClass();
+      if(super_soot_class.hasSuperclass()){
+        SootClass new_super = super_soot_class.getSuperclass();
+        addSuperClass(superclass, new_super.getType());
+      }
+    } else if(superclass instanceof ArrayType){
+      RefType obj_type = RefType.v("java.lang.Object");
+      addSuperClass(superclass, obj_type);
     }
   }
 
@@ -393,49 +406,6 @@ public class DfsInfo {
     
     ArrayType char_arr = ArrayType.v(CharType.v(), 1);
     m_builtInTypes.add(char_arr);
-    
-    addBuiltInMethod("<java.lang.String: void <init>(char[])>");
-    addBuiltInMethod("<edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu: int getThreadId()>");
-    addBuiltInMethod("<java.lang.Throwable: java.lang.StackTraceElement[] getStackTrace()>");
-    addBuiltInMethod("<java.lang.StackTraceElement: void <init>(java.lang.String,java.lang.String,java.lang.String,int)>");
-    addBuiltInMethod("<java.lang.OutOfMemoryError: void <init>()>");
-
-    addBuiltInMethod("<edu.syr.pcpratts.rootbeer.runtime.Serializer: void <init>(edu.syr.pcpratts.rootbeer.runtime.memory.Memory,edu.syr.pcpratts.rootbeer.runtime.memory.Memory)>");
-    addBuiltInMethod("<edu.syr.pcpratts.rootbeer.runtime.Sentinal: void <init>()>");
-  }
-
-  private void addBuiltInMethod(String signature){
-    m_builtInMethods.add(signature);
-  }
-
-  public void loadBuiltInMethods(boolean remap){
-    for(String signature : m_builtInMethods){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(signature);
-
-      if(remap){
-        util.remap();
-      }
-
-      String cls = util.getClassName();
-      SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
-
-      String method_sub_sig = util.getMethodSubSignature();
-      SootClass soot_class = Scene.v().getSootClass(cls);
-
-      SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
-      if(method == null){
-        System.out.println("cannot find method: "+util.getSignature());
-        List<SootMethod> methods = soot_class.getMethods();
-        for(SootMethod smethod : methods){
-          System.out.println("  "+smethod.getSignature());
-        }
-        System.exit(0);
-      }
-      SootResolver.v().resolveMethod(method);
-
-      m_otherEntryPoints.add(method);
-    }
   }
 
   private void addRefType(String class_name) {

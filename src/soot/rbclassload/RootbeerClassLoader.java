@@ -1019,11 +1019,12 @@ public class RootbeerClassLoader {
       SootClass curr = Scene.v().getSootClass(app_class);
       for(SootMethod method : curr.getMethods()){
         for(EntryPointDetector detector : m_entryDetectors){
-          if(detector.isEntryPoint(method)){
-            m_entryPoints.add(method.getSignature());
-          }
+          detector.testEntryPoint(method);
         }
       }
+    }
+    for(EntryPointDetector detector : m_entryDetectors){
+      m_entryPoints.addAll(detector.getEntryPoints());
     }
   }
 
@@ -1039,7 +1040,7 @@ public class RootbeerClassLoader {
     }
     visited.add(signature);
     
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
