@@ -30,15 +30,33 @@ import soot.options.Options;
 public class BuiltInRemaps {
 
   private Map<String, String> m_mapping;
+  private Map<String, Boolean> m_isReal;
 
   public BuiltInRemaps(){
     m_mapping = new HashMap<String, String>();
-    m_mapping.put("java.util.concurrent.atomic.AtomicLong", "edu.syr.pcpratts.rootbeer.runtime.remap.GpuAtomicLong");
-    m_mapping.put("java.util.Random", "edu.syr.pcpratts.rootbeer.runtime.remap.Random");
-    m_mapping.put("edu.syr.pcpratts.rootbeer.testcases.rootbeertest.remaptest.CallsPrivateMethod", "edu.syr.pcpratts.rootbeer.runtime.remap.DoesntCallPrivateMethod");
-    m_mapping.put("java.lang.Math", "edu.syr.pcpratts.rootbeer.runtime.remap.java.lang.Math");
-    m_mapping.put("java.lang.Object", "java.lang.Object");
-    m_mapping.put("java.lang.String", "java.lang.String");
+    m_isReal = new HashMap<String, Boolean>();
+    addRealMapping("java.util.concurrent.atomic.AtomicLong", "edu.syr.pcpratts.rootbeer.runtime.remap.GpuAtomicLong");
+    addRealMapping("java.util.Random", "edu.syr.pcpratts.rootbeer.runtime.remap.Random");
+    addRealMapping("edu.syr.pcpratts.rootbeer.testcases.rootbeertest.remaptest.CallsPrivateMethod", "edu.syr.pcpratts.rootbeer.runtime.remap.DoesntCallPrivateMethod");
+    addRealMapping("java.lang.Math", "edu.syr.pcpratts.rootbeer.runtime.remap.java.lang.Math");
+    addFakeMapping("java.lang.Object", "java.lang.Object");
+    addFakeMapping("java.lang.String", "java.lang.String");
+  }
+
+  private void addRealMapping(String from, String to){
+    m_mapping.put(from, to);
+    m_isReal.put(from, true);
+  }
+
+  //a fake mapping is when we are protecting against Options.v().rbcl_remap_all()
+  //from touching something.
+  private void addFakeMapping(String from, String to){
+    m_mapping.put(from, to);
+    m_isReal.put(from, false);  
+  }
+
+  public boolean isRealMapping(String key){
+    return m_isReal.get(key);
   }
 
   public boolean containsKey(String key){

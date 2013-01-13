@@ -30,12 +30,46 @@ import java.util.ArrayList;
 import soot.SootResolver;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.SootField;
 import soot.Scene;
 
-public class VirtualMethodResolver {
+public class MethodFieldFinder {
 
-  public List<SootMethod> find(String signature){
-      
+  public List<SootField> findField(String signature){
+    FieldSignatureUtil util = new FieldSignatureUtil();
+    util.parse(signature);
+
+    String subsig = util.getSubSignature();
+    String start_class = util.getDeclaringClass();
+
+    List<String> queue = new LinkedList<String>();
+    queue.add(start_class);
+
+    List<SootField> ret = new ArrayList<SootField>();
+
+    while(queue.isEmpty() == false){
+      String class_name = queue.get(0);
+      queue.remove(0);
+
+      SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+
+      if(soot_class.declaresField(subsig)){
+        SootField soot_field = soot_class.getField(subsig);
+        ret.add(soot_field);
+      }     
+
+      addToQueue(soot_class, queue);      
+    }
+
+    if(ret.isEmpty()){    
+      throw new RuntimeException("Cannot find field: "+signature+". Are you sure all depdendencies have been added to the input jar?");
+    } else {
+      return ret;
+    }
+  }
+
+  public List<SootMethod> findMethod(String signature){      
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
 
@@ -60,27 +94,31 @@ public class VirtualMethodResolver {
         ret.add(soot_method);
       }
 
-      if(soot_class.hasSuperclass()){
-        SootClass super_class = soot_class.getSuperclass();
-        queue.add(super_class.getName());
-      }
-
-      if(soot_class.hasOuterClass()){
-        SootClass outer_class = soot_class.getOuterClass();
-        queue.add(outer_class.getName());
-      }
-
-      Iterator<SootClass> iter = soot_class.getInterfaces().iterator();
-      while(iter.hasNext()){
-        SootClass curr = iter.next();
-        queue.add(curr.getName());
-      }
+      addToQueue(soot_class, queue);
     }    
 
     if(ret.isEmpty()){    
       throw new RuntimeException("Cannot find method: "+signature+". Are you sure all depdendencies have been added to the input jar?");
     } else {
       return ret;
+    }
+  }
+
+  private void addToQueue(SootClass soot_class, List<String> queue){
+    if(soot_class.hasSuperclass()){
+      SootClass super_class = soot_class.getSuperclass();
+      queue.add(super_class.getName());
+    }
+
+    if(soot_class.hasOuterClass()){
+      SootClass outer_class = soot_class.getOuterClass();
+      queue.add(outer_class.getName());
+    }
+
+    Iterator<SootClass> iter = soot_class.getInterfaces().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      queue.add(curr.getName());
     }
   }
 }

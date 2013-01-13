@@ -158,8 +158,8 @@ public class MethodSignatureUtil {
   }
 
   public SootMethod getSootMethod(){
-    VirtualMethodResolver resolver = new VirtualMethodResolver();
-    List<SootMethod> methods = resolver.find(getSignature());
+    MethodFieldFinder finder = new MethodFieldFinder();
+    List<SootMethod> methods = finder.findMethod(getSignature());
     return methods.get(0);
   }
 

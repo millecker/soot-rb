@@ -285,8 +285,8 @@ public class RootbeerClassLoader {
     Set<String> all_copy = new HashSet<String>();
     all_copy.addAll(all);
     for(String sig : all_copy){
-      VirtualMethodResolver resolver = new VirtualMethodResolver();
-      List<SootMethod> methods = resolver.find(sig);
+      MethodFieldFinder finder = new MethodFieldFinder();
+      List<SootMethod> methods = finder.findMethod(sig);
       for(SootMethod method : methods){      
         dfs(method.getSignature());     
       }
@@ -444,6 +444,12 @@ public class RootbeerClassLoader {
       util.parse(field_sig);
 
       String declaring_class = util.getDeclaringClass();
+      if(built_ins.containsKey(declaring_class)){
+        if(built_ins.isRealMapping(declaring_class)){
+          continue;
+        }
+      }
+
       if(lib_classes.contains(declaring_class)){
         String new_class = m_remapClassName.getMapping(declaring_class);
         util.setDeclaringClass(new_class);

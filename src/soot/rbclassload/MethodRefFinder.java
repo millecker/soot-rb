@@ -31,14 +31,15 @@ import soot.jimple.InvokeExpr;
 
 public class MethodRefFinder {
 
-  private MethodFinder m_methodFinder;
+  private MethodFieldFinder m_methodFieldFinder;
   
   public MethodRefFinder(){
-    m_methodFinder = new MethodFinder();
+    m_methodFieldFinder = new MethodFieldFinder();
   }
           
   public List<String> find(String curr_signature) {
-    SootMethod curr = m_methodFinder.find(curr_signature);
+    List<SootMethod> methods = m_methodFieldFinder.findMethod(curr_signature);
+    SootMethod curr = methods.get(0);
     List<String> ret = new ArrayList<String>();
     if(curr == null || curr.isConcrete() == false){
       return ret;

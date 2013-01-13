@@ -29,6 +29,7 @@ import soot.SootField;
 import java.util.Iterator;
 import soot.Type;
 import soot.Modifier;
+import java.util.List;
 
 public class FieldSignatureUtil {
 
@@ -108,16 +109,9 @@ public class FieldSignatureUtil {
   }
 
   public SootField getSootField(){
-    SootClass soot_class = Scene.v().getSootClass(m_declaringClass);
-    try {
-      return soot_class.getField(getSubSignature());
-    } catch(Exception ex){
-      StringToType converter = new StringToType();
-      Type type = converter.toType(m_type);
-      SootField soot_field = new SootField(m_name, type, Modifier.PUBLIC);
-      soot_class.addField(soot_field);
-      return soot_field;
-    }
+    MethodFieldFinder finder = new MethodFieldFinder();
+    List<SootField> fields = finder.findField(getSignature());
+    return fields.get(0);
   }
 
   @Override
