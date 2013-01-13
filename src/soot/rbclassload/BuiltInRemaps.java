@@ -56,7 +56,11 @@ public class BuiltInRemaps {
   }
 
   public boolean isRealMapping(String key){
-    return m_isReal.get(key);
+    if(m_isReal.containsKey(key)){
+      return m_isReal.get(key);
+    } else {
+      return false;
+    }
   }
 
   public boolean containsKey(String key){

@@ -142,36 +142,26 @@ public class RootbeerClassLoader {
     findEntryPoints();
     loadForwardStringCallGraph();
     loadReverseStringCallGraph();
-    loadAllReachables();
+    findAllFieldsAndMethods();
     segmentLibraryClasses();
-    collectFields();
     cloneLibraryClasses();
     remapFields();
     remapTypes();
     resetState();
     loadForwardStringCallGraph();
     loadReverseStringCallGraph();
-    loadAllReachables();
+    findAllFieldsAndMethods();
     segmentLibraryClasses();
-    collectFields();
     dfsForRootbeer();
 
     Scene.v().loadDynamicClasses();
   }
 
-  public List<String> getClassesToOutput(){
+  private List<String> getReachableClasses(){
     List<String> ret = new ArrayList<String>();
-
     Set<String> ret_set = new HashSet<String>();
-    Set<String> main_classes = new HashSet<String>();
+
     Set<String> all_method_sigs = m_stringCG.getAllSignatures();
-
-    //print reachable sigs
-    System.out.println("reachable sigs: ");
-    for(String sig : all_method_sigs){
-      System.out.println("  "+sig);
-    }
-
     //collect class names and main_classes
     for(String method_sig : all_method_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
@@ -180,12 +170,6 @@ public class RootbeerClassLoader {
       String class_name = util.getClassName();
       if(ret_set.contains(class_name) == false){
         ret_set.add(class_name);
-      }
-      String subsig = util.getMethodSubSignature();
-      if(subsig.equals("void main(java.lang.String[])")){
-        if(main_classes.contains(class_name) == false){
-          main_classes.add(class_name);
-        }
       }
     }  
 
@@ -204,7 +188,6 @@ public class RootbeerClassLoader {
         ret_set.add(field_type);
       }
     }
-    
     //collect class names from generated classes
     List<SootClass> added_classes = Scene.v().getGeneratedClasses();
     for(SootClass added : added_classes){
@@ -215,8 +198,30 @@ public class RootbeerClassLoader {
     }
 
     ret.addAll(ret_set);
+    return ret;    
+  }
 
-    //find <init> and <clinit> of main classes and don't delete them
+  public List<String> getClassesToOutput(){
+    List<String> ret = new ArrayList<String>();
+
+    Set<String> main_classes = new HashSet<String>();
+    Set<String> all_method_sigs = m_stringCG.getAllSignatures();
+    List<String> reachable_classes = getReachableClasses();
+
+    //collect class names and main_classes
+    for(String class_name : reachable_classes){
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      String subsig = "void main(java.lang.String[])";
+
+      if(soot_class.declaresMethod(subsig)){
+        if(main_classes.contains(class_name) == false){
+          main_classes.add(class_name);
+        }
+      }
+    }  
+
+
+    //find <init> of main classes and don't delete them
     for(String main_class : main_classes){
       SootClass soot_class = Scene.v().getSootClass(main_class);
       if(soot_class.declaresMethod("void <init>()")){
@@ -226,28 +231,25 @@ public class RootbeerClassLoader {
           all_method_sigs.add(init_sig);
         }
       }
-      if(soot_class.declaresMethod("void <clinit>()")){
-        SootMethod clinit_method = soot_class.getMethod("void <clinit>()");
-        String clinit_sig = clinit_method.getSignature();
-        if(all_method_sigs.contains(clinit_sig) == false){
-          all_method_sigs.add(clinit_sig);
-        }
-      }
     }
 
     //trim things in classes that are not reachable
-    for(String class_name : ret){
+    for(String class_name : reachable_classes){
       SootClass soot_class = Scene.v().getSootClass(class_name);
       List<SootMethod> methods = soot_class.getMethods();
       List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
       for(SootMethod method : methods){
+        String name = method.getName();
+        //don't delete clinit methods
+        if(name.equals("<clinit>")){
+          continue;
+        }
         String method_sig = method.getSignature();
         if(all_method_sigs.contains(method_sig) == false){
           methods_to_delete.add(method);
         }
       }
       for(SootMethod to_delete : methods_to_delete){
-        System.out.println("removing method: "+to_delete.getSignature());
         soot_class.removeMethod(to_delete);
       }
       List<SootField> fields_to_delete = new ArrayList<SootField>();
@@ -264,7 +266,7 @@ public class RootbeerClassLoader {
       }
     }
 
-    return ret;
+    return reachable_classes;
   }
 
   public void setLoaded(){
@@ -292,6 +294,19 @@ public class RootbeerClassLoader {
       }
     }
     m_stringCG.setAllSignatures(m_visited);
+
+    //load clinits    
+    List<String> reachable_classes = getReachableClasses();
+    for(String class_name : reachable_classes){
+      String clinit_subsig = "void <clinit>()";
+
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      if(soot_class.declaresMethod(clinit_subsig)){
+        SootMethod clinit = soot_class.getMethod(clinit_subsig);
+        SootResolver.v().resolveMethod(clinit);
+        dfs(clinit.getSignature());
+      }
+    }
   }
 
   public boolean isLoaded(){
@@ -309,8 +324,6 @@ public class RootbeerClassLoader {
       return;
     }
     m_visited.add(signature);
-    
-    System.out.println("loadAllReachables.dfs: "+signature);
 
     if(method.isConcrete() == false){
       return;
@@ -388,6 +401,21 @@ public class RootbeerClassLoader {
     }        
   }
 
+  private void findAllFieldsAndMethods(){
+
+    Set<String> all = m_stringCG.getAllSignatures();
+    int size = -1;
+
+    while(size != all.size()){
+      size = all.size();
+      all = m_stringCG.getAllSignatures();
+
+      collectFields();
+      loadAllReachables();
+    }
+  }
+
+
   private void collectFields(){
     m_reachableFields = new HashSet<String>();
     Set<String> all = m_stringCG.getAllSignatures();
@@ -421,6 +449,11 @@ public class RootbeerClassLoader {
     for(String lib_class : lib_classes){
       if(built_in.containsKey(lib_class)){
         m_remapping.put(lib_class, built_in.get(lib_class));
+        continue;
+      }
+
+      if(m_remapClassName.shouldMap(lib_class) == false){
+        m_remapping.put(lib_class, lib_class);
         continue;
       }
 
@@ -522,28 +555,57 @@ public class RootbeerClassLoader {
       }
     }
 
+    BuiltInRemaps built_ins = new BuiltInRemaps();
+
+
     Set<String> all = m_stringCG.getAllSignatures();
     for(String signature : all){
-      signature = remapClassOfMethodSignature(signature);      
-      
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
 
-      SootMethod soot_method = util.getSootMethod();
+      String class_name = util.getClassName();
+      boolean throw_error = true;
+      if(built_ins.isRealMapping(class_name)){
+        throw_error = false;
+      }
 
-      RemapMethod remapper = new RemapMethod();
-      remapper.fixArguments(soot_method);
+      try {
+        signature = remapClassOfMethodSignature(signature);      
+        util.parse(signature);
+
+        SootMethod soot_method = util.getSootMethod();
+
+        RemapMethod remapper = new RemapMethod();
+        remapper.fixArguments(soot_method);
+      } catch(RuntimeException ex){
+        if(throw_error){
+          throw ex;
+        }
+      }
     }
 
     for(String signature : all){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
-      util.remap();
 
-      SootMethod soot_method = util.getSootMethod();
+      String class_name = util.getClassName();
+      boolean throw_error = true;
+      if(built_ins.isRealMapping(class_name)){
+        throw_error = false;
+      }
 
-      RemapMethod remapper = new RemapMethod();
-      remapper.visit(soot_method);
+      try {
+        util.remap();
+
+        SootMethod soot_method = util.getSootMethod();
+  
+        RemapMethod remapper = new RemapMethod();
+        remapper.visit(soot_method);
+      } catch(RuntimeException ex){
+        if(throw_error){
+          throw ex;
+        }
+      }
     }
   }
 
