@@ -148,6 +148,12 @@ public class RootbeerClassLoader {
     cloneLibraryClasses();
     remapFields();
     remapTypes();
+    resetState();
+    loadForwardStringCallGraph();
+    loadReverseStringCallGraph();
+    loadAllReachables();
+    segmentLibraryClasses();
+    collectFields();
     dfsForRootbeer();
 
     Scene.v().loadDynamicClasses();
@@ -158,15 +164,15 @@ public class RootbeerClassLoader {
 
     Set<String> ret_set = new HashSet<String>();
     Set<String> main_classes = new HashSet<String>();
-    
-    //collect class names from reachable method signatures
     Set<String> all_method_sigs = m_stringCG.getAllSignatures();
+
+    //print reachable sigs
     System.out.println("reachable sigs: ");
     for(String sig : all_method_sigs){
       System.out.println("  "+sig);
     }
-    System.exit(0);
 
+    //collect class names and main_classes
     for(String method_sig : all_method_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(method_sig);
@@ -241,6 +247,7 @@ public class RootbeerClassLoader {
         }
       }
       for(SootMethod to_delete : methods_to_delete){
+        System.out.println("removing method: "+to_delete.getSignature());
         soot_class.removeMethod(to_delete);
       }
       List<SootField> fields_to_delete = new ArrayList<SootField>();
@@ -275,9 +282,16 @@ public class RootbeerClassLoader {
   private void loadAllReachables(){
     m_visited = new HashSet<String>();
     Set<String> all = m_stringCG.getAllSignatures();
-    for(String sig : all){
-      dfs(sig);     
+    Set<String> all_copy = new HashSet<String>();
+    all_copy.addAll(all);
+    for(String sig : all_copy){
+      VirtualMethodResolver resolver = new VirtualMethodResolver();
+      List<SootMethod> methods = resolver.find(sig);
+      for(SootMethod method : methods){      
+        dfs(method.getSignature());     
+      }
     }
+    m_stringCG.setAllSignatures(m_visited);
   }
 
   public boolean isLoaded(){
@@ -285,15 +299,18 @@ public class RootbeerClassLoader {
   }
 
   private void dfs(String signature){
-    if(m_visited.contains(signature)){
-      return;
-    }
-    m_visited.add(signature);
-
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
     
     SootMethod method = util.getSootMethod();
+    signature = method.getSignature();
+        
+    if(m_visited.contains(signature)){
+      return;
+    }
+    m_visited.add(signature);
+    
+    System.out.println("loadAllReachables.dfs: "+signature);
 
     if(method.isConcrete() == false){
       return;
@@ -522,6 +539,11 @@ public class RootbeerClassLoader {
       RemapMethod remapper = new RemapMethod();
       remapper.visit(soot_method);
     }
+  }
+
+  private void resetState(){
+    m_stringCG = new StringCallGraph();
+    m_reachableFields.clear();
   }
 
   private void dfsForRootbeer(){

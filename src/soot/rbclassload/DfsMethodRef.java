@@ -63,4 +63,9 @@ public class DfsMethodRef {
     hash = 23 * hash + (this.m_stmt != null ? this.m_stmt.hashCode() : 0);
     return hash;
   }
+
+  @Override
+  public String toString(){
+    return "["+m_ref.getSignature()+", "+m_stmt.toString()+"]";
+  }
 }

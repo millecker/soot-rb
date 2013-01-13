@@ -50,6 +50,7 @@ public class StringCallGraph {
   }
 
   public void addEdge(String source_sig, String dest_sig){
+    System.out.println("Adding edge from: "+source_sig+" to: "+dest_sig);
     addEdge(m_forwardEdges, source_sig, dest_sig);
     addEdge(m_reverseEdges, dest_sig, source_sig);
     if(m_allSignatures.contains(source_sig) == false){
@@ -108,6 +109,10 @@ public class StringCallGraph {
     return m_allSignatures;
   }
 
+  public void setAllSignatures(Set<String> all){
+    m_allSignatures = all;
+  }
+
   public int size(){
     return m_allSignatures.size();
   }
@@ -141,34 +146,6 @@ public class StringCallGraph {
       }
       queue.addAll(targets);
     }
-  }
-
-  public void remapAll(){
-    m_forwardEdges = remapAll(m_forwardEdges);
-    m_reverseEdges = remapAll(m_reverseEdges);
-  } 
-
-  private Map<String, Set<String>> remapAll(Map<String, Set<String>> map){
-    Map<String, Set<String>> new_map = new HashMap<String, Set<String>>();
-    Iterator<String> iter = map.keySet().iterator();
-    while(iter.hasNext()){
-      String key = iter.next();
-      Set<String> targets = map.get(key);
-      for(String target : targets){
-        String source = remapSignature(key);     
-        String dest = remapSignature(target);
-        addEdge(new_map, source, dest);
-      }
-    }
-    return new_map;
-  }
-
-  private String remapSignature(String signature){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-    util.remap();
-    String ret = util.getSignature();
-    return ret;
   }
 
   public Set<String> getReverseEdges(String dest_sig){

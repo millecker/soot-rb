@@ -25,6 +25,8 @@ package soot.rbclassload;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedList;
+import java.util.Iterator;
 import soot.Scene;
 import soot.options.Options;
 import soot.SootClass;
@@ -156,26 +158,9 @@ public class MethodSignatureUtil {
   }
 
   public SootMethod getSootMethod(){
-    String curr_class_name = m_className;
-    while(true){
-      SootResolver.v().resolveClass(curr_class_name, SootClass.HIERARCHY);
-      SootClass soot_class = Scene.v().getSootClass(curr_class_name);
-      if(soot_class.declaresMethod(getMethodSubSignature()) == false){
-        if(soot_class.hasSuperclass()){
-          soot_class = soot_class.getSuperclass();
-          curr_class_name = soot_class.getName();
-        } else {
-          throw new RuntimeException("Cannot find method: "+getSignature()+". Are you sure all dependencies have been added to the input jar?");
-        }
-      } else {
-        break;
-      }
-    }    
-
-    SootClass soot_class = Scene.v().getSootClass(curr_class_name);
-    SootMethod soot_method = soot_class.getMethod(getMethodSubSignature());
-    SootResolver.v().resolveMethod(soot_method);
-    return soot_method;
+    VirtualMethodResolver resolver = new VirtualMethodResolver();
+    List<SootMethod> methods = resolver.find(getSignature());
+    return methods.get(0);
   }
 
   public String getSignature(){

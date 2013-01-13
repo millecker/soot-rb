@@ -1,0 +1,86 @@
+/* Soot - a J*va Optimization Framework
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
+/* The soot.rbclassload package is:
+ * Copyright (C) 2012 Phil Pratt-Szeliga
+ * Copyright (C) 2012 Marc-Andre Laverdiere-Papineau
+ */
+
+package soot.rbclassload;
+
+import java.util.List;
+import java.util.LinkedList;
+import java.util.Iterator;
+import java.util.ArrayList;
+import soot.SootResolver;
+import soot.SootClass;
+import soot.SootMethod;
+import soot.Scene;
+
+public class VirtualMethodResolver {
+
+  public List<SootMethod> find(String signature){
+      
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+
+    String subsig = util.getMethodSubSignature();
+    String start_class = util.getClassName();
+
+    List<String> queue = new LinkedList<String>();
+    queue.add(start_class);
+
+    List<SootMethod> ret = new ArrayList<SootMethod>();
+
+    while(queue.isEmpty() == false){
+      String class_name = queue.get(0);
+      queue.remove(0);
+
+      SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+
+      if(soot_class.declaresMethod(subsig)){
+        SootMethod soot_method = soot_class.getMethod(subsig);
+        SootResolver.v().resolveMethod(soot_method);
+        ret.add(soot_method);
+      }
+
+      if(soot_class.hasSuperclass()){
+        SootClass super_class = soot_class.getSuperclass();
+        queue.add(super_class.getName());
+      }
+
+      if(soot_class.hasOuterClass()){
+        SootClass outer_class = soot_class.getOuterClass();
+        queue.add(outer_class.getName());
+      }
+
+      Iterator<SootClass> iter = soot_class.getInterfaces().iterator();
+      while(iter.hasNext()){
+        SootClass curr = iter.next();
+        queue.add(curr.getName());
+      }
+    }    
+
+    if(ret.isEmpty()){    
+      throw new RuntimeException("Cannot find method: "+signature+". Are you sure all depdendencies have been added to the input jar?");
+    } else {
+      return ret;
+    }
+  }
+}
