@@ -86,6 +86,7 @@ public class RootbeerClassLoader {
   private String m_userJar;
   private StringCallGraph m_stringCG;
   private Set<String> m_reachableFields;
+  private Set<String> m_generatedMethods;
   private Map<String, String> m_remapping;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
@@ -111,12 +112,17 @@ public class RootbeerClassLoader {
 
     m_stringCG = new StringCallGraph();
     m_remapClassName = new RemapClassName();
+    m_generatedMethods = new HashSet<String>();
 
     m_loaded = false;
   }
 
   public static RootbeerClassLoader v() { 
     return G.v().soot_rbclassload_RootbeerClassLoader(); 
+  }
+
+  public void addGeneratedMethod(String signature){
+    m_generatedMethods.add(signature);
   }
 
   public StringCallGraph getStringCallGraph(){
@@ -188,6 +194,7 @@ public class RootbeerClassLoader {
         ret_set.add(field_type);
       }
     }
+
     //collect class names from generated classes
     List<SootClass> added_classes = Scene.v().getGeneratedClasses();
     for(SootClass added : added_classes){
@@ -245,11 +252,16 @@ public class RootbeerClassLoader {
           continue;
         }
         String method_sig = method.getSignature();
+        //don't delete generated methods
+        if(m_generatedMethods.contains(method_sig)){
+          continue;
+        }
         if(all_method_sigs.contains(method_sig) == false){
           methods_to_delete.add(method);
         }
       }
       for(SootMethod to_delete : methods_to_delete){
+        System.out.println("deleting method: "+to_delete.getSignature());
         soot_class.removeMethod(to_delete);
       }
       List<SootField> fields_to_delete = new ArrayList<SootField>();
@@ -279,6 +291,7 @@ public class RootbeerClassLoader {
       m_stringCG.addEntryPoint(entry);
       dfs(entry);     
     }
+    m_stringCG.setAllSignatures(m_visited);
   }
 
   private void loadAllReachables(){
