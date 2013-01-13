@@ -381,8 +381,6 @@ public class DfsInfo {
     addRefType(prefix+"java.lang.Error");
     addRefType(prefix+"java.lang.VirtualMachineError");
     addRefType(prefix+"java.lang.OutOfMemoryError");
-    addRefType("edu.syr.pcpratts.rootbeer.runtime.RootbeerGpu");
-    addRefType("edu.syr.pcpratts.rootbeer.runtime.PrivateFields");
 
     m_builtInTypes.add(ByteType.v());
     m_builtInTypes.add(CharType.v());

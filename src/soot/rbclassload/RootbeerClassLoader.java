@@ -261,7 +261,6 @@ public class RootbeerClassLoader {
         }
       }
       for(SootMethod to_delete : methods_to_delete){
-        System.out.println("deleting method: "+to_delete.getSignature());
         soot_class.removeMethod(to_delete);
       }
       List<SootField> fields_to_delete = new ArrayList<SootField>();
@@ -1002,17 +1001,19 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void doDfs(SootMethod method, Set<String> visited){
+  private void doDfs(SootMethod method, Set<String> visited){    
+    SootClass soot_class = method.getDeclaringClass();
+    if(ignorePackage(soot_class.getName())){
+      return;
+    }
+
     String signature = method.getSignature();
     if(visited.contains(signature)){
       return;
     }
     visited.add(signature);
     
-    SootClass soot_class = method.getDeclaringClass();
-    if(ignorePackage(soot_class.getName())){
-      return;
-    }
+    System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
