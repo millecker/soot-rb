@@ -149,6 +149,7 @@ public class RootbeerClassLoader {
     cachePackageNames();
     loadBuiltIns();
     loadToSignatures();
+    loadRuntimeClasses();
     sortApplicationClasses();
     findEntryPoints();
     loadForwardStringCallGraph();
@@ -312,6 +313,7 @@ public class RootbeerClassLoader {
   }
 
   private void loadForwardStringCallGraph(){
+    System.out.println("loading forward string call graph...");
     m_visited = new HashSet<String>();
     for(String entry : m_entryPoints){
       m_stringCG.addEntryPoint(entry);
@@ -386,6 +388,7 @@ public class RootbeerClassLoader {
   }
 
   private void loadReverseStringCallGraph(){
+    System.out.println("loading reverse string call graph...");
     Set<String> reachable = new HashSet<String>();    
     reachable.addAll(m_entryPoints);
     int prev_size = -1;
@@ -422,10 +425,12 @@ public class RootbeerClassLoader {
   }
 
   private void sortApplicationClasses(){
+    System.out.println("sorting application classes...");
     java.util.Collections.sort(m_appClasses);
   }
 
   private void segmentLibraryClasses(){
+    System.out.println("segmenting application and library classes...");
     for(String app_class : m_appClasses){
       m_stringCG.setApplicationClass(app_class);
     }
@@ -441,7 +446,7 @@ public class RootbeerClassLoader {
   }
 
   private void findAllFieldsAndMethods(){
-
+    System.out.println("finding all fields and methods...");
     Set<String> all = m_stringCG.getAllSignatures();
     int size = -1;
 
@@ -482,6 +487,7 @@ public class RootbeerClassLoader {
   }
 
   private void cloneLibraryClasses(){
+    System.out.println("cloning library classes...");
     m_remapping = new HashMap<String, String>();
 
     BuiltInRemaps built_in = new BuiltInRemaps();
@@ -512,6 +518,7 @@ public class RootbeerClassLoader {
   }
 
   private void remapFields(){
+    System.out.println("remapping fields...");
     Set<String> lib_classes = m_stringCG.getLibraryClasses();
     BuiltInRemaps built_ins = new BuiltInRemaps();
 
@@ -571,6 +578,7 @@ public class RootbeerClassLoader {
   }
 
   private void remapTypes(){    
+    System.out.println("remapping types...");
     Iterator<SootClass> iter = Scene.v().getClasses().snapshotIterator();
     while(iter.hasNext()){
       SootClass soot_class = iter.next();
@@ -653,6 +661,7 @@ public class RootbeerClassLoader {
   }
 
   private void resetState(){
+    System.out.println("resetting state...");
     m_stringCG = new StringCallGraph();
     m_reachableFields.clear();
   }
@@ -867,20 +876,6 @@ public class RootbeerClassLoader {
 	  addBasicClass("java.lang.ref.Finalizer");
   }
 
-  private void addBasicMethod(String signature){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-
-    String cls = util.getClassName();
-    SootResolver.v().resolveClass(cls, SootClass.HIERARCHY);
-
-    String method_sub_sig = util.getMethodSubSignature();
-    SootClass soot_class = Scene.v().getSootClass(cls);
-
-    SootMethod method = RootbeerClassLoader.v().findMethod(soot_class, method_sub_sig);
-    SootResolver.v().resolveMethod(method);
-  }
-
   private void addBasicClass(String class_name) {
     addBasicClass(class_name, SootClass.HIERARCHY);
   }
@@ -890,8 +885,6 @@ public class RootbeerClassLoader {
   }
 
   public void resolveClass(String class_name, int level){
-    //TODO: figure this out for builtins
-    //m_currDfsInfo.addType(RefType.v(class_name));
     SootResolver.v().resolveClass(class_name, level);
   }
 
@@ -983,7 +976,9 @@ public class RootbeerClassLoader {
   }
 
   private void loadToSignatures(){ 
+    System.out.println("loading source paths to signatures...");
     for(String src_folder : m_sourcePaths){
+      System.out.println("src_folder: "+src_folder);
       File file = new File(src_folder);
       if(file.exists()){
         loadToSignatures(file, file);
@@ -1016,6 +1011,8 @@ public class RootbeerClassLoader {
 
         m_classToFilename.put(class_name, full_name);
 
+        System.out.println("loading: "+class_name+" to hierarchy");
+
         SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
         soot_class.setApplicationClass();        
 
@@ -1024,7 +1021,15 @@ public class RootbeerClassLoader {
     }
   }
 
+  private void loadRuntimeClasses(){
+    System.out.println("loading runtime classes...");
+    for(String class_name : m_runtimeClasses){
+      SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
+    }
+  }
+
   private void findEntryPoints(){
+    System.out.println("finding entry points...");
     m_entryPoints = new ArrayList<String>();
     for(String app_class : m_appClasses){
       SootClass curr = Scene.v().getSootClass(app_class);
