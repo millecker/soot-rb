@@ -26,6 +26,7 @@ package soot.rbclassload;
 import java.util.Map;
 import java.util.HashMap;
 import soot.options.Options;
+import java.util.Collection;
 
 public class BuiltInRemaps {
 
@@ -69,5 +70,9 @@ public class BuiltInRemaps {
 
   public String get(String key){
     return m_mapping.get(key);
+  }
+
+  public Collection<String> values(){
+    return m_mapping.values();
   }
 }

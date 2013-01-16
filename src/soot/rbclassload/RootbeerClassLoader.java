@@ -983,7 +983,6 @@ public class RootbeerClassLoader {
   private void loadToSignatures(){ 
     System.out.println("loading source paths to signatures...");
     for(String src_folder : m_sourcePaths){
-      System.out.println("src_folder: "+src_folder);
       File file = new File(src_folder);
       if(file.exists()){
         loadToSignatures(file, file);
@@ -1016,8 +1015,6 @@ public class RootbeerClassLoader {
 
         m_classToFilename.put(class_name, full_name);
 
-        System.out.println("loading: "+class_name+" to hierarchy");
-
         SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
         soot_class.setApplicationClass();        
 
@@ -1028,8 +1025,20 @@ public class RootbeerClassLoader {
 
   private void loadRuntimeClasses(){
     System.out.println("loading runtime classes...");
-    for(String class_name : m_runtimeClasses){
-      SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
+    BuiltInRemaps built_ins = new BuiltInRemaps();
+    Set<String> to_load = new HashSet<String>();
+    to_load.addAll(m_runtimeClasses);
+    to_load.addAll(built_ins.values());
+    for(String class_name : to_load){
+      SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
+      List<SootMethod> methods = soot_class.getMethods();
+      for(SootMethod method : methods){
+        SootResolver.v().resolveMethod(method);
+  
+        if(method.isConcrete()){
+          method.retrieveActiveBody();
+        }
+      }
     }
   }
 
