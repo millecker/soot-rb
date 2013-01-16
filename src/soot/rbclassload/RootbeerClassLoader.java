@@ -167,6 +167,11 @@ public class RootbeerClassLoader {
     dfsForRootbeer();
 
     Scene.v().loadDynamicClasses();
+
+    System.out.println("reachable fields: ");
+    for(String field : m_reachableFields){
+      System.out.println("  "+field);
+    }
   }
 
   private List<String> getReachableClasses(){
