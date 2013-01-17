@@ -246,7 +246,6 @@ public class RootbeerClassLoader {
       }
     }  
 
-
     //find <init> of main classes and don't delete them
     for(String main_class : main_classes){
       SootClass soot_class = Scene.v().getSootClass(main_class);
@@ -279,11 +278,6 @@ public class RootbeerClassLoader {
       List<SootMethod> methods = soot_class.getMethods();
       List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
       for(SootMethod method : methods){
-        String name = method.getName();
-        //don't delete clinit methods
-        if(name.equals("<clinit>")){
-          continue;
-        }
         String method_sig = method.getSignature();
         //don't delete generated methods
         if(m_generatedMethods.contains(method_sig)){
@@ -307,6 +301,20 @@ public class RootbeerClassLoader {
       }
       for(SootField to_delete : fields_to_delete){
         soot_class.removeField(to_delete);
+      }
+    }
+
+    //load bodies for all methods
+    Set<String> body_load_sigs = new HashSet<String>();
+    body_load_sigs.addAll(m_generatedMethods);
+    body_load_sigs.addAll(all_method_sigs);
+    for(String sig : body_load_sigs){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(sig);
+
+      SootMethod method = util.getSootMethod();
+      if(method.isConcrete() && method.hasActiveBody() == false){
+        method.retrieveActiveBody();
       }
     }
 
@@ -390,6 +398,11 @@ public class RootbeerClassLoader {
         throw ex;
       }
     }    
+
+    //dfs visit from clinit
+    String class_name = util.getClassName();
+    String clinit_sig = "<"+class_name+": void <clinit>()>";
+    dfs(clinit_sig);
   }
 
   private void loadReverseStringCallGraph(){
