@@ -291,6 +291,11 @@ public class RootbeerClassLoader {
         }
         if(all_method_sigs.contains(method_sig) == false){
           methods_to_delete.add(method);
+        } else {
+          //load the body in case it hasn't
+          if(method.isConcrete()){
+            method.retrieveActiveBody();
+          }
         }
       }
       for(SootMethod to_delete : methods_to_delete){
@@ -1115,6 +1120,31 @@ public class RootbeerClassLoader {
       } 
       
       doDfs(dest, visited);
+    }
+
+    //load poly methods
+    String subsig = method.getSubSignature();
+    List<SootClass> queue = new LinkedList<SootClass>();
+    if(soot_class.hasSuperclass()){
+      queue.add(soot_class.getSuperclass());
+    }
+    if(soot_class.hasOuterClass()){
+      queue.add(soot_class.getOuterClass());
+    }
+    while(queue.isEmpty() == false){
+      SootClass curr = queue.get(0);
+      queue.remove(0);
+
+      if(curr.declaresMethod(subsig)){
+        SootMethod new_method = curr.getMethod(subsig);
+        doDfs(new_method, visited);
+      }
+      if(curr.hasSuperclass()){
+        queue.add(curr.getSuperclass());
+      }
+      if(curr.hasOuterClass()){
+        queue.add(curr.getOuterClass());
+      }
     }
   }
 
