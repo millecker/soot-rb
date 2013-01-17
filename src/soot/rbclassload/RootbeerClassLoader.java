@@ -83,6 +83,7 @@ public class RootbeerClassLoader {
   private List<String> m_appClasses;
   private List<String> m_entryPoints;
   private List<String> m_cudaEntryPoints;
+  private List<String> m_cudaFields;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -126,6 +127,10 @@ public class RootbeerClassLoader {
     m_cudaEntryPoints = entries;
   }
 
+  public void setCudaFields(List<String> fields){
+    m_cudaFields = fields;
+  }
+
   public void addGeneratedMethod(String signature){
     m_generatedMethods.add(signature);
   }
@@ -166,12 +171,12 @@ public class RootbeerClassLoader {
     segmentLibraryClasses();
     dfsForRootbeer();
 
-    Scene.v().loadDynamicClasses();
-
     System.out.println("reachable fields: ");
     for(String field : m_reachableFields){
       System.out.println("  "+field);
     }
+
+    Scene.v().loadDynamicClasses();
   }
 
   private List<String> getReachableClasses(){
@@ -698,6 +703,14 @@ public class RootbeerClassLoader {
         util.parse(cuda_entry);
         soot_method = util.getSootMethod();
         doDfs(soot_method, visited);
+      }
+
+      for(String cuda_field : m_cudaFields){
+        FieldSignatureUtil futil = new FieldSignatureUtil();
+        futil.parse(cuda_field);
+      
+        SootField soot_field = futil.getSootField();
+        dfs_info.addField(soot_field);
       }
 
       System.out.println("building class hierarchy for: "+entry+"...");
