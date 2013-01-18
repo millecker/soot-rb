@@ -84,6 +84,8 @@ public class RootbeerClassLoader {
   private List<String> m_entryPoints;
   private List<String> m_cudaEntryPoints;
   private List<String> m_cudaFields;
+  private Set<String> m_interfaceSignatures;
+  private Set<String> m_interfaceClasses;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -115,6 +117,8 @@ public class RootbeerClassLoader {
     m_stringCG = new StringCallGraph();
     m_remapClassName = new RemapClassName();
     m_generatedMethods = new HashSet<String>();
+    m_interfaceSignatures = new HashSet<String>();
+    m_interfaceClasses = new HashSet<String>();
 
     m_loaded = false;
   }
@@ -158,7 +162,6 @@ public class RootbeerClassLoader {
     sortApplicationClasses();
     findEntryPoints();
     loadForwardStringCallGraph();
-    loadReverseStringCallGraph();
     findAllFieldsAndMethods();
     segmentLibraryClasses();
     cloneLibraryClasses();
@@ -166,7 +169,6 @@ public class RootbeerClassLoader {
     remapTypes();
     resetState();
     loadForwardStringCallGraph();
-    loadReverseStringCallGraph();
     findAllFieldsAndMethods();
     segmentLibraryClasses();
     dfsForRootbeer();
@@ -274,6 +276,11 @@ public class RootbeerClassLoader {
         continue;
       }
 
+      //don't trim any named runtime classes
+      if(m_runtimeClasses.contains(class_name)){
+        continue;
+      }
+
       SootClass soot_class = Scene.v().getSootClass(class_name);
       List<SootMethod> methods = soot_class.getMethods();
       List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
@@ -368,6 +375,75 @@ public class RootbeerClassLoader {
     }
   }
 
+  public void findInterfaces(){
+    System.out.println("finding interfaces...");
+    m_interfaceSignatures.clear();
+    m_interfaceClasses.clear();
+    Set<String> reachable_methods = m_stringCG.getAllSignatures();
+    for(String sig : reachable_methods){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(sig);
+
+      String class_name = util.getClassName();
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      if(soot_class.isInterface()){
+        m_interfaceSignatures.add(sig);
+        m_interfaceClasses.add(class_name);
+      }
+    }
+  }
+
+  public void loadCallbacks(){
+    System.out.println("loading callbacks...");
+    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
+    while(iter.hasNext()){
+      SootClass soot_class = iter.next();
+      List<SootMethod> methods = soot_class.getMethods();
+      for(SootMethod method : methods){
+        Set<String> signatures = getVirtualSignatures(method);
+        for(String sig : signatures){
+          if(m_interfaceSignatures.contains(sig)){
+            dfs(sig);
+          }
+        }
+      }
+    }
+  }
+
+  public Set<String> getVirtualSignatures(SootMethod method){
+    Set<String> ret = new HashSet<String>();
+    SootClass soot_class = method.getDeclaringClass();
+    String subsig = method.getSubSignature();
+    
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(method.getSignature());
+  
+    List<SootClass> queue = new LinkedList<SootClass>();
+    queue.add(soot_class);
+  
+    while(queue.isEmpty() == false){
+      SootClass curr = queue.get(0);
+      queue.remove(0);
+
+      if(curr.declaresMethod(subsig)){
+        util.setClassName(curr.getName());
+        ret.add(util.getSignature());
+      }
+
+      if(curr.hasSuperclass()){
+        queue.add(curr.getSuperclass());
+      }
+      if(curr.hasOuterClass()){
+        queue.add(curr.getOuterClass());
+      }
+      Iterator<SootClass> iter = curr.getInterfaces().iterator();
+      while(iter.hasNext()){
+        queue.add(iter.next());
+      }
+    }
+    return ret;
+  }
+
   public boolean isLoaded(){
     return m_loaded;
   }
@@ -383,6 +459,7 @@ public class RootbeerClassLoader {
       return;
     }
     m_visited.add(signature);
+    m_stringCG.addAllSignature(signature);
 
     if(method.isConcrete() == false){
       return;
@@ -410,10 +487,30 @@ public class RootbeerClassLoader {
     dfs(clinit_sig);
   }
 
+  private Set<String> getEntryPointCtors(){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    Set<String> ret = new HashSet<String>();
+    for(String entry : m_entryPoints){
+      util.parse(entry);
+      String class_name = util.getClassName();
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      List<SootMethod> methods = soot_class.getMethods();
+      for(SootMethod method : methods){
+        String name = method.getName();
+        if(name.equals("<init>")){
+          ret.add(method.getSignature());
+        }
+      }
+    }
+    return ret;
+  }
+
   private void loadReverseStringCallGraph(){
     System.out.println("loading reverse string call graph...");
     Set<String> reachable = new HashSet<String>();    
     reachable.addAll(m_entryPoints);
+    reachable.addAll(getEntryPointCtors());
+    reachable.addAll(m_interfaceSignatures);
     int prev_size = -1;
     while(reachable.size() != prev_size){
       prev_size = reachable.size();
@@ -422,6 +519,14 @@ public class RootbeerClassLoader {
         List<SootMethod> methods = soot_class.getMethods();
         for(SootMethod method : methods){
           reverseDfs(method, reachable);
+
+          Set<String> signatures = getVirtualSignatures(method);
+          for(String virtual_sig : signatures){
+            if(m_interfaceSignatures.contains(virtual_sig)){
+              m_stringCG.addAllSignature(method.getSignature());
+              break;
+            }
+          }
         }
       }
     }
@@ -477,8 +582,11 @@ public class RootbeerClassLoader {
       size = all.size();
       all = m_stringCG.getAllSignatures();
 
+      loadReverseStringCallGraph();
       collectFields();
-      loadAllReachables();
+      loadAllReachables();   
+      findInterfaces();
+      loadCallbacks();       
     }
   }
 
@@ -630,8 +738,6 @@ public class RootbeerClassLoader {
     }
 
     BuiltInRemaps built_ins = new BuiltInRemaps();
-
-
     Set<String> all = m_stringCG.getAllSignatures();
     for(String signature : all){
       MethodSignatureUtil util = new MethodSignatureUtil();
