@@ -108,6 +108,10 @@ public class StringCallGraph {
     return m_allSignatures;
   }
 
+  public void addAllSignature(String signature){
+    m_allSignatures.add(signature);
+  }
+
   public void setAllSignatures(Set<String> all){
     m_allSignatures = all;
   }
