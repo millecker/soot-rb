@@ -543,6 +543,13 @@ public class RootbeerClassLoader {
         }
       }
 
+      //don't remap if declaring class is a keep package
+      for(String keep_package : m_keepPackages){
+        if(declaring_class.startsWith(keep_package)){
+          continue;
+        }
+      }
+
       if(lib_classes.contains(declaring_class)){
         String new_class = m_remapClassName.getMapping(declaring_class);
         util.setDeclaringClass(new_class);
