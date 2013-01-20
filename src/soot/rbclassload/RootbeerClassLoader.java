@@ -79,6 +79,7 @@ public class RootbeerClassLoader {
   private List<EntryPointDetector> m_entryDetectors;
   private List<String> m_ignorePackages;
   private List<String> m_keepPackages;
+  private List<String> m_testCasePackages;
   private List<String> m_runtimeClasses;
   private List<String> m_appClasses;
   private List<String> m_entryPoints;
@@ -108,7 +109,8 @@ public class RootbeerClassLoader {
     m_loadedCount = 0;
 
     m_ignorePackages = new ArrayList<String>();    
-    m_keepPackages = new ArrayList<String>();    
+    m_keepPackages = new ArrayList<String>();
+    m_testCasePackages = new ArrayList<String>();    
     m_runtimeClasses = new ArrayList<String>();
 
     m_appClasses = new ArrayList<String>();
@@ -264,15 +266,7 @@ public class RootbeerClassLoader {
     for(String class_name : reachable_classes){
         
       //don't trim the runtime classes in the keep_packages
-      boolean should_skip = false;
-      for(String keep_package : m_keepPackages){
-        if(class_name.startsWith(keep_package)){
-          should_skip = true;
-          break;
-        }
-      }
-
-      if(should_skip){
+      if(isKeepPackage(class_name)){
         continue;
       }
 
@@ -664,11 +658,8 @@ public class RootbeerClassLoader {
         }
       }
 
-      //don't remap if declaring class is a keep package
-      for(String keep_package : m_keepPackages){
-        if(declaring_class.startsWith(keep_package)){
-          continue;
-        }
+      if(isKeepPackage(declaring_class)){
+        continue;
       }
 
       if(lib_classes.contains(declaring_class)){
@@ -715,6 +706,15 @@ public class RootbeerClassLoader {
     return util.getSignature();
   }
 
+  private boolean isKeepPackage(String declaring_class){
+    for(String keep_package : m_keepPackages){
+      if(declaring_class.startsWith(keep_package)){
+        return true;
+      }
+    }
+    return false;
+  }
+
   private void remapTypes(){    
     System.out.println("remapping types...");
     Iterator<SootClass> iter = Scene.v().getClasses().snapshotIterator();
@@ -756,6 +756,11 @@ public class RootbeerClassLoader {
         throw_error = false;
       }
 
+      String declaring_class = util.getClassName();
+      if(isKeepPackage(declaring_class)){
+        continue;
+      }
+
       try {
         signature = remapClassOfMethodSignature(signature);      
         util.parse(signature);
@@ -779,6 +784,11 @@ public class RootbeerClassLoader {
       boolean throw_error = true;
       if(built_ins.isRealMapping(class_name)){
         throw_error = false;
+      }
+
+      String declaring_class = util.getClassName();
+      if(isKeepPackage(declaring_class)){
+        continue;
       }
 
       try {
@@ -1355,6 +1365,11 @@ public class RootbeerClassLoader {
         return false;
       }
     }
+    for(String test_package : m_testCasePackages){
+      if(class_name.startsWith(test_package)){
+        return false;
+      }
+    }
     for(String ignore_package : m_ignorePackages){
       if(class_name.startsWith(ignore_package)){
         return true;
@@ -1373,6 +1388,10 @@ public class RootbeerClassLoader {
 
   public void addKeepPackages(String pkg_name){
     m_keepPackages.add(pkg_name);
+  }
+
+  public void addTestCasePackage(String pkg_name){
+    m_testCasePackages.add(pkg_name);
   }
 
   public SootMethod findMethod(SootClass curr, String subsig){
