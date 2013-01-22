@@ -518,6 +518,7 @@ public class RootbeerClassLoader {
           for(String virtual_sig : signatures){
             if(m_interfaceSignatures.contains(virtual_sig)){
               m_stringCG.addAllSignature(method.getSignature());
+              reachable.add(virtual_sig);
               break;
             }
           }
@@ -542,6 +543,19 @@ public class RootbeerClassLoader {
       if(reachable.contains(dest_sig)){
         m_stringCG.addEdge(signature, dest_sig);
         reachable.add(signature);
+
+        //add ctors of reachable
+        MethodSignatureUtil util = new MethodSignatureUtil();
+        util.parse(signature);
+        String class_name = util.getClassName();
+        SootClass soot_class = Scene.v().getSootClass(class_name);
+        List<SootMethod> inits = soot_class.getMethods();
+        for(SootMethod init : inits){
+          String name = init.getName();
+          if(name.equals("<init>")){
+            reachable.add(init.getSignature());
+          }          
+        }
       }
     }
   }
