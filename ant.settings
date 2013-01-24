@@ -9,9 +9,9 @@ baksmali.jar=libs/baksmali-1.3.2.jar
 ## jastaddfrontend.loc=../JastAddExtensions/SootJastAddJ
 
 ## Location of Jasmin classes jar file
-jasmin.jar=../jasminclasses-2.5.0.jar
+jasmin.jar=libs/jasminclasses-2.5.0.jar
 
-heros.jar=../heros/heros/heros-trunk.jar
+heros.jar=libs/heros-trunk.jar
 
 ## Location of Eclipse installation.
 ## This should have a directory called plugins in it.
