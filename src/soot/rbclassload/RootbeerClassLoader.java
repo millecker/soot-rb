@@ -384,6 +384,11 @@ public class RootbeerClassLoader {
         m_interfaceSignatures.add(sig);
         m_interfaceClasses.add(class_name);
       }
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.isAbstract()){
+        m_interfaceSignatures.add(sig);
+        m_interfaceClasses.add(class_name);
+      }
     }
   }
 
@@ -394,14 +399,46 @@ public class RootbeerClassLoader {
       SootClass soot_class = iter.next();
       List<SootMethod> methods = soot_class.getMethods();
       for(SootMethod method : methods){
+        //System.out.println("method sig: "+method.getSignature());
         Set<String> signatures = getVirtualSignatures(method);
         for(String sig : signatures){
+          //System.out.println("  virtual sig: "+sig);
           if(m_interfaceSignatures.contains(sig)){
             dfs(sig);
           }
         }
       }
     }
+    //System.out.println("interface signatures: ");
+    //for(String iface_sig : m_interfaceSignatures){
+    //  System.out.println("  "+iface_sig);
+    //}
+  }
+
+  public Set<String> getVirtualSignaturesDown(SootMethod method){
+    Set<String> ret = new HashSet<String>();
+
+    SootClass soot_class = method.getDeclaringClass();
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(method.getSignature());
+    
+    String subsig = method.getSubSignature();
+
+    //get classes going down
+    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      if(curr.equals(soot_class)){
+        continue;
+      }
+      if(derivesFrom(curr, soot_class)){
+        if(curr.declaresMethod(subsig)){
+          util.setClassName(curr.getName());
+          ret.add(util.getSignature());
+        }
+      }
+    }
+    return ret;
   }
 
   public Set<String> getVirtualSignatures(SootMethod method){
@@ -415,6 +452,7 @@ public class RootbeerClassLoader {
     List<SootClass> queue = new LinkedList<SootClass>();
     queue.add(soot_class);
   
+    //get classes going up
     while(queue.isEmpty() == false){
       SootClass curr = queue.get(0);
       queue.remove(0);
@@ -435,7 +473,35 @@ public class RootbeerClassLoader {
         queue.add(iter.next());
       }
     }
+
     return ret;
+  }
+
+  private boolean derivesFrom(SootClass derived, SootClass parent){
+    if(parent.getName().equals("java.lang.Object")){
+      return false;
+    }
+    if(derived.equals(parent)){
+      return true;
+    }
+    if(derived.hasSuperclass()){
+      if(derivesFrom(derived.getSuperclass(), parent)){
+        return true;
+      }
+    }
+    if(derived.hasOuterClass()){
+      if(derivesFrom(derived.getOuterClass(), parent)){
+        return true;
+      }
+    }
+    Iterator<SootClass> iter = derived.getInterfaces().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      if(derivesFrom(curr, parent)){
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean isLoaded(){
@@ -1221,7 +1287,8 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void doDfs(SootMethod method, Set<String> visited){    
+  private void doDfs(SootMethod method, Set<String> visited){  
+
     SootClass soot_class = method.getDeclaringClass();
     if(ignorePackage(soot_class.getName())){
       return;
@@ -1233,7 +1300,26 @@ public class RootbeerClassLoader {
     }
     visited.add(signature);
     
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
+
+    Set<String> signatures = getVirtualSignaturesDown(method);
+    for(String sig : signatures){
+      System.out.println("doDfs virtual sig: "+sig+" "+method.getSignature());
+      
+      if(sig.equals(method.getSignature())){
+        continue;
+      }
+
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(sig);
+
+      SootMethod virtual_method = util.getSootMethod();
+      doDfs(virtual_method, visited);
+    }    
+
+    if(method.isConcrete() == false){
+      return;
+    }
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
@@ -1263,12 +1349,7 @@ public class RootbeerClassLoader {
     for(DfsMethodRef ref : methods){
       SootMethodRef mref = ref.getSootMethodRef();
       SootClass method_class = mref.declaringClass();
-      SootMethod dest = mref.resolve();
-
-      if(dest.isConcrete() == false){
-        continue;
-      } 
-      
+      SootMethod dest = mref.resolve();     
       doDfs(dest, visited);
     }
 
