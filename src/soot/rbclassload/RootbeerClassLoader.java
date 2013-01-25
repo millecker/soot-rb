@@ -946,7 +946,10 @@ public class RootbeerClassLoader {
   private void findNewInvokes(){
     m_newInvokes.clear();
     for(String entry : m_entryPoints){
-      System.out.println("finding new invokes for: "+entry+"...");
+      if(m_dfsInfos.containsKey(entry) == false){
+        continue;
+      }
+      System.out.println("finding new invokes for: "+entry+"..."); 
       DfsInfo dfs_info = m_dfsInfos.get(entry);
       Set<String> methods = dfs_info.getMethods();
       for(String method : methods){
