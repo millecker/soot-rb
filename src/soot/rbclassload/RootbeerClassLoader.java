@@ -46,6 +46,11 @@ import soot.Pack;
 import soot.PackManager;
 import soot.Body;
 import soot.util.Chain;
+import soot.ValueBox;
+import soot.Value;
+import soot.Unit;
+import soot.jimple.NewExpr;
+import soot.jimple.NewArrayExpr;
 
 import java.util.List;
 import java.util.LinkedList;
@@ -87,6 +92,7 @@ public class RootbeerClassLoader {
   private List<String> m_cudaFields;
   private Set<String> m_interfaceSignatures;
   private Set<String> m_interfaceClasses;
+  private Set<String> m_newInvokes;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -121,6 +127,7 @@ public class RootbeerClassLoader {
     m_generatedMethods = new HashSet<String>();
     m_interfaceSignatures = new HashSet<String>();
     m_interfaceClasses = new HashSet<String>();
+    m_newInvokes = new HashSet<String>();
 
     m_loaded = false;
   }
@@ -425,9 +432,8 @@ public class RootbeerClassLoader {
     String subsig = method.getSubSignature();
 
     //get classes going down
-    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
-    while(iter.hasNext()){
-      SootClass curr = iter.next();
+    for(String class_name : m_newInvokes){
+      SootClass curr = Scene.v().getSootClass(class_name);
       if(curr.equals(soot_class)){
         continue;
       }
@@ -893,10 +899,15 @@ public class RootbeerClassLoader {
   }
 
   private void dfsForRootbeer(){
-    System.out.println("entry_points: ");
-    for(String entry : m_entryPoints){
-      System.out.println("  "+entry);
+    int prev_size = -1;
+    while(prev_size != m_newInvokes.size()){
+      prev_size = m_newInvokes.size();
+      execRootbeerDfs();
+      findNewInvokes();
     }
+  }
+
+  private void execRootbeerDfs(){
     for(String entry : m_entryPoints){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(entry);
@@ -933,6 +944,47 @@ public class RootbeerClassLoader {
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
       m_currDfsInfo.createClassHierarchy();
+    }
+  }
+
+  private void findNewInvokes(){
+    m_newInvokes.clear();
+    for(String entry : m_entryPoints){
+      System.out.println("finding new invokes for: "+entry+"...");
+      DfsInfo dfs_info = m_dfsInfos.get(entry);
+      Set<String> methods = dfs_info.getMethods();
+      for(String method : methods){
+        MethodSignatureUtil util = new MethodSignatureUtil();
+        util.parse(method);
+
+        SootMethod soot_method = util.getSootMethod();
+        if(soot_method.isConcrete() == false){
+          continue;
+        }
+        Body body = soot_method.retrieveActiveBody();    
+        Iterator<Unit> iter = body.getUnits().iterator();
+        while(iter.hasNext()){
+          Unit curr = iter.next();
+          List<ValueBox> boxes = curr.getUseAndDefBoxes();
+          for(ValueBox box : boxes){
+            Value value = box.getValue();
+            if(value instanceof NewExpr){
+              NewExpr new_expr = (NewExpr) value;
+              RefType ref_type = new_expr.getBaseType();
+              String class_name = ref_type.getClassName();
+              m_newInvokes.add(class_name);
+            } else if(value instanceof NewArrayExpr){
+              NewArrayExpr new_expr = (NewArrayExpr) value;
+              Type type = new_expr.getBaseType();
+              if(type instanceof RefType){
+                RefType ref_type = (RefType) type;
+                String class_name = ref_type.getClassName();
+                m_newInvokes.add(class_name);
+              }
+            }   
+          }
+        }    
+      }            
     }
   }
 
@@ -1288,24 +1340,8 @@ public class RootbeerClassLoader {
   }
 
   private void doDfs(SootMethod method, Set<String> visited){  
-
-    SootClass soot_class = method.getDeclaringClass();
-    if(ignorePackage(soot_class.getName())){
-      return;
-    }
-
-    String signature = method.getSignature();
-    if(visited.contains(signature)){
-      return;
-    }
-    visited.add(signature);
-    
-    System.out.println("doDfs: "+signature);
-
     Set<String> signatures = getVirtualSignaturesDown(method);
-    for(String sig : signatures){
-      System.out.println("doDfs virtual sig: "+sig+" "+method.getSignature());
-      
+    for(String sig : signatures){      
       if(sig.equals(method.getSignature())){
         continue;
       }
@@ -1320,6 +1356,19 @@ public class RootbeerClassLoader {
     if(method.isConcrete() == false){
       return;
     }
+
+    SootClass soot_class = method.getDeclaringClass();
+    if(ignorePackage(soot_class.getName())){
+      return;
+    }
+
+    String signature = method.getSignature();
+    if(visited.contains(signature)){
+      return;
+    }
+    visited.add(signature);
+    
+    //System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
