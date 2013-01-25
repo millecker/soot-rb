@@ -416,10 +416,6 @@ public class RootbeerClassLoader {
         }
       }
     }
-    //System.out.println("interface signatures: ");
-    //for(String iface_sig : m_interfaceSignatures){
-    //  System.out.println("  "+iface_sig);
-    //}
   }
 
   public Set<String> getVirtualSignaturesDown(SootMethod method){
