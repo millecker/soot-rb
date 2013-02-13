@@ -280,6 +280,19 @@ public class DfsInfo {
     return m_dfsTypes;
   }
 
+  public boolean reachesJavaLangClass(){
+    for(Type type : m_dfsTypes){
+      if(type instanceof RefType){
+        RefType ref_type = (RefType) type;
+        String class_name = ref_type.getClassName();
+        if(class_name.equals("java.lang.Class")){
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   public void addType(Type name) {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);

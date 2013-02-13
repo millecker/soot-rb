@@ -936,6 +936,8 @@ public class RootbeerClassLoader {
         dfs_info.addField(soot_field);
       }
 
+      
+
       System.out.println("building class hierarchy for: "+entry+"...");
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
