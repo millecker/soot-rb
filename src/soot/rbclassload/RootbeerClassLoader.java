@@ -1363,6 +1363,10 @@ public class RootbeerClassLoader {
       return;
     }
 
+    if(isKeepPackage(soot_class.getName())){
+      return;
+    }
+
     String signature = method.getSignature();
     if(visited.contains(signature)){
       return;
@@ -1440,15 +1444,20 @@ public class RootbeerClassLoader {
         continue;
       }
         
-      m_currDfsInfo.addType(curr);
-      
       SootClass type_class = findTypeClass(curr);
       if(type_class == null){
+        m_currDfsInfo.addType(curr);
         continue;
       }
       
       type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
+
+      if(isKeepPackage(type_class.getName())){
+        continue;
+      }
       
+      m_currDfsInfo.addType(curr);
+
       if(type_class.hasSuperclass()){
         queue.add(type_class.getSuperclass().getType());
         
