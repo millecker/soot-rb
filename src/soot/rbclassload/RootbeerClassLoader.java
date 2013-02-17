@@ -76,6 +76,7 @@ public class RootbeerClassLoader {
   private DfsInfo m_currDfsInfo;
 
   private Map<String, Set<String>> m_packageNameCache;
+  private Map<String, Set<String>> m_virtualSignatures;
   private List<String> m_sourcePaths;
   private Map<String, String> m_classToFilename;
   private String m_tempFolder;
@@ -128,6 +129,7 @@ public class RootbeerClassLoader {
     m_interfaceSignatures = new HashSet<String>();
     m_interfaceClasses = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
+    m_virtualSignatures = new HashMap<String, Set<String>>();
 
     m_loaded = false;
   }
@@ -444,9 +446,12 @@ public class RootbeerClassLoader {
   }
 
   public Set<String> getVirtualSignatures(SootMethod method){
+    String subsig = method.getSubSignature();
+    if(m_virtualSignatures.containsKey(subsig)){
+      return m_virtualSignatures.get(subsig);
+    }
     Set<String> ret = new HashSet<String>();
     SootClass soot_class = method.getDeclaringClass();
-    String subsig = method.getSubSignature();
     
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(method.getSignature());
@@ -476,6 +481,7 @@ public class RootbeerClassLoader {
       }
     }
 
+    m_virtualSignatures.put(subsig, ret);
     return ret;
   }
 
@@ -573,22 +579,22 @@ public class RootbeerClassLoader {
     reachable.addAll(m_entryPoints);
     reachable.addAll(getEntryPointCtors());
     reachable.addAll(m_interfaceSignatures);
-    int prev_size = -1;
-    while(reachable.size() != prev_size){
-      prev_size = reachable.size();
-      for(String app_class : m_appClasses){
-        SootClass soot_class = Scene.v().getSootClass(app_class);
-        List<SootMethod> methods = soot_class.getMethods();
-        for(SootMethod method : methods){
-          reverseDfs(method, reachable);
 
-          Set<String> signatures = getVirtualSignatures(method);
-          for(String virtual_sig : signatures){
-            if(m_interfaceSignatures.contains(virtual_sig)){
-              m_stringCG.addAllSignature(method.getSignature());
-              reachable.add(virtual_sig);
-              break;
-            }
+    Stopwatch watch_dfs = new Stopwatch();
+    Stopwatch watch_virt = new Stopwatch();
+    int prev_size = -1;
+    for(String app_class : m_appClasses){
+      SootClass soot_class = Scene.v().getSootClass(app_class);
+      List<SootMethod> methods = soot_class.getMethods();
+      for(SootMethod method : methods){
+        reverseDfs(method, reachable);
+
+        Set<String> signatures = getVirtualSignatures(method);
+        for(String virtual_sig : signatures){
+          if(m_interfaceSignatures.contains(virtual_sig)){
+            m_stringCG.addAllSignature(method.getSignature());
+            reachable.add(virtual_sig);
+            break;
           }
         }
       }
