@@ -782,8 +782,10 @@ public class RootbeerClassLoader {
     util.parse(signature);
  
     String class_name = util.getClassName();
-    class_name = m_remapClassName.getMapping(class_name);
-    util.setClassName(class_name);        
+    String new_class_name = m_remapClassName.getMapping(class_name);
+    util.setClassName(new_class_name);        
+
+    System.out.println("remapped: "+class_name+" to "+new_class_name);
 
     return util.getSignature();
   }
@@ -800,6 +802,8 @@ public class RootbeerClassLoader {
   private void remapTypes(){    
     System.out.println("remapping types...");
     Iterator<SootClass> iter = Scene.v().getClasses().snapshotIterator();
+
+    //remapping superclass, interfaces and outerclass
     while(iter.hasNext()){
       SootClass soot_class = iter.next();
       if(soot_class.hasSuperclass()){
@@ -826,6 +830,7 @@ public class RootbeerClassLoader {
       }
     }
 
+    //remapping arguments of all signatures from string call graph
     BuiltInRemaps built_ins = new BuiltInRemaps();
     Set<String> all = m_stringCG.getAllSignatures();
     for(String signature : all){
@@ -858,6 +863,7 @@ public class RootbeerClassLoader {
       }
     }
 
+    //remapping bodies
     for(String signature : all){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
@@ -937,7 +943,6 @@ public class RootbeerClassLoader {
       }
 
       
-
       System.out.println("building class hierarchy for: "+entry+"...");
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
@@ -1341,6 +1346,8 @@ public class RootbeerClassLoader {
   }
 
   private void doDfs(SootMethod method, Set<String> visited){  
+    System.out.println("doDfs: "+method.getSignature());
+
     Set<String> signatures = getVirtualSignaturesDown(method);
     for(String sig : signatures){      
       if(sig.equals(method.getSignature())){
@@ -1360,10 +1367,12 @@ public class RootbeerClassLoader {
 
     SootClass soot_class = method.getDeclaringClass();
     if(ignorePackage(soot_class.getName())){
+      System.out.println("  doDfs ignore package: "+method.getSignature());
       return;
     }
 
     if(isKeepPackage(soot_class.getName())){
+      System.out.println("  doDfs keep package: "+method.getSignature());
       return;
     }
 

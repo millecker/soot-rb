@@ -36,10 +36,10 @@ public class BuiltInRemaps {
   public BuiltInRemaps(){
     m_mapping = new HashMap<String, String>();
     m_isReal = new HashMap<String, Boolean>();
-    addRealMapping("java.util.concurrent.atomic.AtomicLong", "edu.syr.pcpratts.rootbeer.runtime.remap.GpuAtomicLong");
-    addRealMapping("java.util.Random", "edu.syr.pcpratts.rootbeer.runtime.remap.Random");
+    addRealMapping("java.util.concurrent.atomic.AtomicLong", "edu.syr.pcpratts.rootbeer.remap.GpuAtomicLong");
+    addRealMapping("java.util.Random", "edu.syr.pcpratts.rootbeer.remap.Random");
     addRealMapping("edu.syr.pcpratts.rootbeer.testcases.rootbeertest.remaptest.CallsPrivateMethod", "edu.syr.pcpratts.rootbeer.runtime.remap.DoesntCallPrivateMethod");
-    addRealMapping("java.lang.Math", "edu.syr.pcpratts.rootbeer.runtime.remap.java.lang.Math");
+    addRealMapping("java.lang.Math", "edu.syr.pcpratts.rootbeer.remap.java.lang.Math");
     addFakeMapping("java.lang.Object", "java.lang.Object");
     addFakeMapping("java.lang.String", "java.lang.String");
   }
