@@ -33,6 +33,7 @@ import soot.options.Options;
 public class DfsInfo {
 
   private Set<String> m_dfsMethods;
+  private Set<String> m_reverseDfsMethods;
   private Set<Type> m_dfsTypes;
   private CallGraph m_callGraph;
   private Map<String, List<Type>> m_parentsToChildren;
@@ -56,6 +57,7 @@ public class DfsInfo {
 
   public DfsInfo(SootMethod soot_method) {
     m_dfsMethods = new LinkedHashSet<String>();
+    m_reverseDfsMethods = new LinkedHashSet<String>();
     m_dfsTypes = new HashSet<Type>();
     m_dfsFields = new HashSet<SootField>();
     m_callGraph = new CallGraph();
@@ -367,6 +369,14 @@ public class DfsInfo {
     return m_dfsMethods;
   }
 
+  public Set<String> getReverseMethods(){
+    return m_reverseDfsMethods;
+  }
+
+  public void addReverseDfsMethod(String sig){
+    m_reverseDfsMethods.add(sig);
+  }
+
   public Set<SootField> getFields() {
     return m_dfsFields;
   }
@@ -378,6 +388,10 @@ public class DfsInfo {
   public List<Type> getHierarchy(SootClass input_class) {
     List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
     List<Type> ret = new ArrayList<Type>();
+    for(NumberedType ntype : nret){
+      ret.add(ntype.getType());
+    }
+    nret = m_hierarchyDown.get(input_class.getType().toString());
     for(NumberedType ntype : nret){
       ret.add(ntype.getType());
     }

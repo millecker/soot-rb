@@ -99,6 +99,7 @@ public class RootbeerClassLoader {
   private Set<String> m_reachableFields;
   private Set<String> m_generatedMethods;
   private Map<String, String> m_remapping;
+  private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
 
@@ -128,12 +129,17 @@ public class RootbeerClassLoader {
     m_interfaceSignatures = new HashSet<String>();
     m_interfaceClasses = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
+    m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
 
     m_loaded = false;
   }
 
   public static RootbeerClassLoader v() { 
     return G.v().soot_rbclassload_RootbeerClassLoader(); 
+  }
+
+  public void addConditionalCudaEntry(ConditionalCudaEntry entry){
+    m_conditionalCudaEntries.add(entry);
   }
 
   public void setCudaEntryPoints(List<String> entries){
@@ -785,8 +791,6 @@ public class RootbeerClassLoader {
     String new_class_name = m_remapClassName.getMapping(class_name);
     util.setClassName(new_class_name);        
 
-    System.out.println("remapped: "+class_name+" to "+new_class_name);
-
     return util.getSignature();
   }
 
@@ -905,6 +909,7 @@ public class RootbeerClassLoader {
     while(prev_size != m_newInvokes.size()){
       prev_size = m_newInvokes.size();
       execRootbeerDfs();
+      execReverseRootbeerDfs();
       findNewInvokes();
     }
   }
@@ -934,6 +939,14 @@ public class RootbeerClassLoader {
         doDfs(soot_method, visited);
       }
 
+      for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
+        if(conditional_entry.condition(m_currDfsInfo)){
+          util.parse(conditional_entry.getSignature());
+          soot_method = util.getSootMethod();
+          doDfs(soot_method, visited);
+        }
+      }
+
       for(String cuda_field : m_cudaFields){
         FieldSignatureUtil futil = new FieldSignatureUtil();
         futil.parse(cuda_field);
@@ -941,12 +954,78 @@ public class RootbeerClassLoader {
         SootField soot_field = futil.getSootField();
         dfs_info.addField(soot_field);
       }
-
       
       System.out.println("building class hierarchy for: "+entry+"...");
       m_currDfsInfo.expandArrayTypes();
       m_currDfsInfo.orderTypes();
       m_currDfsInfo.createClassHierarchy();
+    }
+  }
+
+  private void execReverseRootbeerDfs(){
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+      util.remap();
+
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
+
+      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
+
+      Set<String> reachable = new HashSet<String>();  
+
+      reachable.add("<edu.syr.pcpratts.rootbeer.runtime.Rootbeer: void runAll(java.util.List)>");
+      reachable.add("<edu.syr.pcpratts.rootbeer.runtime.Rootbeer: void runAll(edu.syr.pcpratts.rootbeer.runtime.Kernel)>");
+      reachable.add(entry);
+
+      int prev_size = -1;
+      while(reachable.size() != prev_size){
+        prev_size = reachable.size();
+        for(String app_class : m_appClasses){
+          SootClass soot_class = Scene.v().getSootClass(app_class);
+          List<SootMethod> methods = soot_class.getMethods();
+          for(SootMethod method : methods){
+            reverseDfs2(method, reachable);
+          }
+        }
+      }
+    }
+  }
+
+  private void reverseDfs2(SootMethod method, Set<String> reachable){
+    String signature = method.getSignature();
+    if(method.isConcrete() == false){
+      return;
+    }
+
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
+
+    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
+    for(DfsMethodRef ref : methods){
+      SootMethodRef mref = ref.getSootMethodRef();
+      String dest_sig = mref.getSignature();
+      if(reachable.contains(dest_sig)){
+        m_currDfsInfo.addReverseDfsMethod(signature);
+        reachable.add(signature);
+
+        //add ctors of reachable
+        MethodSignatureUtil util = new MethodSignatureUtil();
+        util.parse(signature);
+        String class_name = util.getClassName();
+        SootClass soot_class = Scene.v().getSootClass(class_name);
+        List<SootMethod> inits = soot_class.getMethods();
+        for(SootMethod init : inits){
+          String name = init.getName();
+          if(name.equals("<init>") || name.equals("<clinit>")){
+            m_currDfsInfo.addReverseDfsMethod(init.getSignature());        
+            reachable.add(init.getSignature());
+          }          
+        }
+      }
     }
   }
 
@@ -959,7 +1038,11 @@ public class RootbeerClassLoader {
       System.out.println("finding new invokes for: "+entry+"..."); 
       DfsInfo dfs_info = m_dfsInfos.get(entry);
       Set<String> methods = dfs_info.getMethods();
-      for(String method : methods){
+      Set<String> reverse_methods = dfs_info.getReverseMethods();
+      Set<String> all_methods = new HashSet<String>();
+      all_methods.addAll(methods);
+      all_methods.addAll(reverse_methods);
+      for(String method : all_methods){
         MethodSignatureUtil util = new MethodSignatureUtil();
         util.parse(method);
 
@@ -1346,8 +1429,6 @@ public class RootbeerClassLoader {
   }
 
   private void doDfs(SootMethod method, Set<String> visited){  
-    System.out.println("doDfs: "+method.getSignature());
-
     Set<String> signatures = getVirtualSignaturesDown(method);
     for(String sig : signatures){      
       if(sig.equals(method.getSignature())){
@@ -1361,18 +1442,12 @@ public class RootbeerClassLoader {
       doDfs(virtual_method, visited);
     }    
 
-    if(method.isConcrete() == false){
-      return;
-    }
-
     SootClass soot_class = method.getDeclaringClass();
     if(ignorePackage(soot_class.getName())){
-      System.out.println("  doDfs ignore package: "+method.getSignature());
       return;
     }
 
     if(isKeepPackage(soot_class.getName())){
-      System.out.println("  doDfs keep package: "+method.getSignature());
       return;
     }
 
@@ -1387,6 +1462,10 @@ public class RootbeerClassLoader {
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
     
+    if(method.isConcrete() == false){
+      return;
+    }
+
     DfsValueSwitch value_switch = new DfsValueSwitch();
     value_switch.run(method);
 
