@@ -437,6 +437,11 @@ public class DfsInfo {
     SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
     SootClass soot_class = Scene.v().getSootClass(class_name);
     m_builtInTypes.add(soot_class.getType());
+
+    if(soot_class.hasSuperclass()){
+      SootClass super_class = soot_class.getSuperclass();
+      addSuperClass(soot_class.getType(), super_class.getType());
+    }
   }
 
   public List<Type> getBuiltInTypes(){
