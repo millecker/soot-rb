@@ -25,6 +25,12 @@ package soot.rbclassload;
 
 import soot.SootMethodRef;
 import soot.jimple.Stmt;
+import soot.Local;
+import soot.jimple.InstanceInvokeExpr;
+import soot.jimple.InvokeExpr;
+import soot.jimple.InvokeStmt;
+import soot.SootMethod;
+import soot.Value;
 
 public class DfsMethodRef {
   
@@ -43,7 +49,24 @@ public class DfsMethodRef {
   public Stmt getStmt(){
     return m_stmt;
   } 
-  
+
+  public Local getBase(){
+    if(m_stmt instanceof InvokeStmt){
+      InvokeStmt stmt = (InvokeStmt) m_stmt;
+      InvokeExpr invoke_expr = stmt.getInvokeExpr();
+      if(invoke_expr instanceof InstanceInvokeExpr){
+        InstanceInvokeExpr instance_expr = (InstanceInvokeExpr) invoke_expr;
+        SootMethod invoking_method = instance_expr.getMethod();
+        Value base = instance_expr.getBase();
+        if(base instanceof Local){
+          Local local = (Local) base;
+          return local;
+        }
+      }
+    }
+    return null;
+  }
+
   @Override
   public boolean equals(Object other){
     if(other instanceof DfsMethodRef == false){

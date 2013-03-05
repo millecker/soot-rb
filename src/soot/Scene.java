@@ -787,7 +787,6 @@ public class Scene  //extends AbstractHost
         if(!hasPointsToAnalysis()) {
 	    return DumbPointerAnalysis.v();
 	}
-            
         return activePointsToAnalysis;
     }
     

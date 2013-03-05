@@ -54,6 +54,7 @@ public class DfsInfo {
   private List<SootMethod> m_otherEntryPoints;
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
+  private Map<String, Set<Type>> m_pointsTo;
 
   public DfsInfo(SootMethod soot_method) {
     m_dfsMethods = new LinkedHashSet<String>();
@@ -67,6 +68,7 @@ public class DfsInfo {
     m_parentsToChildren = new HashMap<String, List<Type>>();
     m_rootMethod = soot_method;
     m_otherEntryPoints = new ArrayList<SootMethod>();
+    m_pointsTo = new HashMap<String, Set<Type>>();
     addBuiltInTypes();
   }
 
@@ -313,6 +315,21 @@ public class DfsInfo {
     }
     SootClass parent_class = type_class.getSuperclass();
     addSuperClass(name, parent_class.getType());
+  }
+
+  public void addPointsTo(String method_signature, Set<Type> possible_types){
+    if(m_pointsTo.containsKey(method_signature)){
+      Set<Type> set = m_pointsTo.get(method_signature);
+      set.addAll(possible_types);
+    } else {
+      Set<Type> set = new HashSet<Type>();
+      set.addAll(possible_types);
+      m_pointsTo.put(method_signature, set);
+    }
+  }
+  
+  public Set<Type> getPointsTo(String method_signature){
+    return m_pointsTo.get(method_signature);
   }
 
   private SootClass getSootClassIfPossible(Type type){

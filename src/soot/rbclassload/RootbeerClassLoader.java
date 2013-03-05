@@ -51,6 +51,9 @@ import soot.Value;
 import soot.Unit;
 import soot.jimple.NewExpr;
 import soot.jimple.NewArrayExpr;
+import soot.jimple.InstanceInvokeExpr;
+import soot.jimple.InvokeExpr;
+import soot.jimple.InvokeStmt;
 
 import java.util.List;
 import java.util.LinkedList;
@@ -69,6 +72,11 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+
+import soot.PointsToAnalysis;
+import soot.PointsToSet;
+import soot.PatchingChain;
+import soot.Local;
 
 public class RootbeerClassLoader {
 
@@ -98,6 +106,7 @@ public class RootbeerClassLoader {
   private StringCallGraph m_stringCG;
   private Set<String> m_reachableFields;
   private Set<String> m_generatedMethods;
+  private Set<String> m_dontDfsMethods;
   private Map<String, String> m_remapping;
   private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
@@ -130,6 +139,7 @@ public class RootbeerClassLoader {
     m_interfaceClasses = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
     m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
+    m_dontDfsMethods = new HashSet<String>();
 
     m_loaded = false;
   }
@@ -140,6 +150,10 @@ public class RootbeerClassLoader {
 
   public void addConditionalCudaEntry(ConditionalCudaEntry entry){
     m_conditionalCudaEntries.add(entry);
+  }
+
+  public void addDontDfsMethod(String entry){
+    m_dontDfsMethods.add(entry);
   }
 
   public void setCudaEntryPoints(List<String> entries){
@@ -187,8 +201,8 @@ public class RootbeerClassLoader {
     findAllFieldsAndMethods();
     segmentLibraryClasses();
     dfsForRootbeer();
-
     Scene.v().loadDynamicClasses();
+    pointsTo();
   }
 
   private List<String> getReachableClasses(){
@@ -424,7 +438,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  public Set<String> getVirtualSignaturesDown(SootMethod method){
+  public Set<String> getVirtualSignaturesDown(SootMethod method, Set<Type> pointsto_types){
     Set<String> ret = new HashSet<String>();
 
     SootClass soot_class = method.getDeclaringClass();
@@ -931,19 +945,19 @@ public class RootbeerClassLoader {
 
       Set<String> visited = new HashSet<String>();
       System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
-      doDfs(soot_method, visited);     
+      doDfs(soot_method, visited, new HashSet<Type>());     
 
       for(String cuda_entry : m_cudaEntryPoints){
         util.parse(cuda_entry);
         soot_method = util.getSootMethod();
-        doDfs(soot_method, visited);
+        doDfs(soot_method, visited, new HashSet<Type>());
       }
 
       for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
         if(conditional_entry.condition(m_currDfsInfo)){
           util.parse(conditional_entry.getSignature());
           soot_method = util.getSootMethod();
-          doDfs(soot_method, visited);
+          doDfs(soot_method, visited, new HashSet<Type>());
         }
       }
 
@@ -1074,6 +1088,53 @@ public class RootbeerClassLoader {
           }
         }    
       }            
+    }
+  }
+
+  private void pointsTo(){
+    PointsToAnalysis analysis = Scene.v().getPointsToAnalysis(); 
+
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+      util.remap();
+
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
+
+      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
+
+      Set<String> methods = m_currDfsInfo.getMethods();  
+      for(String method : methods){
+        util.parse(method);
+        SootMethod dfs_method = util.getSootMethod();
+        if(dfs_method.isConcrete() == false){
+          continue;
+        }
+        PatchingChain<Unit> units = dfs_method.retrieveActiveBody().getUnits();
+        Iterator<Unit> iter = units.iterator();
+        while(iter.hasNext()){
+          Unit curr = iter.next();
+          if(curr instanceof InvokeStmt){
+            InvokeStmt stmt = (InvokeStmt) curr;
+            InvokeExpr invoke_expr = stmt.getInvokeExpr();
+            if(invoke_expr instanceof InstanceInvokeExpr){
+              InstanceInvokeExpr instance_expr = (InstanceInvokeExpr) invoke_expr;
+              SootMethod invoking_method = instance_expr.getMethod();
+              Value base = instance_expr.getBase();
+              if(base instanceof Local == false){
+                throw new RuntimeException("how can a base not be a local?");
+              }
+              Local local = (Local) base;
+              PointsToSet set = analysis.reachingObjects(local);
+              Set<Type> possible_types = set.possibleTypes();
+              m_currDfsInfo.addPointsTo(invoking_method.getSignature(), possible_types);
+            }
+          } 
+        }
+      }
     }
   }
 
@@ -1428,8 +1489,12 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void doDfs(SootMethod method, Set<String> visited){  
-    Set<String> signatures = getVirtualSignaturesDown(method);
+  private void doDfs(SootMethod method, Set<String> visited, Set<Type> types){  
+    if(m_dontDfsMethods.contains(method.getSignature())){
+      return;
+    }
+
+    Set<String> signatures = getVirtualSignaturesDown(method, types);
     for(String sig : signatures){      
       if(sig.equals(method.getSignature())){
         continue;
@@ -1439,7 +1504,7 @@ public class RootbeerClassLoader {
       util.parse(sig);
 
       SootMethod virtual_method = util.getSootMethod();
-      doDfs(virtual_method, visited);
+      doDfs(virtual_method, visited, types);
     }    
 
     SootClass soot_class = method.getDeclaringClass();
@@ -1492,32 +1557,16 @@ public class RootbeerClassLoader {
       SootMethodRef mref = ref.getSootMethodRef();
       SootClass method_class = mref.declaringClass();
       SootMethod dest = mref.resolve();     
-      doDfs(dest, visited);
-    }
 
-    //load poly methods
-    String subsig = method.getSubSignature();
-    List<SootClass> queue = new LinkedList<SootClass>();
-    if(soot_class.hasSuperclass()){
-      queue.add(soot_class.getSuperclass());
-    }
-    if(soot_class.hasOuterClass()){
-      queue.add(soot_class.getOuterClass());
-    }
-    while(queue.isEmpty() == false){
-      SootClass curr = queue.get(0);
-      queue.remove(0);
+      Set<Type> curr_types = new HashSet<Type>();
+      Local base = ref.getBase();
+      if(base != null){
+        PointsToAnalysis analysis = Scene.v().getPointsToAnalysis();
+        PointsToSet set = analysis.reachingObjects(base);
+        curr_types = set.possibleTypes();
+      }
 
-      if(curr.declaresMethod(subsig)){
-        SootMethod new_method = curr.getMethod(subsig);
-        doDfs(new_method, visited);
-      }
-      if(curr.hasSuperclass()){
-        queue.add(curr.getSuperclass());
-      }
-      if(curr.hasOuterClass()){
-        queue.add(curr.getOuterClass());
-      }
+      doDfs(dest, visited, curr_types);
     }
   }
 
