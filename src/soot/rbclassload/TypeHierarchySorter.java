@@ -38,7 +38,10 @@ public class TypeHierarchySorter {
     Arrays.sort(type_array);
     List<Type> ret = new ArrayList<Type>();
     for(TypeHierarchySorterValue curr : type_array){
-      ret.add(curr.getType());
+      Type curr_type = curr.getType();
+      if(ret.contains(curr_type) == false){
+        ret.add(curr_type);
+      }
     }
     return ret;
   }

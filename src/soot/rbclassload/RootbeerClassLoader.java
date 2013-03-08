@@ -200,11 +200,6 @@ public class RootbeerClassLoader {
         }
       }      
     }
-
-    System.out.println("m_validHierarchyClasses:");
-    for(SootClass soot_class : m_validHierarchyClasses){
-      System.out.println("  "+soot_class.getName());
-    }
   }
 
   public void setUserJar(String filename){
@@ -1598,7 +1593,33 @@ public class RootbeerClassLoader {
         curr_types = set.possibleTypes();
       }
 
+      //System.out.println("  calling doDfs: "+method.getSignature()+" "+dest.getSignature());
       doDfs(dest, visited, curr_types);
+    }
+
+    //load poly methods
+    String subsig = method.getSubSignature();
+    List<SootClass> queue = new LinkedList<SootClass>();
+    if(soot_class.hasSuperclass()){
+      queue.add(soot_class.getSuperclass());
+    }
+    if(soot_class.hasOuterClass()){
+      queue.add(soot_class.getOuterClass());
+    }
+    while(queue.isEmpty() == false){
+      SootClass curr = queue.get(0);
+      queue.remove(0);
+
+      if(curr.declaresMethod(subsig)){
+        SootMethod new_method = curr.getMethod(subsig);
+        doDfs(new_method, visited, null);
+      }
+      if(curr.hasSuperclass()){
+        queue.add(curr.getSuperclass());
+      }
+      if(curr.hasOuterClass()){
+        queue.add(curr.getOuterClass());
+      }
     }
   }
 

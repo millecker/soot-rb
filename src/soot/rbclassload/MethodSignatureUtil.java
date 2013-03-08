@@ -137,6 +137,15 @@ public class MethodSignatureUtil {
     return m_params;
   }
   
+  public List<Type> getParameterTypesTyped(){
+    List<Type> ret = new ArrayList<Type>();
+    StringToType converter = new StringToType();
+    for(String param_str : m_params){
+      ret.add(converter.toType(param_str));
+    }
+    return ret;
+  }
+
   public void setParameterTypes(List<String> params){
     m_params = params; 
   }
