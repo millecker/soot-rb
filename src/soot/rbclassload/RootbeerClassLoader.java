@@ -101,6 +101,7 @@ public class RootbeerClassLoader {
   private Set<String> m_interfaceSignatures;
   private Set<String> m_interfaceClasses;
   private Set<String> m_newInvokes;
+  private Set<SootClass> m_validHierarchyClasses;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -176,6 +177,36 @@ public class RootbeerClassLoader {
     return m_appClasses;
   }
 
+  public Set<SootClass> getValidHierarchyClasses(){
+    return m_validHierarchyClasses;
+  }
+
+  private void findValidHierarchyClasses(){
+    m_validHierarchyClasses = new HashSet<SootClass>();
+    for(String new_invoke : m_newInvokes){
+      SootClass new_invoke_class = Scene.v().getSootClass(new_invoke);
+      List<SootClass> queue = new LinkedList<SootClass>();
+      queue.add(new_invoke_class);
+      while(queue.isEmpty() == false){
+        SootClass curr = queue.get(0);
+        queue.remove(0);
+        m_validHierarchyClasses.add(curr);
+  
+        if(curr.hasSuperclass()){
+          queue.add(curr.getSuperclass());
+        }
+        if(curr.hasOuterClass()){
+          queue.add(curr.getOuterClass());
+        }
+      }      
+    }
+
+    System.out.println("m_validHierarchyClasses:");
+    for(SootClass soot_class : m_validHierarchyClasses){
+      System.out.println("  "+soot_class.getName());
+    }
+  }
+
   public void setUserJar(String filename){
     m_userJar = filename;
   }
@@ -201,6 +232,7 @@ public class RootbeerClassLoader {
     findAllFieldsAndMethods();
     segmentLibraryClasses();
     dfsForRootbeer();
+    findValidHierarchyClasses();
     Scene.v().loadDynamicClasses();
     pointsTo();
   }

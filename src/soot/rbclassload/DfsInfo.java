@@ -404,6 +404,10 @@ public class DfsInfo {
 
   public List<Type> getHierarchy(SootClass input_class) {
     List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
+    if(nret == null){
+      System.out.println("nret == null");
+      System.out.println("  "+input_class.toString());
+    }
     List<Type> ret = new ArrayList<Type>();
     for(NumberedType ntype : nret){
       ret.add(ntype.getType());
@@ -412,7 +416,8 @@ public class DfsInfo {
     for(NumberedType ntype : nret){
       ret.add(ntype.getType());
     }
-    return ret;
+    TypeHierarchySorter sorter = new TypeHierarchySorter();
+    return sorter.sort(ret);
   }
 
   private void addBuiltInTypes() {
