@@ -1158,6 +1158,22 @@ public class RootbeerClassLoader {
               PointsToSet set = analysis.reachingObjects(local);
               Set<Type> possible_types = set.possibleTypes();
               m_currDfsInfo.addPointsTo(invoking_method.getSignature(), possible_types);
+
+              //load points to for possible_types too
+              for(Type type : possible_types){
+                if(type instanceof RefType == false){
+                  continue;
+                }
+                RefType ref_type = (RefType) type;
+                SootClass points_to_class = ref_type.getSootClass();
+                List<SootMethod> points_to_methods = points_to_class.getMethods();
+                MethodEqual method_equal = new MethodEqual();
+                for(SootMethod points_to_method : points_to_methods){
+                  if(method_equal.exceptReturnType(invoking_method.getSignature(), points_to_method.getSignature())){
+                    m_currDfsInfo.addPointsTo(points_to_method.getSignature(), possible_types);
+                  }
+                }
+              }
             }
           } 
         }
