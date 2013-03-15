@@ -55,6 +55,8 @@ public class DfsInfo {
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
   private Map<String, Set<Type>> m_pointsTo;
+  private Set<String> m_newInvokes;
+  private Set<SootClass> m_validHierarchyClasses;
 
   public DfsInfo(SootMethod soot_method) {
     m_dfsMethods = new LinkedHashSet<String>();
@@ -69,7 +71,22 @@ public class DfsInfo {
     m_rootMethod = soot_method;
     m_otherEntryPoints = new ArrayList<SootMethod>();
     m_pointsTo = new HashMap<String, Set<Type>>();
+    m_newInvokes = new HashSet<String>();
+    m_validHierarchyClasses = new HashSet<SootClass>();
     addBuiltInTypes();
+  }
+
+  public void reset(){
+    m_dfsMethods.clear();
+    m_reverseDfsMethods.clear();
+    m_dfsTypes.clear();
+    m_dfsFields.clear();
+    m_callGraph = new CallGraph();
+    m_instanceOfs.clear();
+    m_reachableMethodSigs.clear();
+    m_parentsToChildren.clear();
+    m_otherEntryPoints.clear();
+    m_pointsTo.clear();
   }
 
   public void setStringCallGraph(StringCallGraph cg){
@@ -78,6 +95,14 @@ public class DfsInfo {
 
   public StringCallGraph getStringCallGraph(){
     return m_stringCallGraph; 
+  }
+
+  public Set<String> getNewInvokes(){
+    return m_newInvokes;
+  }
+
+  public Set<SootClass> getValidHierarchyClasses(){
+    return m_validHierarchyClasses;
   }
   
   public void expandArrayTypes(){  
@@ -175,9 +200,16 @@ public class DfsInfo {
     Set<Type> to_process = new HashSet<Type>();
     to_process.addAll(m_dfsTypes);
     to_process.addAll(m_builtInTypes);
+    for(String class_name : m_newInvokes){
+      StringToType converter = new StringToType();
+      to_process.add(converter.toType(class_name));
+    }
+
     for(Type type : to_process){
+      System.out.println("processing type: "+type.toString());
       List<NumberedType> parents = new ArrayList<NumberedType>();
       NumberedType curr_type = getNumberedType(type.toString());
+      System.out.println("  "+curr_type.toString());
       parents.add(curr_type);
       if(type instanceof RefType){
         RefType ref_type = (RefType) type;
@@ -310,11 +342,17 @@ public class DfsInfo {
     if(type_class == null){
       return;
     }
+    Iterator<SootClass> iter = type_class.getInterfaces().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      addSuperClass(type_class.getType(), curr.getType());
+    }
     if(type_class.hasSuperclass() == false){
       return;
     }
     SootClass parent_class = type_class.getSuperclass();
     addSuperClass(name, parent_class.getType());
+    
   }
 
   public void addPointsTo(String method_signature, Set<Type> possible_types){
@@ -460,9 +498,15 @@ public class DfsInfo {
     SootClass soot_class = Scene.v().getSootClass(class_name);
     m_builtInTypes.add(soot_class.getType());
 
+    Iterator<SootClass> iter = soot_class.getInterfaces().iterator();
+    while(iter.hasNext()){
+      SootClass curr = iter.next();
+      addSuperClass(soot_class.getType(), curr.getType());
+    }
+
     if(soot_class.hasSuperclass()){
       SootClass super_class = soot_class.getSuperclass();
-      addSuperClass(soot_class.getType(), super_class.getType());
+      addSuperClass(soot_class.getType(), super_class.getType());      
     }
   }
 

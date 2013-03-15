@@ -100,8 +100,6 @@ public class RootbeerClassLoader {
   private List<String> m_cudaFields;
   private Set<String> m_interfaceSignatures;
   private Set<String> m_interfaceClasses;
-  private Set<String> m_newInvokes;
-  private Set<SootClass> m_validHierarchyClasses;
   private Set<String> m_visited;
   private String m_userJar;
   private StringCallGraph m_stringCG;
@@ -138,7 +136,6 @@ public class RootbeerClassLoader {
     m_generatedMethods = new HashSet<String>();
     m_interfaceSignatures = new HashSet<String>();
     m_interfaceClasses = new HashSet<String>();
-    m_newInvokes = new HashSet<String>();
     m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
     m_dontDfsMethods = new HashSet<String>();
 
@@ -178,27 +175,40 @@ public class RootbeerClassLoader {
   }
 
   public Set<SootClass> getValidHierarchyClasses(){
-    return m_validHierarchyClasses;
+    return getDfsInfo().getValidHierarchyClasses();
   }
 
   private void findValidHierarchyClasses(){
-    m_validHierarchyClasses = new HashSet<SootClass>();
-    for(String new_invoke : m_newInvokes){
-      SootClass new_invoke_class = Scene.v().getSootClass(new_invoke);
-      List<SootClass> queue = new LinkedList<SootClass>();
-      queue.add(new_invoke_class);
-      while(queue.isEmpty() == false){
-        SootClass curr = queue.get(0);
-        queue.remove(0);
-        m_validHierarchyClasses.add(curr);
-  
-        if(curr.hasSuperclass()){
-          queue.add(curr.getSuperclass());
-        }
-        if(curr.hasOuterClass()){
-          queue.add(curr.getOuterClass());
-        }
-      }      
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
+
+      DfsInfo dfs_info = m_dfsInfos.get(soot_method.getSignature());
+      Set<SootClass> valid_hierarchy_classes = dfs_info.getValidHierarchyClasses();
+      valid_hierarchy_classes.clear();
+      Set<String> new_invokes = dfs_info.getNewInvokes();
+      for(String new_invoke : new_invokes){
+        SootClass new_invoke_class = Scene.v().getSootClass(new_invoke);
+        List<SootClass> queue = new LinkedList<SootClass>();
+        queue.add(new_invoke_class);
+        while(queue.isEmpty() == false){
+          SootClass curr = queue.get(0);
+          queue.remove(0);
+          valid_hierarchy_classes.add(curr);
+    
+          if(curr.hasSuperclass()){
+            queue.add(curr.getSuperclass());
+          }
+          if(curr.hasOuterClass()){
+            queue.add(curr.getOuterClass());
+          }
+        }      
+      }
     }
   }
 
@@ -474,16 +484,39 @@ public class RootbeerClassLoader {
     
     String subsig = method.getSubSignature();
 
+    System.out.println("getVirtualSignaturesDown: "+method.getSignature());
+
     //get classes going down
-    for(String class_name : m_newInvokes){
+    for(String class_name : m_currDfsInfo.getNewInvokes()){
       SootClass curr = Scene.v().getSootClass(class_name);
-      if(curr.equals(soot_class)){
-        continue;
-      }
-      if(derivesFrom(curr, soot_class)){
-        if(curr.declaresMethod(subsig)){
-          util.setClassName(curr.getName());
-          ret.add(util.getSignature());
+      List<SootClass> queue = new LinkedList<SootClass>();
+      queue.add(curr);
+      while(queue.isEmpty() == false){
+        curr = queue.get(0);
+        queue.remove(0);
+
+        if(curr.equals(soot_class)){
+          break;
+        }
+
+        if(curr.hasSuperclass()){
+          queue.add(curr.getSuperclass());
+        }
+
+        System.out.println("  curr: "+curr.getName());
+        if(derivesFrom(curr, soot_class)){
+          System.out.println("    curr derives from: "+curr.getName());
+          if(curr.declaresMethod(subsig)){
+            System.out.println("    curr declares method: "+subsig);
+            util.setClassName(curr.getName());
+            ret.add(util.getSignature());
+          } else {
+            System.out.println("    curr does not declare method: "+subsig);
+            List<SootMethod> curr_methods = curr.getMethods();
+            for(SootMethod soot_method : curr_methods){
+              System.out.println("      "+soot_method.getSignature());    
+            }
+          }
         }
       }
     }
@@ -947,12 +980,49 @@ public class RootbeerClassLoader {
 
   private void dfsForRootbeer(){
     int prev_size = -1;
-    while(prev_size != m_newInvokes.size()){
-      prev_size = m_newInvokes.size();
+
+    //reset dfs_infos
+  for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+      util.remap();
+
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
+
+      DfsInfo dfs_info = new DfsInfo(soot_method);
+      m_currDfsInfo = dfs_info;
+      m_dfsInfos.put(soot_method.getSignature(), dfs_info);
+    }
+
+    while(prev_size != getTotalNewInvokesSize()){
+      prev_size = getTotalNewInvokesSize();
       execRootbeerDfs();
       execReverseRootbeerDfs();
       findNewInvokes();
     }
+    //rerun the dfs and reverse dfs again. execRootbeerDfs calls 
+    //m_currDfsInfo.createClassHierarchy() which depends on new_invokes.
+    execRootbeerDfs();
+    execReverseRootbeerDfs();
+  }
+
+  private int getTotalNewInvokesSize(){
+    int ret = 0;
+    for(String entry : m_entryPoints){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(entry);
+
+      SootMethod soot_method = util.getSootMethod();
+      if(soot_method.getName().equals("gpuMethod") == false){
+        continue;
+      }
+      DfsInfo dfs_info = new DfsInfo(soot_method);
+      ret += dfs_info.getNewInvokes().size();
+    }
+    return ret;
   }
 
   private void execRootbeerDfs(){
@@ -966,9 +1036,8 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      DfsInfo dfs_info = new DfsInfo(soot_method);
-      m_currDfsInfo = dfs_info;
-      m_dfsInfos.put(soot_method.getSignature(), dfs_info);
+      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
+      m_currDfsInfo.reset();
 
       Set<String> visited = new HashSet<String>();
       System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
@@ -993,7 +1062,7 @@ public class RootbeerClassLoader {
         futil.parse(cuda_field);
       
         SootField soot_field = futil.getSootField();
-        dfs_info.addField(soot_field);
+        m_currDfsInfo.addField(soot_field);
       }
       
       System.out.println("building class hierarchy for: "+entry+"...");
@@ -1071,13 +1140,14 @@ public class RootbeerClassLoader {
   }
 
   private void findNewInvokes(){
-    m_newInvokes.clear();
     for(String entry : m_entryPoints){
       if(m_dfsInfos.containsKey(entry) == false){
         continue;
       }
       System.out.println("finding new invokes for: "+entry+"..."); 
       DfsInfo dfs_info = m_dfsInfos.get(entry);
+      Set<String> new_invokes = dfs_info.getNewInvokes();
+      new_invokes.clear();
       Set<String> methods = dfs_info.getMethods();
       Set<String> reverse_methods = dfs_info.getReverseMethods();
       Set<String> all_methods = new HashSet<String>();
@@ -1091,27 +1161,50 @@ public class RootbeerClassLoader {
         if(soot_method.isConcrete() == false){
           continue;
         }
-        Body body = soot_method.retrieveActiveBody();    
-        Iterator<Unit> iter = body.getUnits().iterator();
-        while(iter.hasNext()){
-          Unit curr = iter.next();
-          List<ValueBox> boxes = curr.getUseAndDefBoxes();
-          for(ValueBox box : boxes){
-            Value value = box.getValue();
-            if(value instanceof NewExpr){
-              NewExpr new_expr = (NewExpr) value;
-              RefType ref_type = new_expr.getBaseType();
-              String class_name = ref_type.getClassName();
-              m_newInvokes.add(class_name);
-            } else if(value instanceof NewArrayExpr){
-              NewArrayExpr new_expr = (NewArrayExpr) value;
-              Type type = new_expr.getBaseType();
-              if(type instanceof RefType){
-                RefType ref_type = (RefType) type;
+
+        Set<String> virtual_sigs = getVirtualSignaturesDown(soot_method, null);
+        virtual_sigs.add(soot_method.getSignature());
+
+        for(String virtual_sig : virtual_sigs){
+          System.out.println("  searching: "+virtual_sig);
+          util.parse(virtual_sig);
+
+          soot_method = util.getSootMethod();
+          if(soot_method.isConcrete() == false){
+            continue;
+          }
+
+          if(shouldNewInvokeSearch(soot_method) == false){
+            continue;
+          }
+
+          System.out.println("  really searching: "+virtual_sig);
+
+          Body body = soot_method.retrieveActiveBody();    
+          Iterator<Unit> iter = body.getUnits().iterator();
+          while(iter.hasNext()){
+            Unit curr = iter.next();
+            System.out.println("  unit: "+curr.toString());
+            List<ValueBox> boxes = curr.getUseAndDefBoxes();
+            for(ValueBox box : boxes){
+              Value value = box.getValue();
+              if(value instanceof NewExpr){
+                NewExpr new_expr = (NewExpr) value;
+                RefType ref_type = new_expr.getBaseType();
                 String class_name = ref_type.getClassName();
-                m_newInvokes.add(class_name);
-              }
-            }   
+                System.out.println("    adding new_invoke: "+class_name);
+                new_invokes.add(class_name);
+              } else if(value instanceof NewArrayExpr){
+                NewArrayExpr new_expr = (NewArrayExpr) value;
+                Type type = new_expr.getBaseType();
+                if(type instanceof RefType){
+                  RefType ref_type = (RefType) type;
+                  String class_name = ref_type.getClassName();
+                  System.out.println("    adding new_invoke: "+class_name);
+                  new_invokes.add(class_name);
+                }
+              }   
+            }
           }
         }    
       }            
@@ -1537,8 +1630,10 @@ public class RootbeerClassLoader {
       return;
     }
 
+    System.out.println("entrance to doDfs: "+method.getSignature());
     Set<String> signatures = getVirtualSignaturesDown(method, types);
     for(String sig : signatures){      
+      System.out.println("  virt_signature_down: "+sig);
       if(sig.equals(method.getSignature())){
         continue;
       }
@@ -1565,7 +1660,7 @@ public class RootbeerClassLoader {
     }
     visited.add(signature);
     
-    //System.out.println("doDfs: "+signature);
+    System.out.println("doDfs: "+signature);
 
     m_currDfsInfo.addMethod(signature);
     m_currDfsInfo.addType(soot_class.getType());
@@ -1609,7 +1704,7 @@ public class RootbeerClassLoader {
         curr_types = set.possibleTypes();
       }
 
-      //System.out.println("  calling doDfs: "+method.getSignature()+" "+dest.getSignature());
+      System.out.println("  calling doDfs: "+method.getSignature()+" "+dest.getSignature());
       doDfs(dest, visited, curr_types);
     }
 
@@ -1678,6 +1773,8 @@ public class RootbeerClassLoader {
       while(iter0.hasNext()){
         SootClass soot_class = iter0.next();
         addType(soot_class.getType());
+
+        m_currDfsInfo.addSuperClass(curr, soot_class.getType());
       }
 
       Iterator<SootField> iter = type_class.getFields().iterator();
@@ -1714,6 +1811,21 @@ public class RootbeerClassLoader {
     return true;
   }
 
+  private boolean shouldNewInvokeSearch(SootMethod method){
+    SootClass soot_class = method.getDeclaringClass();
+    String class_name = soot_class.getName();
+    for(String test_package : m_testCasePackages){
+      if(class_name.startsWith(test_package)){
+        return true;
+      }
+    }
+    for(String ignore_package : m_ignorePackages){
+      if(class_name.startsWith(ignore_package)){
+        return false;
+      }
+    }
+    return true;
+  }
   private boolean ignorePackage(String class_name) {
     for(String runtime_class : m_runtimeClasses){
       if(class_name.equals(runtime_class)){
