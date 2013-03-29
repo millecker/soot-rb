@@ -50,13 +50,20 @@ public class DfsInfo {
   private Map<SootClass, Integer> m_classToNumber;
   private Set<Type> m_instanceOfs;
   private List<String> m_reachableMethodSigs;
-  private SootMethod m_rootMethod;
+  private String m_rootMethod;
   private List<SootMethod> m_otherEntryPoints;
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
   private Map<String, Set<Type>> m_pointsTo;
+  private StringCallGraph m_stringCG;
+  private Set<String> m_reachableFields;
+  private List<String> m_cudaFields;
+  private Set<String> m_interfaceSignatures;
+  private Set<String> m_interfaceClasses;
+  private Set<String> m_newInvokes;
+  private Set<SootClass> m_validHierarchyClasses;
 
-  public DfsInfo(SootMethod soot_method) {
+  public DfsInfo(String method_signature) {
     m_dfsMethods = new LinkedHashSet<String>();
     m_reverseDfsMethods = new LinkedHashSet<String>();
     m_dfsTypes = new HashSet<Type>();
@@ -66,18 +73,18 @@ public class DfsInfo {
     m_instanceOfs = new HashSet<Type>();
     m_reachableMethodSigs = new ArrayList<String>();
     m_parentsToChildren = new HashMap<String, List<Type>>();
-    m_rootMethod = soot_method;
+    m_rootMethod = method_signature;
     m_otherEntryPoints = new ArrayList<SootMethod>();
     m_pointsTo = new HashMap<String, Set<Type>>();
+    m_stringCG = new StringCallGraph();
+    m_interfaceSignatures = new HashSet<String>();
+    m_interfaceClasses = new HashSet<String>();
+    m_newInvokes = new HashSet<String>();
     addBuiltInTypes();
   }
 
-  public void setStringCallGraph(StringCallGraph cg){
-    m_stringCallGraph = cg;
-  }
-
   public StringCallGraph getStringCallGraph(){
-    return m_stringCallGraph; 
+    return m_stringCallGraph;
   }
   
   public void expandArrayTypes(){  
@@ -560,7 +567,17 @@ public class DfsInfo {
     return ret;
   }
 
-  public SootMethod getRootMethod() {
+  public String getRootMethod() {
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(m_rootMethod);
+    return util.getSootMethod();
+  }
+
+  public Set<String> getInterfaceSignatures(){
+    return m_interfaceSignatures;
+  }
+
+  public String getRootMethodSignature() {
     return m_rootMethod;
   }
 

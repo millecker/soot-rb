@@ -38,15 +38,16 @@ public class DfsValueSwitch implements JimpleValueSwitch {
   private SootMethod m_method;
 
   public DfsValueSwitch(){
-  }
-  
-  public void run(SootMethod method) {
-    m_method = method;
+    m_method = null;
     m_types = new LinkedHashSet<Type>();
     m_methods = new LinkedHashSet<DfsMethodRef>();
     m_fields = new LinkedHashSet<SootFieldRef>();   
     m_instanceOfs = new LinkedHashSet<Type>();
     m_classConstantReader = new ClassConstantReader();
+  }
+  
+  public void run(SootMethod method) {
+    m_method = method;
     
     addType(method.getReturnType());
     List<Type> param_types = method.getParameterTypes();
