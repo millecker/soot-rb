@@ -55,9 +55,7 @@ public class DfsInfo {
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
   private Map<String, Set<Type>> m_pointsTo;
-  private StringCallGraph m_stringCG;
   private Set<String> m_reachableFields;
-  private List<String> m_cudaFields;
   private Set<String> m_interfaceSignatures;
   private Set<String> m_interfaceClasses;
   private Set<String> m_newInvokes;
@@ -76,10 +74,10 @@ public class DfsInfo {
     m_rootMethod = method_signature;
     m_otherEntryPoints = new ArrayList<SootMethod>();
     m_pointsTo = new HashMap<String, Set<Type>>();
-    m_stringCG = new StringCallGraph();
     m_interfaceSignatures = new HashSet<String>();
     m_interfaceClasses = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
+    m_stringCallGraph = new StringCallGraph();
     addBuiltInTypes();
   }
 
@@ -567,7 +565,7 @@ public class DfsInfo {
     return ret;
   }
 
-  public String getRootMethod() {
+  public SootMethod getRootMethod() {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(m_rootMethod);
     return util.getSootMethod();

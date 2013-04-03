@@ -50,6 +50,7 @@ public class StringCallGraph {
   }
 
   public void addEdge(String source_sig, String dest_sig){
+    System.out.println("addEdge: "+source_sig+" "+dest_sig);
     addEdge(m_forwardEdges, source_sig, dest_sig);
     addEdge(m_reverseEdges, dest_sig, source_sig);
     if(m_allSignatures.contains(source_sig) == false){
