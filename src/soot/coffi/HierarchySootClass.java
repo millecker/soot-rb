@@ -32,6 +32,7 @@ import java.io.IOException;
 public class HierarchySootClass {
 
   private String m_className;
+  private boolean m_hasSuperClass;
   private String m_superClassName;
   private List<String> m_interfaceNames;
 
@@ -44,6 +45,18 @@ public class HierarchySootClass {
   public HierarchySootClass(String name){
     m_className = name;
     m_interfaceNames = new ArrayList<String>();
+  }
+
+  public boolean hasSuperClass(){
+    return m_hasSuperClass;
+  }
+
+  public String getSuperClass(){
+    return m_superClassName;
+  }
+
+  public List<String> getInterfaces(){
+    return m_interfaceNames;
   }
 
   public boolean readHierarchy(InputStream input_stream){
@@ -66,7 +79,13 @@ public class HierarchySootClass {
       //eat this_class
       data_stream.readUnsignedShort();
 
-      m_superClassName = getClassConstant(data_stream.readUnsignedShort());
+      int super_class = data_stream.readUnsignedShort();
+      if(super_class == 0){
+        m_hasSuperClass = false;
+      } else {
+        m_hasSuperClass = true;
+        m_superClassName = getClassConstant(super_class);
+      }
 
       int interfaces_count = data_stream.readUnsignedShort();
       for(int i = 0; i < interfaces_count; ++i){

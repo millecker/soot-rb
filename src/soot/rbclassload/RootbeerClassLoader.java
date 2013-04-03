@@ -86,7 +86,7 @@ public class RootbeerClassLoader {
   private DfsInfo m_currDfsInfo;
 
   private Map<String, Set<String>> m_packageNameCache;
-  private Map<String, HierarchySootClass> m_hierarchySootClasses;
+  private ClassHierarchy m_classHierarchy;
   private List<String> m_sourcePaths;
   private Map<String, String> m_classToFilename;
   private String m_tempFolder;
@@ -114,7 +114,7 @@ public class RootbeerClassLoader {
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
     m_packageNameCache = new HashMap<String, Set<String>>();
-    m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
+    m_classHierarchy = new ClassHierarchy();
     m_classToFilename = new HashMap<String, String>();
     m_entryDetectors = new ArrayList<EntryPointDetector>();
 
@@ -205,6 +205,7 @@ public class RootbeerClassLoader {
     m_classPaths = SourceLocator.v().classPath();
 
     cachePackageNames();
+    buildClassHierarchy();
     loadBuiltIns();
     loadToSignatures();
     loadRuntimeClasses();
@@ -1426,7 +1427,7 @@ public class RootbeerClassLoader {
 
               HierarchySootClass hierarchy_class = new HierarchySootClass(name);
               hierarchy_class.readHierarchy(jin);
-              m_hierarchySootClasses.put(name, hierarchy_class);
+              m_classHierarchy.put(name, hierarchy_class);
             } else {
               name = name.replace("/", ".");
               package_name = name.substring(0, name.length()-1);
@@ -1449,6 +1450,12 @@ public class RootbeerClassLoader {
         }
       }
     }
+  }
+
+  private void buildClassHierarchy(){
+    m_classHierarchy.build();
+    System.out.println(m_classHierarchy.toString());
+    System.exit(0);
   }
 
   private String getPackageName(String className) {
