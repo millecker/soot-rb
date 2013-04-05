@@ -42,7 +42,7 @@ public class StringToType {
   public StringToType(){
   }
 
-  public Type toType(String input){
+  public Type convert(String input){
     String input_no_array = input.replace("[", "");
     input_no_array = input_no_array.replace("]", "");
 

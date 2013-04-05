@@ -150,7 +150,7 @@ public class MethodSignatureUtil {
     m_params = params; 
   }
   
-  public String getMethodSubSignature(){
+  public String getSubSignature(){
     StringBuilder ret = new StringBuilder();
     ret.append(m_returnType);
     ret.append(" ");
@@ -164,6 +164,28 @@ public class MethodSignatureUtil {
     }
     ret.append(")");
     return ret.toString();
+  }
+
+  public boolean covarientEqual(String rhs_signature){
+    MethodSignatureUtil rhs_util = new MethodSignatureUtil();
+    rhs_util.parse(rhs_signature);
+
+    if(getMethodName().equals(rhs_util.getMethodName()) == false){
+      return false;
+    }
+    List<String> lhs_types = getParameterTypes();
+    List<String> rhs_types = rhs_util.getParameterTypes();
+    if(lhs_types.size() != rhs_types.size()){
+      return false;
+    }
+    for(int i = 0; i < lhs_types.size(); ++i){
+      String lhs_type = lhs_types.get(i);
+      String rhs_type = rhs_types.get(i);
+      if(lhs_type.equals(rhs_type) == false){
+        return false;
+      }
+    }
+    return true;
   }
 
   public SootMethod getSootMethod(){

@@ -21,7 +21,7 @@
  * Copyright (C) 2012 Marc-Andre Laverdiere-Papineau
  */
 
-package soot.coffi;
+package soot.rbclassload;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -36,30 +36,16 @@ public class HierarchySootClass {
   private String m_superClassName;
   private List<String> m_interfaceNames;
   private List<HierarchySootMethod> m_methods;  
-  private cp_info m_constantPool[];
 
-  private ClassFile m_classFile;
-/*
-  ClassFile fields:
-    public int constant_pool_count;
-    public cp_info constant_pool[];
-    public int access_flags;
-    public int this_class;
-    public int super_class;
-    public int interfaces_count;
-    public int interfaces[];
-    public int fields_count;
-    public field_info fields[];
-    public int methods_count;
-    public method_info methods[];
-    public int attributes_count;
-    public attribute_info attributes[];
-*/
+  public HierarchySootClass(String class_name, boolean has_super_class, 
+    String super_class_name, List<String> interfaces, 
+    List<HierarchySootMethod> methods){
 
-  public HierarchySootClass(String name){
-    m_className = name;
-    m_interfaceNames = new ArrayList<String>();
-    m_methods = new ArrayList<HierarchySootMethod>();
+    m_className = class_name;
+    m_hasSuperClass = has_super_class;
+    m_superClassName = super_class_name;
+    m_interfaceNames = interfaces;
+    m_methods = methods;
   }
 
   public String getName(){
@@ -80,39 +66,6 @@ public class HierarchySootClass {
 
   public List<HierarchySootMethod> getMethods(){
     return m_methods;
-  }
-
-  public boolean loadClassFile(String filename, InputStream is){
-    m_classFile = new ClassFile(filename);
-    m_constantPool = m_classFile.constant_pool;
-
-    DataInputStream data_stream = new DataInputStream(is);
-    boolean loaded = m_classFile.readClass(data_stream);
-    if(loaded == false){
-      return false;
-    }
-
-    GetClassConstant constant_reader = new GetClassConstant();
-    if(m_classFile.super_class == 0){
-      m_hasSuperClass = false;
-    } else {
-      m_hasSuperClass = true;
-      m_superClassName = constant_reader.get(m_classFile.super_class, m_classFile);
-    }
-
-    for(int i = 0; i < m_classFile.interfaces_count; ++i){
-      String name = constant_reader.get(m_classFile.interfaces[i], m_classFile);
-      m_interfaceNames.add(name);
-    }
-    
-    for(int i = 0; i < m_classFile.methods_count; ++i){
-      HierarchySootMethod method = new HierarchySootMethod();
-      method.read(m_classFile.methods[i], m_classFile);
-      method.setHierarchySootClass(this);
-      m_methods.add(method);
-    }
-    m_classFile = null;
-    return true;
   }
 
   public HierarchySootMethod findMethodByName(String name){

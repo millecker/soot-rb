@@ -265,30 +265,6 @@ public class ClassHierarchy {
     return ret;
   }
 
-  private boolean covarientEqual(SootMethod input_method, SootMethod other_method){
-    if(input_method.getName().equals(other_method.getName()) == false){
-      return false;
-    }
-    List<Type> lhs_types = input_method.getParameterTypes();
-    List<Type> rhs_types = other_method.getParameterTypes();
-    if(lhs_types.size() != rhs_types.size()){
-      return false;
-    }
-    for(int i = 0; i < lhs_types.size(); ++i){
-      Type lhs_type = lhs_types.get(i);
-      Type rhs_type = rhs_types.get(i);
-      if(lhs_type.equals(rhs_type) == false){
-        return false;
-      }
-    }
-    Type lhs_return = input_method.getReturnType();
-    Type rhs_return = other_method.getReturnType();
-    if(lhs_return.equals(rhs_return) == false){
-      return false;
-    }
-    return true;
-  }
-
   @Override
   public String toString(){
     StringBuilder ret = new StringBuilder();    
