@@ -38,7 +38,6 @@ import soot.Scene;
 import soot.Type;
 import soot.RefType;
 import soot.RefLikeType;
-import soot.coffi.HierarchySootClass;
 
 public class ClassHierarchy {
 
@@ -182,7 +181,7 @@ public class ClassHierarchy {
       List<String> children = hgraph.getChildren(curr_type);
       queue.addAll(children);
 
-      Type type = converter.toType(curr_type);
+      Type type = converter.convert(curr_type);
       NumberedType numbered_type = new NumberedType(type, number);
       m_numberedTypes.add(numbered_type);
       m_numberedTypeMap.put(curr_type, numbered_type);
@@ -236,13 +235,13 @@ public class ClassHierarchy {
     return m_hierarchyGraphs.get(class_name);
   }
 
-  public List<SootMethod> getAllVirtualMethods(String signature){
+  public List<String> getVirtualMethods(String signature){
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
     String class_name = util.getClassName();
     SootMethod input_method = util.getSootMethod();
 
-    List<SootMethod> ret = new ArrayList<SootMethod>();
+    List<String> ret = new ArrayList<String>();
     if(m_hierarchyGraphs.containsKey(class_name) == false){
       return ret;
     }
@@ -250,14 +249,14 @@ public class ClassHierarchy {
     HierarchyGraph hgraph = m_hierarchyGraphs.get(class_name);
     List<String> all_classes = hgraph.getAllClasses();
     for(String curr_class : all_classes){
-      if(Scene.v().containsClass(curr_class) == false){
+      if(containsClass(curr_class) == false){
         continue;
       }
-      SootClass soot_class = Scene.v().getSootClass(curr_class);
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
-        if(covarientEqual(input_method, method)){
-          ret.add(method);
+      HierarchySootClass hclass = getHierarchySootClass(curr_class);
+      List<HierarchySootMethod> methods = hclass.getMethods();
+      for(HierarchySootMethod method : methods){
+        if(util.covarientEqual(method.getSignature())){
+          ret.add(method.getSignature());
         }
       }
     }

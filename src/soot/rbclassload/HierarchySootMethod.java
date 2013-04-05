@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import soot.Modifier;
 
 public class HierarchySootMethod {
 
@@ -35,16 +36,20 @@ public class HierarchySootMethod {
   private String m_returnType;
   private List<String> m_parameterTypes;
   private List<String> m_exceptionTypes;
+  private int m_modifiers;
+  private List<HierarchyInstruction> m_instructions;
   private HierarchySootClass m_class;
-  private Instruction m_instructions;
 
   public HierarchySootMethod(String name, String returnType,
-    List<String> parameterTypes, List<String> exceptionTypes){
+    List<String> parameterTypes, List<String> exceptionTypes,
+    int modifiers, List<HierarchyInstruction> instructions){
 
     m_name = name;
     m_returnType = returnType;
     m_parameterTypes = parameterTypes;
     m_exceptionTypes = exceptionTypes;
+    m_modifiers = modifiers;
+    m_instructions = instructions;
   }
 
   public String getName(){
@@ -63,7 +68,7 @@ public class HierarchySootMethod {
     return m_exceptionTypes;
   }
 
-  public Instruction getInstructions(){
+  public List<HierarchyInstruction> getInstructions(){
     return m_instructions;
   }
 
@@ -73,6 +78,14 @@ public class HierarchySootMethod {
 
   public HierarchySootClass getHierarchySootClass(){
     return m_class;
+  }
+
+  public boolean isConcrete(){
+    return !Modifier.isInterface(getModifiers()) && !Modifier.isAbstract(getModifiers());
+  }
+
+  public int getModifiers(){
+    return m_modifiers;
   }
 
   public String getSignature(){

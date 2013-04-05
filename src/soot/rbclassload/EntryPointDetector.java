@@ -27,8 +27,6 @@ package soot.rbclassload;
 import soot.SootMethod;
 import java.util.List;
 
-import soot.coffi.HierarchySootMethod;
-
 /**
  * Plain interface for a detector of entry points.
  * 

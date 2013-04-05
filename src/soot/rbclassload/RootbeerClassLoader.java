@@ -78,9 +78,8 @@ import soot.PointsToSet;
 import soot.PatchingChain;
 import soot.Local;
 
-import soot.coffi.HierarchySootClass;
-import soot.coffi.HierarchySootMethod;
 import org.apache.commons.io.input.CountingInputStream;
+import soot.coffi.HierarchySootClassFactory;
 
 public class RootbeerClassLoader {
 
@@ -183,8 +182,7 @@ public class RootbeerClassLoader {
     m_sourcePaths = SourceLocator.v().sourcePath();
     m_classPaths = SourceLocator.v().classPath();
 
-    cachePackageNames();
-    sortApplicationClasses();
+    loadHierarchySootClasses();
     findEntryPoints();
     buildClassHierarchy();
     
@@ -207,6 +205,7 @@ public class RootbeerClassLoader {
     //todo: write this. patch StringCallGraph and ClassHierarchy
     //patchState();
 
+/*
     for(String entry : m_entryPoints){
       m_currDfsInfo = m_dfsInfos.get(entry);
       dfsForRootbeer();
@@ -225,6 +224,7 @@ public class RootbeerClassLoader {
     }
 
     Scene.v().loadDynamicClasses();
+*/
   }
     
 /*
@@ -418,6 +418,8 @@ public class RootbeerClassLoader {
     bfs_queue.add(entry);
     m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
 
+    MethodSignatureUtil util = new MethodSignatureUtil();
+
     while(bfs_queue.isEmpty() == false){
       String bfs_entry = bfs_queue.get(0);
       bfs_queue.remove(0);
@@ -427,23 +429,22 @@ public class RootbeerClassLoader {
       }
       visited_methods.add(bfs_entry);
 
-      MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
-      HierarchySootClass hclass = m_hierarchy.get(class_name);
-      HierarchySootMethod hmethod = hclass.getMethodBySubSignature(util.getMethodSubSignature());      
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());      
       
       if(hmethod == null){
         continue;
       }
 
-      if(bfs_method.isConcrete() == false){
+      if(hmethod.isConcrete() == false){
         continue;
       }
 
       //add virtual methods to queue
-      List<String> virt_methods = m_classHierarchy.getAllVirtualMethods(bfs_entry);
+      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
         System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
         bfs_queue.add(signature);
@@ -478,10 +479,12 @@ public class RootbeerClassLoader {
 
     }
 
-    System.out.println("loading reverse string call graph for: "+entry.getSignature()+"...");
+    System.out.println("loading reverse string call graph for: "+entry+"...");
     Set<String> reachable = new HashSet<String>();
-    SootClass entry_class = entry.getDeclaringClass();
-    for(SootMethod entry_class_method : entry_class.getMethods()){
+    util.parse(entry);
+    String entry_class = util.getClassName();
+    HierarchySootClass entry_hclass = m_classHierarchy.getHierarchySootClass(entry_class);
+    for(HierarchySootMethod entry_class_method : entry_hclass.getMethods()){
       String name = entry_class_method.getName();
       if(name.equals("<init>")){
         reachable.add(entry_class_method.getSignature());
@@ -506,9 +509,9 @@ public class RootbeerClassLoader {
             reachable.add(method_sig);
 
             //add virtual methods to queue
-            List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(method_sig);
-            for(SootMethod method : virt_methods){
-              reachable.add(method.getSignature());
+            List<String> virt_methods = m_classHierarchy.getVirtualMethods(method_sig);
+            for(String method : virt_methods){
+              reachable.add(method);
             }
 
             changed = true;
@@ -749,32 +752,27 @@ public class RootbeerClassLoader {
     }
     return false;
   }
-
+/*
   private void dfsForRootbeer(){
     SootMethod soot_method = m_currDfsInfo.getRootMethod();
     
     Set<String> visited = new HashSet<String>();
     System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
-    List<SootMethod> queue = new LinkedList<SootMethod>();
-    queue.add(soot_method);
+    List<String> queue = new LinkedList<String>();
+    queue.add(soot_method.getSignature());
 
-    MethodSignatureUtil util = new MethodSignatureUtil();
     for(String cuda_entry : m_cudaEntryPoints){
-      util.parse(cuda_entry);
-      soot_method = util.getSootMethod();
-      queue.add(soot_method);    
+      queue.add(cuda_entry);    
     }
 
     for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
       if(conditional_entry.condition(m_currDfsInfo)){
-        util.parse(conditional_entry.getSignature());
-        soot_method = util.getSootMethod();
-        queue.add(soot_method);
+        queue.add(conditional_entry);
       }
     }
 
     while(queue.isEmpty() == false){
-      SootMethod curr = queue.get(0);
+      String curr = queue.get(0);
       queue.remove(0);
       doDfs(curr, queue, visited);
     }
@@ -790,8 +788,11 @@ public class RootbeerClassLoader {
     System.out.println("building class hierarchy for: "+soot_method.getSignature()+"...");
     m_currDfsInfo.expandArrayTypes();
   }
+*/
 
   public void applyOptimizations(){
+    throw new UnsupportedOperationException();
+/*
     Pack jop = PackManager.v().getPack("jop");
     
     for(String entry : m_entryPoints){
@@ -816,6 +817,7 @@ public class RootbeerClassLoader {
         }
       }
     }
+*/
   }
 
   public List<SootMethod> getEntryPoints(){
@@ -842,7 +844,8 @@ public class RootbeerClassLoader {
     m_entryDetectors.add(detector);
   }
 
-  private void cachePackageNames(){
+  private void loadHierarchySootClasses(){
+    HierarchySootClassFactory hclassFactory = new HierarchySootClassFactory();
     List<String> paths = SourceLocator.v().classPath();
     List<String> local_paths = new ArrayList<String>();
     local_paths.addAll(paths);
@@ -880,11 +883,7 @@ public class RootbeerClassLoader {
               name = name.replace("/", ".");
               package_name = getPackageName(name);
 
-              int start_count = count_stream.getCount();
-              HierarchySootClass hierarchy_class = new HierarchySootClass(name);
-              hierarchy_class.loadClassFile(filename, jin);
-              int end_count = count_stream.getCount();
-              int read_len = end_count - start_count;
+              HierarchySootClass hierarchy_class = hclassFactory.create(filename, jin);
               m_classHierarchy.put(name, hierarchy_class);
 
               if(jar.equals(m_userJar)){
@@ -1117,40 +1116,41 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void doDfs(SootMethod method, List<SootMethod> queue, Set<String> visited){  
-    if(m_dontDfsMethods.contains(method.getSignature())){
+/*
+  private void doDfs(String method, List<String> queue, Set<String> visited){  
+    if(m_dontDfsMethods.contains(method)){
       return;
     }
 
-    List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(method.getSignature());
-    for(SootMethod virt_method : virt_methods){
-      if(method.getSignature().equals(virt_method.getSignature())){
+    List<String> virt_methods = m_classHierarchy.getVirtualMethods(method.getSignature());
+    for(String virt_method : virt_methods){
+      if(method.getSignature().equals(virt_method)){
         continue;
       }
     
-      if(visited.contains(virt_method.getSignature()) == false){
+      if(visited.contains(virt_method) == false){
         queue.add(virt_method);
       }
     }
 
-    SootClass soot_class = method.getDeclaringClass();
-    if(ignorePackage(soot_class.getName())){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(method);
+    if(ignorePackage(util.getClassName()){
       return;
     }
 
-    if(isKeepPackage(soot_class.getName())){
+    if(isKeepPackage(util.getClassName()){
       return;
     }
 
-    String signature = method.getSignature();
-    if(visited.contains(signature)){
+    if(visited.contains(method)){
       return;
     }
-    visited.add(signature);
+    visited.add(method);
     
     //System.out.println("doDfs: "+signature);
 
-    m_currDfsInfo.addMethod(signature);
+    m_currDfsInfo.addMethod(method);
     m_currDfsInfo.addType(soot_class.getType());
     
     if(method.isConcrete() == false){
@@ -1239,7 +1239,7 @@ public class RootbeerClassLoader {
       }
     }
   }
-
+*/
   private SootClass findTypeClass(Type type){
     if(type instanceof ArrayType){
       ArrayType array_type = (ArrayType) type;

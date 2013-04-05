@@ -21,16 +21,16 @@
  * Copyright (C) 2012 Marc-Andre Laverdiere-Papineau
  */
 
-package soot.rbclassload;
+package soot.coffi;
 
 public class ClassPoolConstantReader {
 
   public String get(int index, cp_info[] constant_pool){
     cp_info entry = constant_pool[index];
-    if(entry instanceof CONSTANT_Class_info)
+    if(entry instanceof CONSTANT_Class_info){
       CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
       int name_index = class_info.name_index;
-      cp_info class_name = class_file.constant_pool[name_index];
+      cp_info class_name = constant_pool[name_index];
       CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) class_name;
       String converted_name = utf8_info.convert();
       String java_name = converted_name.replace("/", ".");

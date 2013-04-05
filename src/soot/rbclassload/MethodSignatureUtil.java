@@ -90,7 +90,7 @@ public class MethodSignatureUtil {
 
   private String remapClass(String cls){
     StringToType converter = new StringToType();
-    Type type = converter.toType(cls);
+    Type type = converter.convert(cls);
 
     type = m_remapClassName.getMapping(type);
 
@@ -141,7 +141,7 @@ public class MethodSignatureUtil {
     List<Type> ret = new ArrayList<Type>();
     StringToType converter = new StringToType();
     for(String param_str : m_params){
-      ret.add(converter.toType(param_str));
+      ret.add(converter.convert(param_str));
     }
     return ret;
   }
@@ -199,7 +199,7 @@ public class MethodSignatureUtil {
     ret.append("<");
     ret.append(m_className);
     ret.append(": ");
-    ret.append(getMethodSubSignature());
+    ret.append(getSubSignature());
     ret.append(">");
     return ret.toString();
   }

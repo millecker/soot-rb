@@ -23,46 +23,65 @@
 
 package soot.coffi;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.io.InputStream;
+import java.io.DataInputStream;
+import soot.coffi.ClassPoolConstantReader;
+import soot.rbclassload.HierarchySootClass;
+import soot.rbclassload.HierarchySootMethod;
+
 public class HierarchySootClassFactory {
 
-  public HierarchySootClass create(String filename, InputStream is){
-    m_classFile = new ClassFile(filename);
-    m_constantPool = m_classFile.constant_pool;
+  private ClassPoolConstantReader m_constantReader;
+  private HierarchySootMethodFactory m_methodFactory;
 
-    DataInputStream data_stream = new DataInputStream(is);
-    boolean loaded = m_classFile.readClass(data_stream);
+  public HierarchySootClassFactory(){
+    m_constantReader = new ClassPoolConstantReader();
+    m_methodFactory = new HierarchySootMethodFactory();
+  }
+
+  public HierarchySootClass create(String filename, InputStream is){
+    ClassFile classFile = new ClassFile(filename);
+    cp_info[] constantPool = classFile.constant_pool;
+
+    DataInputStream dataStream = new DataInputStream(is);
+    boolean loaded = classFile.readClass(dataStream);
     if(loaded == false){
       return null;
     }
 
     boolean hasSuperClass;
+    String className;
     String superClassName;
 
-    GetClassConstant constant_reader = new GetClassConstant();
-    if(m_classFile.super_class == 0){
+    className = m_constantReader.get(classFile.this_class, constantPool);
+
+    if(classFile.super_class == 0){
       hasSuperClass = false;
+      superClassName = "";
     } else {
       hasSuperClass = true;
-      superClassName = constant_reader.get(m_classFile.super_class, m_classFile);
+      superClassName = m_constantReader.get(classFile.super_class, constantPool);
     }
 
     List<String> interfaces = new ArrayList<String>();
-    for(int i = 0; i < m_classFile.interfaces_count; ++i){
-      String name = constant_reader.get(m_classFile.interfaces[i], m_classFile);
+    for(int i = 0; i < classFile.interfaces_count; ++i){
+      String name = m_constantReader.get(classFile.interfaces[i], constantPool);
       interfaces.add(name);
     }
     
-    HierarchySootMethodFactory methodFactory = new HierarchySootMethodFactory();
     List<HierarchySootMethod> methods = new ArrayList<HierarchySootMethod>();
-    for(int i = 0; i < m_classFile.methods_count; ++i){
-      HierarchySootMethod method = methodFactory.create(m_classFile.methods[i], m_classFile);
-      method.setHierarchySootClass(this);
-      methods.add(method);
-    }
-    m_classFile = null;
 
     HierarchySootClass ret = new HierarchySootClass(className, hasSuperClass,
       superClassName, interfaces, methods);
-    return ret;;
+
+    for(int i = 0; i < classFile.methods_count; ++i){
+      HierarchySootMethod method = m_methodFactory.create(classFile.methods[i], constantPool, classFile.attributes);
+      method.setHierarchySootClass(ret);
+      methods.add(method);
+    }
+
+    return ret;
   }
 }
