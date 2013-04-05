@@ -887,7 +887,6 @@ public class RootbeerClassLoader {
               m_classHierarchy.put(name, hierarchy_class);
 
               if(jar.equals(m_userJar)){
-                System.out.println("adding app class: "+name);
                 m_appClasses.add(name);
               }
             } else {

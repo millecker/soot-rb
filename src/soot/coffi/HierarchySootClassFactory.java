@@ -43,13 +43,13 @@ public class HierarchySootClassFactory {
 
   public HierarchySootClass create(String filename, InputStream is){
     ClassFile classFile = new ClassFile(filename);
-    cp_info[] constantPool = classFile.constant_pool;
 
     DataInputStream dataStream = new DataInputStream(is);
     boolean loaded = classFile.readClass(dataStream);
     if(loaded == false){
       return null;
     }
+    cp_info[] constantPool = classFile.constant_pool;
 
     boolean hasSuperClass;
     String className;
