@@ -79,6 +79,8 @@ import soot.PatchingChain;
 import soot.Local;
 
 import soot.coffi.HierarchySootClass;
+import soot.coffi.HierarchySootMethod;
+import org.apache.commons.io.input.CountingInputStream;
 
 public class RootbeerClassLoader {
 
@@ -182,10 +184,10 @@ public class RootbeerClassLoader {
     m_classPaths = SourceLocator.v().classPath();
 
     cachePackageNames();
-    buildClassHierarchy();
+    sortApplicationClasses();
     findEntryPoints();
-    runDfsValueSwitchOnAppClasses();
-
+    buildClassHierarchy();
+    
     for(String entry : m_entryPoints){
       DfsInfo dfs_info = new DfsInfo(entry);
       m_dfsInfos.put(entry, dfs_info);
@@ -225,21 +227,6 @@ public class RootbeerClassLoader {
     Scene.v().loadDynamicClasses();
   }
     
-  private void runDfsValueSwitchOnAppClasses(){
-    System.out.println("running DfsValueSwitch on all application classes...");
-    for(String app_class : m_appClasses){
-      SootClass soot_class = Scene.v().getSootClass(app_class);
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
-        DfsValueSwitch value_switch = new DfsValueSwitch();
-        if(method.isConcrete()){
-          value_switch.run(method);
-        }
-        m_dfsValueSwitchMap.put(method.getSignature(), value_switch);         
-      }
-    }
-  }
-
 /*
   private void collectFields(){
     m_reachableFields = new HashSet<String>();
@@ -424,12 +411,12 @@ public class RootbeerClassLoader {
   private void loadStringCallGraph(){
     Set<String> visited_classes = new HashSet<String>();
     Set<String> visited_methods = new HashSet<String>();
-    SootMethod entry = m_currDfsInfo.getRootMethod();
+    String entry = m_currDfsInfo.getRootMethodSignature();
 
-    System.out.println("loading forward string call graph for: "+entry.getSignature()+"...");
+    System.out.println("loading forward string call graph for: "+entry+"...");
     List<String> bfs_queue = new LinkedList<String>();
-    bfs_queue.add(entry.getSignature());
-    m_currDfsInfo.getStringCallGraph().addEntryPoint(entry.getSignature());
+    bfs_queue.add(entry);
+    m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
 
     while(bfs_queue.isEmpty() == false){
       String bfs_entry = bfs_queue.get(0);
@@ -444,12 +431,10 @@ public class RootbeerClassLoader {
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
-      Scene.v().loadClass(class_name, SootClass.BODIES);
-
-      SootMethod bfs_method = null;
-      try {
-        bfs_method = util.getSootMethod();
-      } catch(Exception ex){
+      HierarchySootClass hclass = m_hierarchy.get(class_name);
+      HierarchySootMethod hmethod = hclass.getMethodBySubSignature(util.getMethodSubSignature());      
+      
+      if(hmethod == null){
         continue;
       }
 
@@ -458,10 +443,10 @@ public class RootbeerClassLoader {
       }
 
       //add virtual methods to queue
-      List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(bfs_entry);
-      for(SootMethod method : virt_methods){
-        System.out.println("loadStringGraph adding virtual_method to queue: "+method.getSignature());
-        bfs_queue.add(method.getSignature());
+      List<String> virt_methods = m_classHierarchy.getAllVirtualMethods(bfs_entry);
+      for(String signature : virt_methods){
+        System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
+        bfs_queue.add(signature);
       }
 
       //add bfs methods to queue
@@ -556,8 +541,8 @@ public class RootbeerClassLoader {
   }
 
   private void sortApplicationClasses(){
-    System.out.println("sorting application classes...");
-    java.util.Collections.sort(m_appClasses);
+    //System.out.println("sorting application classes...");
+    //java.util.Collections.sort(m_appClasses);
   }
 
   public boolean isLoaded(){
@@ -875,12 +860,18 @@ public class RootbeerClassLoader {
         }
         System.out.println("caching package names for: "+jar);
         try {
-          JarInputStream jin = new JarInputStream(new FileInputStream(jar));
+          CountingInputStream count_stream = new CountingInputStream(new FileInputStream(jar));
+          JarInputStream jin = new JarInputStream(count_stream);
           while(true){
             JarEntry entry = jin.getNextJarEntry();
             if(entry == null){
               break;
             }
+
+            if(entry.getCompressedSize() == -1 && entry.getSize() == -1){
+              continue;
+            } 
+
             String name = entry.getName();
             String package_name;
             if(name.endsWith(".class")){
@@ -889,10 +880,17 @@ public class RootbeerClassLoader {
               name = name.replace("/", ".");
               package_name = getPackageName(name);
 
+              int start_count = count_stream.getCount();
               HierarchySootClass hierarchy_class = new HierarchySootClass(name);
               hierarchy_class.loadClassFile(filename, jin);
+              int end_count = count_stream.getCount();
+              int read_len = end_count - start_count;
               m_classHierarchy.put(name, hierarchy_class);
-              System.out.println("successfully loaded: "+name);
+
+              if(jar.equals(m_userJar)){
+                System.out.println("adding app class: "+name);
+                m_appClasses.add(name);
+              }
             } else {
               name = name.replace("/", ".");
               package_name = name.substring(0, name.length()-1);
@@ -907,7 +905,6 @@ public class RootbeerClassLoader {
               jars.add(jar);
               m_packageNameCache.put(package_name, jars);
             }
-
           }
           jin.close();
         } catch(Exception ex){
@@ -918,6 +915,7 @@ public class RootbeerClassLoader {
   }
 
   private void buildClassHierarchy(){
+    System.out.println("building class hierarchy...");
     m_classHierarchy.build();
     //System.out.println(m_classHierarchy.toString());
   }
@@ -1106,8 +1104,9 @@ public class RootbeerClassLoader {
     System.out.println("finding entry points...");
     m_entryPoints = new ArrayList<String>();
     for(String app_class : m_appClasses){
-      SootClass curr = Scene.v().getSootClass(app_class);
-      for(SootMethod method : curr.getMethods()){
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(app_class);
+      List<HierarchySootMethod> methods = hclass.getMethods();
+      for(HierarchySootMethod method : methods){
         for(EntryPointDetector detector : m_entryDetectors){
           detector.testEntryPoint(method);
         }

@@ -27,6 +27,8 @@ package soot.rbclassload;
 import soot.SootMethod;
 import java.util.List;
 
+import soot.coffi.HierarchySootMethod;
+
 /**
  * Plain interface for a detector of entry points.
  * 
@@ -38,7 +40,7 @@ public interface EntryPointDetector {
   /**
     * Tests if the given method is an entry point
     */
-  public void testEntryPoint(SootMethod sm);
+  public void testEntryPoint(HierarchySootMethod sm);
 
   /**
     * Returns the entry points

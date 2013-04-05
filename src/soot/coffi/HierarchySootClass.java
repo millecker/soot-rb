@@ -35,7 +35,8 @@ public class HierarchySootClass {
   private boolean m_hasSuperClass;
   private String m_superClassName;
   private List<String> m_interfaceNames;
-  private List<HierarchySootMethod> m_methods;
+  private List<HierarchySootMethod> m_methods;  
+  private cp_info m_constantPool[];
 
   private ClassFile m_classFile;
 /*
@@ -61,6 +62,10 @@ public class HierarchySootClass {
     m_methods = new ArrayList<HierarchySootMethod>();
   }
 
+  public String getName(){
+    return m_className;
+  }
+
   public boolean hasSuperClass(){
     return m_hasSuperClass;
   }
@@ -73,8 +78,14 @@ public class HierarchySootClass {
     return m_interfaceNames;
   }
 
+  public List<HierarchySootMethod> getMethods(){
+    return m_methods;
+  }
+
   public boolean loadClassFile(String filename, InputStream is){
     m_classFile = new ClassFile(filename);
+    m_constantPool = m_classFile.constant_pool;
+
     DataInputStream data_stream = new DataInputStream(is);
     boolean loaded = m_classFile.readClass(data_stream);
     if(loaded == false){
@@ -97,9 +108,28 @@ public class HierarchySootClass {
     for(int i = 0; i < m_classFile.methods_count; ++i){
       HierarchySootMethod method = new HierarchySootMethod();
       method.read(m_classFile.methods[i], m_classFile);
+      method.setHierarchySootClass(this);
       m_methods.add(method);
     }
     m_classFile = null;
     return true;
+  }
+
+  public HierarchySootMethod findMethodByName(String name){
+    for(HierarchySootMethod method : m_methods){
+      if(method.getName().equals(name)){
+        return method;
+      }
+    }
+    return null;
+  }
+
+  public HierarchySootMethod findMethodBySubSignature(String sub_sig){
+    for(HierarchySootMethod method : m_methods){
+      if(method.getSubSignature().equals(sub_sig)){
+        return method;
+      }
+    }
+    return null;
   }
 }

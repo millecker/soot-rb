@@ -35,6 +35,8 @@ public class HierarchySootMethod {
   private String m_returnType;
   private List<String> m_parameterTypes;
   private List<String> m_exceptionTypes;
+  private HierarchySootClass m_class;
+  private Instruction m_instructions;
 
   private ClassFile m_classFile;
 
@@ -69,9 +71,14 @@ public class HierarchySootMethod {
         m_exceptionTypes.add(constant_reader.get(table_index, m_classFile));
       }      
     }
+
+    m_instructions = mi.instructions;
   }
   
   private attribute_info findExceptionsAttribute(method_info mi){
+    if(m_classFile.attributes == null){
+      return null;
+    }
     for(attribute_info attribute : m_classFile.attributes){
       int name_index = attribute.attribute_name;
       CONSTANT_Utf8_info utf8_name = (CONSTANT_Utf8_info) m_classFile.constant_pool[name_index];
@@ -97,5 +104,44 @@ public class HierarchySootMethod {
 
   public List<String> getExceptionTypes(){
     return m_exceptionTypes;
+  }
+
+  public Instruction getInstructions(){
+    return m_instructions;
+  }
+
+  public void setHierarchySootClass(HierarchySootClass hclass){
+    m_class = hclass;
+  }
+
+  public HierarchySootClass getHierarchySootClass(){
+    return m_class;
+  }
+
+  public String getSignature(){
+    StringBuilder ret = new StringBuilder();
+    ret.append("<");
+    ret.append(m_class.getName());
+    ret.append(": ");
+    ret.append(getSubSignature());
+    ret.append(">");
+    return ret.toString();
+  }
+
+  public String getSubSignature(){
+    StringBuilder ret = new StringBuilder();
+    ret.append(m_returnType);
+    ret.append(" ");
+    ret.append(m_name);
+    ret.append("(");
+    for(int i = 0; i < m_parameterTypes.size(); ++i){
+      String param_type = m_parameterTypes.get(i);
+      ret.append(param_type);
+      if(i < m_parameterTypes.size() - 1){
+        ret.append(",");
+      }
+    }
+    ret.append(")");
+    return ret.toString();
   }
 }

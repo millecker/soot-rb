@@ -63,6 +63,14 @@ public class ClassHierarchy {
     m_hierarchySootClasses.put(name, hierarchy_class);
   }
 
+  public HierarchySootClass getHierarchySootClass(String name){
+    return m_hierarchySootClasses.get(name);
+  }
+
+  public boolean containsClass(String name){
+    return m_hierarchySootClasses.containsKey(name);
+  }
+
   public void build(){
     //find roots
     m_roots = new HashSet<String>();
