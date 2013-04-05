@@ -38,6 +38,24 @@ public interface IInitialResolver {
 			typesToSignature = new HashSet<Type>();
 			typesToBody = new HashSet<Type>();
 		}
+
+    @Override
+    public String toString(){
+      StringBuilder ret = new StringBuilder();
+      ret.append("  typesToHierarchy: \n");
+      for(Type type : typesToHierarchy){
+        ret.append("    "+type.toString()+"\n");
+      }
+      ret.append("  typesToSignature: \n");
+      for(Type type : typesToSignature){
+        ret.append("    "+type.toString()+"\n");
+      }
+      ret.append("  typesToBody: \n");
+      for(Type type : typesToBody){
+        ret.append("    "+type.toString()+"\n");
+      }
+      return ret.toString();
+    }
 	}
 
 }

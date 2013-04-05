@@ -45,7 +45,7 @@ class AbstractSootFieldRef implements SootFieldRef {
         
         if(Options.v().rbclassload()){
           String field_class_name = declaringClass.getName();
-          SootResolver.v().resolveClass(field_class_name, SootClass.HIERARCHY); 
+          SootResolver.v().resolveClass(field_class_name, SootClass.BODIES); 
         }
     }
 

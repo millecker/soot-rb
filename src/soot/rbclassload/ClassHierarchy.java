@@ -30,19 +30,33 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
+import java.util.ArrayList;
+
+import soot.SootMethod;
+import soot.SootClass;
+import soot.Scene;
+import soot.Type;
+import soot.RefType;
+import soot.RefLikeType;
 import soot.coffi.HierarchySootClass;
 
 public class ClassHierarchy {
 
   private Map<String, HierarchySootClass> m_hierarchySootClasses;
+  private Map<String, List<HierarchyGraph>> m_unmergedGraphs;
   private Map<String, HierarchyGraph> m_hierarchyGraphs;
   private Set<String> m_roots;
-  private Set<HierarchyGraph> m_hierarchyFlyweights;
+  private List<NumberedType> m_numberedTypes;
+  private Map<String, NumberedType> m_numberedTypeMap;
+  private List<Type> m_orderedTypes;
+  private List<RefType> m_orderedRefTypes;
+  private List<Type> m_orderedRefLikeTypes;
 
   public ClassHierarchy(){
     m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
     m_hierarchyGraphs = new HashMap<String, HierarchyGraph>();
-    m_hierarchyFlyweights = new HashSet<HierarchyGraph>();
+    m_numberedTypes = new ArrayList<NumberedType>();
+    m_numberedTypeMap = new HashMap<String, NumberedType>();
   }
 
   public void put(String name, HierarchySootClass hierarchy_class){
@@ -64,11 +78,12 @@ public class ClassHierarchy {
       }
     }
 
+    m_unmergedGraphs = new HashMap<String, List<HierarchyGraph>>();
+
     //foreach root
     for(String root : m_roots){    
       //build flyweight HierarchyGraph
       HierarchyGraph hgraph = new HierarchyGraph();
-      m_hierarchyFlyweights.add(hgraph);
       List<String> queue = new LinkedList<String>();
       queue.add(root);
 
@@ -76,13 +91,12 @@ public class ClassHierarchy {
         String curr_class = queue.get(0);
         queue.remove(0);
 
-        //fill m_hierarchyGraphs
-        m_hierarchyGraphs.put(curr_class, hgraph);
+        //fill temp_graphs
+        mapPut(m_unmergedGraphs, curr_class, hgraph);
+        hgraph.addHierarchyClass(curr_class);
 
         HierarchySootClass hclass = m_hierarchySootClasses.get(curr_class);
         if(hclass == null){
-          System.out.println("hclass == null");
-          System.out.println("  curr_class: "+curr_class);
           continue;
         }
 
@@ -98,12 +112,179 @@ public class ClassHierarchy {
         }
       }
     }
+
+    mergeGraphs();
+  }
+
+  public void addArrayTypes(Set<Type> array_types){
+    for(Type type : array_types){
+      String curr_class = type.toString();
+      HierarchyGraph hgraph = new HierarchyGraph();
+      hgraph.addHierarchyClass(curr_class);
+      hgraph.addSuperClass(curr_class, "java.lang.Object");
+
+      List<HierarchyGraph> graph_list = new ArrayList<HierarchyGraph>();
+      graph_list.add(hgraph);
+
+      m_unmergedGraphs.put(curr_class, graph_list);
+    }
+
+    mergeGraphs();
+  }
+
+  private void mergeGraphs(){
+    m_hierarchyGraphs.clear();
+    for(String curr_class : m_unmergedGraphs.keySet()){
+      List<HierarchyGraph> graphs = m_unmergedGraphs.get(curr_class);
+      HierarchyGraph new_graph = new HierarchyGraph();
+      for(HierarchyGraph curr_graph : graphs){
+        new_graph.merge(curr_graph);
+      }
+      m_hierarchyGraphs.put(curr_class, new_graph);
+    }
+  }
+
+  public NumberedType getNumberedType(String str){
+    if(m_numberedTypeMap.containsKey(str)){
+      return m_numberedTypeMap.get(str);
+    } else {
+      System.out.println("cannot find numbered type: "+str);
+      Iterator<String> iter = m_numberedTypeMap.keySet().iterator();
+      while(iter.hasNext()){
+        System.out.println("  "+iter.next());
+      }      
+      System.exit(0);
+      return null;
+    }
+  }
+
+  public void numberTypes(){
+    int number = 1;
+    List<String> queue = new LinkedList<String>();
+    Set<String> visited = new HashSet<String>();
+    queue.add("java.lang.Object");
+    HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
+
+    StringToType converter = new StringToType();
+
+    while(queue.isEmpty() == false){
+      String curr_type = queue.get(0);
+      queue.remove(0);
+      
+      List<String> children = hgraph.getChildren(curr_type);
+      queue.addAll(children);
+
+      Type type = converter.toType(curr_type);
+      NumberedType numbered_type = new NumberedType(type, number);
+      m_numberedTypes.add(numbered_type);
+      m_numberedTypeMap.put(curr_type, numbered_type);
+      
+      number++;
+    }
+    
+    m_orderedTypes = new ArrayList<Type>();
+    m_orderedRefTypes = new ArrayList<RefType>();
+    m_orderedRefLikeTypes = new ArrayList<Type>();
+    for(NumberedType ntype : m_numberedTypes){
+      Type type = ntype.getType();
+      m_orderedTypes.add(type);
+      
+      if(type instanceof RefType){
+        RefType ref_type = (RefType) type;
+        m_orderedRefTypes.add(ref_type);
+      } 
+      if(type instanceof RefLikeType){
+        m_orderedRefLikeTypes.add(type);
+      }
+    }
+  }
+
+  public List<NumberedType> getNumberedTypes(){
+    return m_numberedTypes;
+  }
+
+  private void mapPut(Map<String, List<HierarchyGraph>> temp_graphs, String curr_class, 
+    HierarchyGraph hgraph){
+
+    List<HierarchyGraph> graphs;
+    if(temp_graphs.containsKey(curr_class)){
+      graphs = temp_graphs.get(curr_class);
+    } else {
+      graphs = new ArrayList<HierarchyGraph>();
+      temp_graphs.put(curr_class, graphs);
+    }
+    graphs.add(hgraph);
+  }
+
+  public HierarchyGraph getHierarchyGraph(String signature){    
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    String class_name = util.getClassName();
+    return m_hierarchyGraphs.get(class_name);
+  }
+
+  public HierarchyGraph getHierarchyGraph(SootClass soot_class){
+    String class_name = soot_class.getName();
+    return m_hierarchyGraphs.get(class_name);
+  }
+
+  public List<SootMethod> getAllVirtualMethods(String signature){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    String class_name = util.getClassName();
+    SootMethod input_method = util.getSootMethod();
+
+    List<SootMethod> ret = new ArrayList<SootMethod>();
+    if(m_hierarchyGraphs.containsKey(class_name) == false){
+      return ret;
+    }
+    
+    HierarchyGraph hgraph = m_hierarchyGraphs.get(class_name);
+    List<String> all_classes = hgraph.getAllClasses();
+    for(String curr_class : all_classes){
+      if(Scene.v().containsClass(curr_class) == false){
+        continue;
+      }
+      SootClass soot_class = Scene.v().getSootClass(curr_class);
+      List<SootMethod> methods = soot_class.getMethods();
+      for(SootMethod method : methods){
+        if(covarientEqual(input_method, method)){
+          ret.add(method);
+        }
+      }
+    }
+    
+    return ret;
+  }
+
+  private boolean covarientEqual(SootMethod input_method, SootMethod other_method){
+    if(input_method.getName().equals(other_method.getName()) == false){
+      return false;
+    }
+    List<Type> lhs_types = input_method.getParameterTypes();
+    List<Type> rhs_types = other_method.getParameterTypes();
+    if(lhs_types.size() != rhs_types.size()){
+      return false;
+    }
+    for(int i = 0; i < lhs_types.size(); ++i){
+      Type lhs_type = lhs_types.get(i);
+      Type rhs_type = rhs_types.get(i);
+      if(lhs_type.equals(rhs_type) == false){
+        return false;
+      }
+    }
+    Type lhs_return = input_method.getReturnType();
+    Type rhs_return = other_method.getReturnType();
+    if(lhs_return.equals(rhs_return) == false){
+      return false;
+    }
+    return true;
   }
 
   @Override
   public String toString(){
     StringBuilder ret = new StringBuilder();    
-    for(HierarchyGraph hgraph : m_hierarchyFlyweights){
+    for(HierarchyGraph hgraph : m_hierarchyGraphs.values()){
       ret.append(hgraph.toString());
     }
     return ret.toString();

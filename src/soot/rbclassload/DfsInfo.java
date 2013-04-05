@@ -35,19 +35,13 @@ public class DfsInfo {
   private Set<String> m_dfsMethods;
   private Set<String> m_reverseDfsMethods;
   private Set<Type> m_dfsTypes;
-  private CallGraph m_callGraph;
-  private Map<String, List<Type>> m_parentsToChildren;
-  private Map<String, List<NumberedType>> m_childrenToParents;
-  private Map<String, List<NumberedType>> m_hierarchyDown;
-  private Map<String, NumberedType> m_numberedTypeMap;
-  private List<NumberedType> m_numberedTypes;
   private List<Type> m_orderedTypes;
   private List<RefType> m_orderedRefTypes;
   private List<Type> m_orderedRefLikeTypes;
   private Set<SootField> m_dfsFields;
   private Set<ArrayType> m_arrayTypes;
   private List<Type> m_builtInTypes;
-  private Map<SootClass, Integer> m_classToNumber;
+  private List<NumberedType> m_numberedTypes;
   private Set<Type> m_instanceOfs;
   private List<String> m_reachableMethodSigs;
   private String m_rootMethod;
@@ -66,11 +60,9 @@ public class DfsInfo {
     m_reverseDfsMethods = new LinkedHashSet<String>();
     m_dfsTypes = new HashSet<Type>();
     m_dfsFields = new HashSet<SootField>();
-    m_callGraph = new CallGraph();
     m_builtInTypes = new ArrayList<Type>();
     m_instanceOfs = new HashSet<Type>();
     m_reachableMethodSigs = new ArrayList<String>();
-    m_parentsToChildren = new HashMap<String, List<Type>>();
     m_rootMethod = method_signature;
     m_otherEntryPoints = new ArrayList<SootMethod>();
     m_pointsTo = new HashMap<String, Set<Type>>();
@@ -78,6 +70,7 @@ public class DfsInfo {
     m_interfaceClasses = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
     m_stringCallGraph = new StringCallGraph();
+    m_numberedTypes = new ArrayList<NumberedType>();
     addBuiltInTypes();
   }
 
@@ -98,165 +91,8 @@ public class DfsInfo {
     Set<ArrayType> added = creator.create(m_arrayTypes);
     m_dfsTypes.addAll(added);
     m_arrayTypes.addAll(added);
-    SootClass obj_class = Scene.v().getSootClass("java.lang.Object");
-    for(Type added_type : m_arrayTypes){
-      addSuperClass(added_type, obj_class.getType());
-    }
   }
   
-  public void orderTypes(){
-    m_numberedTypeMap = new HashMap<String, NumberedType>();
-    m_classToNumber = new HashMap<SootClass, Integer>();
-    
-    List<NumberedType> numbered_types = new ArrayList<NumberedType>();
-    int number = 1;
-    List<Type> queue = new LinkedList<Type>();
-    Set<Type> visited = new HashSet<Type>();
-    queue.addAll(m_builtInTypes);
-    while(queue.isEmpty() == false){
-      Type curr = queue.get(0);
-      queue.remove(0);
-      
-      if(visited.contains(curr)){
-        continue;
-      }
-      visited.add(curr);
-      
-      NumberedType numbered_type = new NumberedType(curr, number);
-      numbered_types.add(numbered_type);
-      m_numberedTypeMap.put(curr.toString(), numbered_type);
-      if(curr instanceof RefType){
-        RefType ref_type = (RefType) curr;
-        SootClass curr_class = ref_type.getSootClass();
-        m_classToNumber.put(curr_class, number);
-      }
-      
-      number++;
-      
-      if(m_parentsToChildren.containsKey(curr.toString()) == false){
-        continue;
-      }
-      
-      List<Type> children = m_parentsToChildren.get(curr.toString());
-      queue.addAll(children);
-    }
-    
-    m_numberedTypes = new ArrayList<NumberedType>();
-    m_orderedTypes = new ArrayList<Type>();
-    m_orderedRefTypes = new ArrayList<RefType>();
-    m_orderedRefLikeTypes = new ArrayList<Type>();
-    for(int i = numbered_types.size() - 1; i >= 0; --i){
-      NumberedType curr2 = numbered_types.get(i);
-      m_numberedTypes.add(curr2);
-      m_orderedTypes.add(curr2.getType());
-      
-      Type type = curr2.getType();
-      if(type instanceof RefType){
-        RefType ref_type = (RefType) type;
-        m_orderedRefTypes.add(ref_type);
-      } 
-      if(type instanceof RefLikeType){
-        m_orderedRefLikeTypes.add(type);
-      }
-    }
-  }
-  
-  private NumberedType getNumberedType(String str){
-    if(m_numberedTypeMap.containsKey(str)){
-      return m_numberedTypeMap.get(str);
-    } else {
-      System.out.println("cannot find numbered type: "+str);
-      Iterator<String> iter = m_numberedTypeMap.keySet().iterator();
-      while(iter.hasNext()){
-        System.out.println("  "+iter.next());
-      }      
-      System.exit(0);
-      return null;
-    }
-  }
-
-  public void createClassHierarchy(){
-    m_childrenToParents = new HashMap<String, List<NumberedType>>();
-    Set<Type> to_process = new HashSet<Type>();
-    to_process.addAll(m_dfsTypes);
-    to_process.addAll(m_builtInTypes);
-    for(Type type : to_process){
-      List<NumberedType> parents = new ArrayList<NumberedType>();
-      NumberedType curr_type = getNumberedType(type.toString());
-      parents.add(curr_type);
-      if(type instanceof RefType){
-        RefType ref_type = (RefType) type;
-        SootClass curr_class = ref_type.getSootClass();
-        while(curr_class.hasSuperclass()){
-          curr_class = curr_class.getSuperclass();
-          parents.add(getNumberedType(curr_class.getType().toString()));
-        }
-      } else if(type instanceof ArrayType){
-        SootClass obj_cls = Scene.v().getSootClass("java.lang.Object");
-        parents.add(getNumberedType(obj_cls.getType().toString()));
-      } else {
-        continue;
-      }
-      m_childrenToParents.put(type.toString(), parents);
-    }
-    
-    m_hierarchyDown = new HashMap<String, List<NumberedType>>();
-    SootClass obj_cls = Scene.v().getSootClass("java.lang.Object");
-    Type root = obj_cls.getType();
-    List<Type> stack = new ArrayList<Type>();
-    stack.add(root);
-    hierarchyDfs(root, stack);
-  }
-  
-  private void hierarchyDfs(Type curr, List<Type> stack){ 
-    List<Type> children = m_parentsToChildren.get(curr.toString());
-    if(children == null){
-      children = new ArrayList<Type>(); 
-    }
-    for(Type child : children){
-      stack.add(child);
-      hierarchyDfs(child, stack);
-      stack.remove(stack.size()-1);
-    }
-    for(int i = 0; i < stack.size(); ++i){
-      Type stack_value = stack.get(i);
-      List<NumberedType> curr_parents = null;
-      if(m_hierarchyDown.containsKey(stack_value.toString())){
-        curr_parents = m_hierarchyDown.get(stack_value.toString());
-      } else {
-        curr_parents = new ArrayList<NumberedType>();
-        m_hierarchyDown.put(stack_value.toString(), curr_parents);
-      }
-      for(int j = i; j < stack.size(); ++j){
-        Type child = stack.get(j); 
-        NumberedType ntype = m_numberedTypeMap.get(child.toString());
-        if(curr_parents.contains(ntype) == false){
-          curr_parents.add(ntype);
-        }
-      }
-    }    
-  }
-  
-  public List<NumberedType> getNumberedTypes(){
-    return m_numberedTypes;
-  }
-
-  public void print() {
-    printSet("methods: ", getMethods());
-    printSet("fields: ", getFields());
-    printSet("array_types: ", getArrayTypes());
-    printSet("instance_ofs: ", getInstanceOfs());
-    
-    System.out.println("parentsToChildren: ");
-    for(String parent : m_parentsToChildren.keySet()){
-      List<Type> children = m_parentsToChildren.get(parent);
-      System.out.println("  "+parent);
-      for(Type child : children){
-        System.out.println("    "+child);
-      }
-    }
-  }
-
   private void printSet(String name, Set curr_set) {
     System.out.println(name);
     for(Object curr : curr_set){
@@ -306,35 +142,6 @@ public class DfsInfo {
     if(m_dfsTypes.contains(name) == false){
       m_dfsTypes.add(name);
     }
-    if(name instanceof ArrayType){
-      SootClass object_class = Scene.v().getSootClass("java.lang.Object");
-      addSuperClass(name, object_class.getType());
-      return;
-    }
-    SootClass type_class = getSootClassIfPossible(name);
-    if(type_class == null){
-      return;
-    }
-    if(type_class.hasSuperclass() == false){
-      return;
-    }
-    SootClass parent_class = type_class.getSuperclass();
-    addSuperClass(name, parent_class.getType());
-  }
-
-  public void addPointsTo(String method_signature, Set<Type> possible_types){
-    if(m_pointsTo.containsKey(method_signature)){
-      Set<Type> set = m_pointsTo.get(method_signature);
-      set.addAll(possible_types);
-    } else {
-      Set<Type> set = new HashSet<Type>();
-      set.addAll(possible_types);
-      m_pointsTo.put(method_signature, set);
-    }
-  }
-  
-  public Set<Type> getPointsTo(String method_signature){
-    return m_pointsTo.get(method_signature);
   }
 
   private SootClass getSootClassIfPossible(Type type){
@@ -352,30 +159,6 @@ public class DfsInfo {
   public void addField(SootField field){
     if(m_dfsFields.contains(field) == false){
       m_dfsFields.add(field);
-    }
-  }
-
-  public void addSuperClass(Type curr, Type superclass) {
-    if(m_parentsToChildren.containsKey(superclass.toString())){
-      List<Type> children = m_parentsToChildren.get(superclass.toString());
-      if(children.contains(curr) == false){
-        children.add(curr);
-      }
-    } else {
-      List<Type> children = new ArrayList<Type>();
-      children.add(curr);
-      m_parentsToChildren.put(superclass.toString(), children);
-    }
-    if(superclass instanceof RefType){
-      RefType super_ref = (RefType) superclass;
-      SootClass super_soot_class = super_ref.getSootClass();
-      if(super_soot_class.hasSuperclass()){
-        SootClass new_super = super_soot_class.getSuperclass();
-        addSuperClass(superclass, new_super.getType());
-      }
-    } else if(superclass instanceof ArrayType){
-      RefType obj_type = RefType.v("java.lang.Object");
-      addSuperClass(superclass, obj_type);
     }
   }
 
@@ -405,24 +188,6 @@ public class DfsInfo {
 
   public Set<ArrayType> getArrayTypes() {
     return m_arrayTypes;
-  }
-
-  public List<Type> getHierarchy(SootClass input_class) {
-    List<NumberedType> nret = m_childrenToParents.get(input_class.getType().toString());
-    if(nret == null){
-      System.out.println("nret == null");
-      System.out.println("  "+input_class.toString());
-    }
-    List<Type> ret = new ArrayList<Type>();
-    for(NumberedType ntype : nret){
-      ret.add(ntype.getType());
-    }
-    nret = m_hierarchyDown.get(input_class.getType().toString());
-    for(NumberedType ntype : nret){
-      ret.add(ntype.getType());
-    }
-    TypeHierarchySorter sorter = new TypeHierarchySorter();
-    return sorter.sort(ret);
   }
 
   private void addBuiltInTypes() {
@@ -464,78 +229,14 @@ public class DfsInfo {
     SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
     SootClass soot_class = Scene.v().getSootClass(class_name);
     m_builtInTypes.add(soot_class.getType());
-
-    if(soot_class.hasSuperclass()){
-      SootClass super_class = soot_class.getSuperclass();
-      addSuperClass(soot_class.getType(), super_class.getType());
-    }
   }
 
   public List<Type> getBuiltInTypes(){
     return m_builtInTypes;
   }
 
-  public List<NumberedType> getNumberedHierarchyUp(SootClass sootClass) {
-    return m_childrenToParents.get(sootClass.getType().toString());
-  }
-
-  public int getClassNumber(SootClass soot_class) {
-    if(m_classToNumber.containsKey(soot_class)){
-      return m_classToNumber.get(soot_class);
-    } else {
-      System.out.println("cannot find number for soot_class: "+soot_class.getName());
-      Iterator<SootClass> iter = m_classToNumber.keySet().iterator();
-      while(iter.hasNext()){
-        SootClass key = iter.next();
-        int value = m_classToNumber.get(key);
-        System.out.println("  ["+key.getName()+", "+value+"]");
-      }
-      try {
-        throw new RuntimeException("quit");
-      } catch(Exception ex){
-        ex.printStackTrace();
-        System.exit(0);
-      }
-      return 0;
-    }
-  }
-  
-  public int getClassNumber(Type type) {
-    if(m_numberedTypeMap.containsKey(type.toString())){
-      return (int) m_numberedTypeMap.get(type.toString()).getNumber();
-    } else {
-      System.out.println("cannot find class number for type: "+type.toString());
-      Iterator<String> iter = m_numberedTypeMap.keySet().iterator();
-      while(iter.hasNext()){
-        String key = iter.next();
-        NumberedType value = m_numberedTypeMap.get(key);
-        System.out.println("  ["+key+", "+value.getNumber()+"]");
-      }
-      try {
-        throw new RuntimeException("quit");
-      } catch(Exception ex){
-        ex.printStackTrace();
-        System.exit(0);
-      }
-      return 0;
-    }   
-  }
-
   public List<Type> getOrderedRefLikeTypes() {
     return m_orderedRefLikeTypes;
-  }
-
-  public List<NumberedType> getNumberedHierarchyDown(SootClass sootClass) {
-    return m_hierarchyDown.get(sootClass.getType().toString());
-  }
-
-  public void addCallGraphEdge(SootMethod src, Stmt stmt, SootMethod dest) {
-    Edge e = new Edge(src, stmt, dest);
-    m_callGraph.addEdge(e);
-  }
-
-  public int getCallGraphEdges() {
-    return m_callGraph.size();
   }
 
   public Set<Type> getInstanceOfs() {
@@ -583,10 +284,6 @@ public class DfsInfo {
     return m_otherEntryPoints;
   }
 
-  public CallGraph getCallGraph() {
-    return m_callGraph;
-  }
-
   public void setModifiedClasses(Set<String> modified_classes) {
     m_modifiedClasses = modified_classes;
   }
@@ -595,10 +292,43 @@ public class DfsInfo {
     return m_modifiedClasses;
   }
 
-  public void outputClassTypes() {
-    for(String cls : m_numberedTypeMap.keySet()){
-      NumberedType ntype = m_numberedTypeMap.get(cls);
-      System.out.println("num: "+ntype.getNumber()+" "+cls);
+  public void finalizeTypes(){
+    //read in NumberedTypes
+    ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
+    List<NumberedType> numbered_types = class_hierarchy.getNumberedTypes();
+    for(NumberedType ntype : numbered_types){
+      Type type = ntype.getType();
+      if(m_dfsTypes.contains(type) || m_arrayTypes.contains(type)){
+        m_numberedTypes.add(ntype);
+        m_orderedTypes.add(type);
+        if(type instanceof RefType){
+          RefType ref_type = (RefType) type;
+          m_orderedRefTypes.add(ref_type);
+        }
+        if(type instanceof RefLikeType){
+          m_orderedRefLikeTypes.add(type);
+        }
+      }
     }
   }
+
+  public List<NumberedType> getNumberedTypes(){
+    return m_numberedTypes;
+  }
+
+  /**
+   *  Get List<NumberedTypes> that are super types of soot_class
+   */
+  public List<NumberedType> getNumberedHierarchyDown(SootClass soot_class){
+    ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
+    HierarchyGraph hgraph = class_hierarchy.getHierarchyGraph(soot_class);
+    List<String> parents = hgraph.getParents(soot_class.getName());
+    System.out.println("DfsInfo.getNumberedHierarchyDown: "+soot_class.getName());
+    for(String parent : parents){
+      System.out.println("  "+parent);
+    }
+    System.exit(0);
+    return null;
+  }
+
 }

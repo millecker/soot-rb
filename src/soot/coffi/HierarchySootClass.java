@@ -35,16 +35,30 @@ public class HierarchySootClass {
   private boolean m_hasSuperClass;
   private String m_superClassName;
   private List<String> m_interfaceNames;
+  private List<HierarchySootMethod> m_methods;
 
-  private int m_magic;
-  private int m_minorVersion;
-  private int m_majorVersion;
-  private int constant_pool_count;
-  private cp_info[] constant_pool;
+  private ClassFile m_classFile;
+/*
+  ClassFile fields:
+    public int constant_pool_count;
+    public cp_info constant_pool[];
+    public int access_flags;
+    public int this_class;
+    public int super_class;
+    public int interfaces_count;
+    public int interfaces[];
+    public int fields_count;
+    public field_info fields[];
+    public int methods_count;
+    public method_info methods[];
+    public int attributes_count;
+    public attribute_info attributes[];
+*/
 
   public HierarchySootClass(String name){
     m_className = name;
     m_interfaceNames = new ArrayList<String>();
+    m_methods = new ArrayList<HierarchySootMethod>();
   }
 
   public boolean hasSuperClass(){
@@ -59,156 +73,33 @@ public class HierarchySootClass {
     return m_interfaceNames;
   }
 
-  public boolean readHierarchy(InputStream input_stream){
-    DataInputStream data_stream = new DataInputStream(input_stream);
- 
-    try {
-      m_magic = data_stream.readInt();
-      m_minorVersion = data_stream.readUnsignedShort();
-      m_majorVersion = data_stream.readUnsignedShort();
-
-      constant_pool_count = data_stream.readUnsignedShort();
-
-      if(!readConstantPool(data_stream)){
-        return false;
-      }
-
-      //eat access_flags
-      data_stream.readUnsignedShort();
-
-      //eat this_class
-      data_stream.readUnsignedShort();
-
-      int super_class = data_stream.readUnsignedShort();
-      if(super_class == 0){
-        m_hasSuperClass = false;
-      } else {
-        m_hasSuperClass = true;
-        m_superClassName = getClassConstant(super_class);
-      }
-
-      int interfaces_count = data_stream.readUnsignedShort();
-      for(int i = 0; i < interfaces_count; ++i){
-        m_interfaceNames.add(getClassConstant(data_stream.readUnsignedShort()));
-      }
-    } catch(IOException ex){
-      ex.printStackTrace();
+  public boolean loadClassFile(String filename, InputStream is){
+    m_classFile = new ClassFile(filename);
+    DataInputStream data_stream = new DataInputStream(is);
+    boolean loaded = m_classFile.readClass(data_stream);
+    if(loaded == false){
       return false;
     }
 
+    GetClassConstant constant_reader = new GetClassConstant();
+    if(m_classFile.super_class == 0){
+      m_hasSuperClass = false;
+    } else {
+      m_hasSuperClass = true;
+      m_superClassName = constant_reader.get(m_classFile.super_class, m_classFile);
+    }
+
+    for(int i = 0; i < m_classFile.interfaces_count; ++i){
+      String name = constant_reader.get(m_classFile.interfaces[i], m_classFile);
+      m_interfaceNames.add(name);
+    }
+    
+    for(int i = 0; i < m_classFile.methods_count; ++i){
+      HierarchySootMethod method = new HierarchySootMethod();
+      method.read(m_classFile.methods[i], m_classFile);
+      m_methods.add(method);
+    }
+    m_classFile = null;
     return true;
   }
-
-  private String getClassConstant(int index){
-    cp_info entry = constant_pool[index];
-    CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
-    int name_index = class_info.name_index;
-    cp_info class_name = constant_pool[name_index];
-    CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) class_name;
-    String converted_name = utf8_info.convert();
-    String java_name = converted_name.replace("/", ".");
-    return java_name;
-  }
-
-  /** Reads in the constant pool from the given stream.
-    * @param d Stream forming the <tt>.class</tt> file.
-    * @return <i>true</i> if read was successful, <i>false</i> on some error.
-    * @exception java.io.IOException on error.
-    */
-   private boolean readConstantPool(DataInputStream d) throws IOException {
-      byte tag;
-      cp_info cp;
-      int i;
-      boolean skipone;   // set if next cp entry is to be skipped
-
-      constant_pool = new cp_info[constant_pool_count];
-      //Instruction.constant_pool = constant_pool;
-      skipone = false;
-
-      for (i=1;i<constant_pool_count;i++) {
-         if (skipone) {
-            skipone = false;
-            continue;
-         }
-         tag = (byte)d.readUnsignedByte();
-         switch(tag) {
-         case cp_info.CONSTANT_Class:
-            cp = new CONSTANT_Class_info();
-            ((CONSTANT_Class_info)cp).name_index = d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_Fieldref:
-            cp = new CONSTANT_Fieldref_info();
-            ((CONSTANT_Fieldref_info)cp).class_index = d.readUnsignedShort();
-            ((CONSTANT_Fieldref_info)cp).name_and_type_index =
-                d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_Methodref:
-            cp = new CONSTANT_Methodref_info();
-            ((CONSTANT_Methodref_info)cp).class_index = d.readUnsignedShort();
-            ((CONSTANT_Methodref_info)cp).name_and_type_index =
-               d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_InterfaceMethodref:
-            cp = new CONSTANT_InterfaceMethodref_info();
-            ((CONSTANT_InterfaceMethodref_info)cp).class_index =
-               d.readUnsignedShort();
-            ((CONSTANT_InterfaceMethodref_info)cp).name_and_type_index =
-               d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_String:
-            cp = new CONSTANT_String_info();
-            ((CONSTANT_String_info)cp).string_index =
-                d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_Integer:
-            cp = new CONSTANT_Integer_info();
-            ((CONSTANT_Integer_info)cp).bytes = d.readInt();
-            break;
-         case cp_info.CONSTANT_Float:
-            cp = new CONSTANT_Float_info();
-            ((CONSTANT_Float_info)cp).bytes = d.readInt();
-            break;
-         case cp_info.CONSTANT_Long:
-            cp = new CONSTANT_Long_info();
-            ((CONSTANT_Long_info)cp).high = d.readInt() & 0xFFFFFFFFL;
-            ((CONSTANT_Long_info)cp).low = d.readInt() & 0xFFFFFFFFL;
-            skipone = true;  // next entry needs to be skipped
-            break;
-         case cp_info.CONSTANT_Double:
-            cp = new CONSTANT_Double_info();
-            ((CONSTANT_Double_info)cp).high = d.readInt() & 0xFFFFFFFFL;
-            ((CONSTANT_Double_info)cp).low = d.readInt() & 0xFFFFFFFFL;
-            skipone = true;  // next entry needs to be skipped
-            break;
-         case cp_info.CONSTANT_NameAndType:
-            cp = new CONSTANT_NameAndType_info();
-            ((CONSTANT_NameAndType_info)cp).name_index =
-               d.readUnsignedShort();
-            ((CONSTANT_NameAndType_info)cp).descriptor_index =
-               d.readUnsignedShort();
-            break;
-         case cp_info.CONSTANT_Utf8:
-            CONSTANT_Utf8_info cputf8 = new CONSTANT_Utf8_info(d);
-            // If an equivalent CONSTANT_Utf8 already exists, we return
-            // the pre-existing one and allow cputf8 to be GC'd.
-            cp = (cp_info) CONSTANT_Utf8_collector.v().add(cputf8);
-            break;
-         case cp_info.CONSTANT_MethodHandle:
-             cp = new CONSTANT_MethodHandle_info();
-             ((CONSTANT_MethodHandle_info)cp).kind = d.readByte();
-             ((CONSTANT_MethodHandle_info)cp).target_index = d.readUnsignedShort();
-             break;
-         case cp_info.CONSTANT_InvokeDynamic:
-             cp = new CONSTANT_InvokeDynamic_info();
-             ((CONSTANT_InvokeDynamic_info)cp).bootstrap_method_index = d.readUnsignedShort();
-             ((CONSTANT_InvokeDynamic_info)cp).name_and_type_index = d.readUnsignedShort();
-             break;
-         default:
-            return false;
-         }
-         cp.tag = tag;
-         constant_pool[i] = cp;
-      }
-      return true;
-   }
 }

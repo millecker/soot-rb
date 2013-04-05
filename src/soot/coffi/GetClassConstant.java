@@ -21,29 +21,19 @@
  * Copyright (C) 2012 Marc-Andre Laverdiere-Papineau
  */
 
-package soot.rbclassload;
+package soot.coffi;
 
-import soot.Type;
-import soot.rbclassload.DfsInfo;
-import soot.rbclassload.RootbeerClassLoader;
+public class GetClassConstant {
 
-public class TypeHierarchySorterValue implements Comparable<TypeHierarchySorterValue> {
-
-  private Type m_type;
-  private int m_number;
-  
-  public TypeHierarchySorterValue(Type type){
-    m_type = type;
-    DfsInfo dfs_info = RootbeerClassLoader.v().getDfsInfo();
-    m_number = RootbeerClassLoader.v().getClassNumber(type.toString());
-  }
-  
-  public int compareTo(TypeHierarchySorterValue t) {
-    return Integer.valueOf(t.m_number).compareTo(Integer.valueOf(m_number));
-  }
-
-  public Type getType(){
-    return m_type;
+  public String get(int index, ClassFile class_file){
+    cp_info entry = class_file.constant_pool[index];
+    CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
+    int name_index = class_info.name_index;
+    cp_info class_name = class_file.constant_pool[name_index];
+    CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) class_name;
+    String converted_name = utf8_info.convert();
+    String java_name = converted_name.replace("/", ".");
+    return java_name;
   }
 
 }

@@ -168,34 +168,11 @@ public class RootbeerClassLoader {
   public List<String> getAllAppClasses(){
     return m_appClasses;
   }
-/*
-  public Set<SootClass> getValidHierarchyClasses(){
-    return m_validHierarchyClasses;
-  }
-*/
 
-/*
-  private void findValidHierarchyClasses(){
-    m_validHierarchyClasses = new HashSet<SootClass>();
-    for(String new_invoke : m_newInvokes){
-      SootClass new_invoke_class = Scene.v().getSootClass(new_invoke);
-      List<SootClass> queue = new LinkedList<SootClass>();
-      queue.add(new_invoke_class);
-      while(queue.isEmpty() == false){
-        SootClass curr = queue.get(0);
-        queue.remove(0);
-        m_validHierarchyClasses.add(curr);
-  
-        if(curr.hasSuperclass()){
-          queue.add(curr.getSuperclass());
-        }
-        if(curr.hasOuterClass()){
-          queue.add(curr.getOuterClass());
-        }
-      }      
-    }
+  public ClassHierarchy getClassHierarchy(){
+    return m_classHierarchy;
   }
-*/
+
   public void setUserJar(String filename){
     m_userJar = filename;
   }
@@ -206,10 +183,6 @@ public class RootbeerClassLoader {
 
     cachePackageNames();
     buildClassHierarchy();
-    loadBuiltIns();
-    loadToSignatures();
-    loadRuntimeClasses();
-    sortApplicationClasses();
     findEntryPoints();
     runDfsValueSwitchOnAppClasses();
 
@@ -219,31 +192,37 @@ public class RootbeerClassLoader {
       m_currDfsInfo = dfs_info;
 
       loadStringCallGraph();
-      //findAllFieldsAndMethods();
-    }
-    System.exit(0);
-/*
-    segmentLibraryClasses();
-    cloneLibraryClasses();
-    remapFields();
-    remapTypes();
-    resetState();
-
-    for(String entry : m_entryPoints){
-      loadForwardStringCallGraph(entry);
-      findAllFieldsAndMethods();
     }
 
-    segmentLibraryClasses();
+    //todo: use DfsValueSwitchCache
+    //collectFields();
+
+    //todo: look at these closely
+    //cloneLibraryClasses();
+    //remapFields();
+    //remapTypes();
+
+    //todo: write this. patch StringCallGraph and ClassHierarchy
+    //patchState();
 
     for(String entry : m_entryPoints){
+      m_currDfsInfo = m_dfsInfos.get(entry);
       dfsForRootbeer();
-      findValidHierarchyClasses();
+    }
+
+    Set<Type> array_types = new HashSet<Type>();
+    for(DfsInfo dfs_info : m_dfsInfos.values()){
+      array_types.addAll(dfs_info.getArrayTypes());
+    }
+    m_classHierarchy.addArrayTypes(array_types);
+    m_classHierarchy.numberTypes();
+
+    for(String entry : m_entryPoints){
+      m_currDfsInfo = m_dfsInfos.get(entry);
+      m_currDfsInfo.finalizeTypes();
     }
 
     Scene.v().loadDynamicClasses();
-    pointsTo();
-*/
   }
     
   private void runDfsValueSwitchOnAppClasses(){
@@ -260,6 +239,34 @@ public class RootbeerClassLoader {
       }
     }
   }
+
+/*
+  private void collectFields(){
+    m_reachableFields = new HashSet<String>();
+    Set<String> all = m_stringCG.getAllSignatures();
+    for(String sig : all){
+      collectFieldsForMethod(sig);
+    }
+  }
+
+  private void collectFieldsForMethod(String sig){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(sig);
+
+    SootMethod method = util.getSootMethod();
+                
+    DfsValueSwitch value_switch = new DfsValueSwitch();
+    value_switch.run(method);
+
+    Set<SootFieldRef> fields = value_switch.getFieldRefs();
+    for(SootFieldRef ref : fields){
+      String field_sig = ref.getSignature();
+      if(m_reachableFields.contains(field_sig) == false){
+        m_reachableFields.add(field_sig);          
+      }
+    }
+  }
+*/
 /*
   private List<String> getReachableClasses(){
     List<String> ret = new ArrayList<String>();
@@ -433,33 +440,57 @@ public class RootbeerClassLoader {
       }
       visited_methods.add(bfs_entry);
 
-      System.out.println("bfs_entry: "+bfs_entry);
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(bfs_entry);
 
+      String class_name = util.getClassName();
+      Scene.v().loadClass(class_name, SootClass.BODIES);
+
+      SootMethod bfs_method = null;
+      try {
+        bfs_method = util.getSootMethod();
+      } catch(Exception ex){
+        continue;
+      }
+
+      if(bfs_method.isConcrete() == false){
+        continue;
+      }
+
+      //add virtual methods to queue
+      List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(bfs_entry);
+      for(SootMethod method : virt_methods){
+        System.out.println("loadStringGraph adding virtual_method to queue: "+method.getSignature());
+        bfs_queue.add(method.getSignature());
+      }
+
+      //add bfs methods to queue
       DfsValueSwitch value_switch = getDfsValueSwitch(bfs_entry);
       Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
       for(DfsMethodRef ref : method_refs){
         SootMethodRef mref = ref.getSootMethodRef();
         String dest_sig = mref.getSignature();
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
+        System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         bfs_queue.add(dest_sig);        
       }
 
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(bfs_entry);
-      String class_name = util.getClassName();
       if(visited_classes.contains(class_name)){
         continue;
       }
       visited_classes.add(class_name);
 
+      //add <init> and <clinit> to queue
       SootClass soot_class = Scene.v().getSootClass(class_name);
       List<SootMethod> methods = soot_class.getMethods();
       for(SootMethod method : methods){
         String name = method.getName();
         if(name.equals("<init>") || name.equals("<clinit>")){
+          System.out.println("loadStringGraph adding ctor: "+method.getSignature());
           bfs_queue.add(method.getSignature());          
         }
       }
+
     }
 
     System.out.println("loading reverse string call graph for: "+entry.getSignature()+"...");
@@ -488,6 +519,13 @@ public class RootbeerClassLoader {
           if(reachable.contains(dest_sig)){
             m_currDfsInfo.getStringCallGraph().addEdge(method_sig, dest_sig);
             reachable.add(method_sig);
+
+            //add virtual methods to queue
+            List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(method_sig);
+            for(SootMethod method : virt_methods){
+              reachable.add(method.getSignature());
+            }
+
             changed = true;
           } 
         }
@@ -507,8 +545,8 @@ public class RootbeerClassLoader {
       DfsValueSwitch value_switch = new DfsValueSwitch();
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
-
       SootMethod method = util.getSootMethod();
+
       if(method.isConcrete()){
         value_switch.run(method);
       } 
@@ -522,386 +560,11 @@ public class RootbeerClassLoader {
     java.util.Collections.sort(m_appClasses);
   }
 
-/*
-  private void segmentLibraryClasses(){
-    System.out.println("segmenting application and library classes...");
-    for(String app_class : m_appClasses){
-      m_stringCG.setApplicationClass(app_class);
-    }
-
-    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
-    while(iter.hasNext()){
-      SootClass curr = iter.next();
-      String name = curr.getName();
-      if(m_appClasses.contains(name) == false){
-        m_stringCG.setLibraryClass(name);
-      }
-    }        
-  }
-
-  private void dfs(String signature){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-    
-    SootMethod method = util.getSootMethod();
-    signature = method.getSignature();
-        
-    if(m_visited.contains(signature)){
-      return;
-    }
-    m_visited.add(signature);
-    m_stringCG.addAllSignature(signature);
-
-    if(method.isConcrete() == false){
-      return;
-    }
-
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
-    for(DfsMethodRef ref : methods){
-      SootMethodRef mref = ref.getSootMethodRef();
-      String dest_sig = mref.getSignature();
-      m_stringCG.addEdge(signature, dest_sig);
-      try {
-        dfs(dest_sig);
-      } catch(RuntimeException ex){
-        System.out.println("dfs walk: "+signature);
-        throw ex;
-      }
-    }    
-
-    //dfs visit from clinit
-    String class_name = util.getClassName();
-    String clinit_sig = "<"+class_name+": void <clinit>()>";
-    dfs(clinit_sig);
-  }
-  private void loadReverseStringCallGraph(){
-    System.out.println("loading reverse string call graph...");
-    Set<String> reachable = new HashSet<String>();    
-    reachable.addAll(m_currDfsInfo.getRootMethod());
-    reachable.addAll(getEntryPointCtors());
-    reachable.addAll(m_currDfsInfo.getInterfaceSignatures());
-    int prev_size = -1;
-    while(reachable.size() != prev_size){
-      prev_size = reachable.size();
-      for(String app_class : m_appClasses){
-        SootClass soot_class = Scene.v().getSootClass(app_class);
-        List<SootMethod> methods = soot_class.getMethods();
-        for(SootMethod method : methods){
-          reverseDfs(method, reachable);
-
-          Set<String> signatures = getVirtualSignatures(method);
-          for(String virtual_sig : signatures){
-            if(m_interfaceSignatures.contains(virtual_sig)){
-              m_stringCG.addAllSignature(method.getSignature());
-              reachable.add(virtual_sig);
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private void reverseDfs(SootMethod method, Set<String> reachable){
-    String signature = method.getSignature();
-    if(method.isConcrete() == false){
-      return;
-    }
-
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
-    for(DfsMethodRef ref : methods){
-      SootMethodRef mref = ref.getSootMethodRef();
-      String dest_sig = mref.getSignature();
-      if(reachable.contains(dest_sig)){
-        m_stringCG.addEdge(signature, dest_sig);
-        reachable.add(signature);
-
-        //add ctors of reachable
-        MethodSignatureUtil util = new MethodSignatureUtil();
-        util.parse(signature);
-        String class_name = util.getClassName();
-        SootClass soot_class = Scene.v().getSootClass(class_name);
-        List<SootMethod> inits = soot_class.getMethods();
-        for(SootMethod init : inits){
-          String name = init.getName();
-          if(name.equals("<init>")){
-            reachable.add(init.getSignature());
-          }          
-        }
-      }
-    }
-  }
-*/
-/*
-  private void loadAllReachables(){
-    m_visited = new HashSet<String>();
-    Set<String> all = m_stringCG.getAllSignatures();
-    Set<String> all_copy = new HashSet<String>();
-    all_copy.addAll(all);
-    for(String sig : all_copy){
-      MethodFieldFinder finder = new MethodFieldFinder();
-      List<SootMethod> methods = finder.findMethod(sig);
-      for(SootMethod method : methods){      
-        dfs(method.getSignature());     
-      }
-    }
-    m_stringCG.setAllSignatures(m_visited);
-
-    //load clinits    
-    List<String> reachable_classes = getReachableClasses();
-    for(String class_name : reachable_classes){
-      String clinit_subsig = "void <clinit>()";
-
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      if(soot_class.declaresMethod(clinit_subsig)){
-        SootMethod clinit = soot_class.getMethod(clinit_subsig);
-        SootResolver.v().resolveMethod(clinit);
-        dfs(clinit.getSignature());
-      }
-    }
-  }
-
-  public void findInterfaces(){
-    System.out.println("finding interfaces...");
-    m_interfaceSignatures.clear();
-    m_interfaceClasses.clear();
-    Set<String> reachable_methods = m_stringCG.getAllSignatures();
-    for(String sig : reachable_methods){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(sig);
-
-      String class_name = util.getClassName();
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      if(soot_class.isInterface()){
-        m_interfaceSignatures.add(sig);
-        m_interfaceClasses.add(class_name);
-      }
-      SootMethod soot_method = util.getSootMethod();
-      if(soot_method.isAbstract()){
-        m_interfaceSignatures.add(sig);
-        m_interfaceClasses.add(class_name);
-      }
-    }
-  }
-
-  public void loadCallbacks(){
-    System.out.println("loading callbacks...");
-    Iterator<SootClass> iter = Scene.v().getClasses().iterator();
-    while(iter.hasNext()){
-      SootClass soot_class = iter.next();
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
-        //System.out.println("method sig: "+method.getSignature());
-        Set<String> signatures = getVirtualSignatures(method);
-        for(String sig : signatures){
-          //System.out.println("  virtual sig: "+sig);
-          if(m_interfaceSignatures.contains(sig)){
-            dfs(sig);
-          }
-        }
-      }
-    }
-  }
-
-  public Set<String> getVirtualSignaturesDown(SootMethod method, Set<Type> pointsto_types){
-    Set<String> ret = new HashSet<String>();
-
-    SootClass soot_class = method.getDeclaringClass();
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(method.getSignature());
-    
-    String subsig = method.getSubSignature();
-
-    //get classes going down
-    for(String class_name : m_newInvokes){
-      SootClass curr = Scene.v().getSootClass(class_name);
-      if(curr.equals(soot_class)){
-        continue;
-      }
-      if(derivesFrom(curr, soot_class)){
-        if(curr.declaresMethod(subsig)){
-          util.setClassName(curr.getName());
-          ret.add(util.getSignature());
-        }
-      }
-    }
-    return ret;
-  }
-
-  public Set<String> getVirtualSignatures(SootMethod method){
-    Set<String> ret = new HashSet<String>();
-    SootClass soot_class = method.getDeclaringClass();
-    String subsig = method.getSubSignature();
-    
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(method.getSignature());
-  
-    List<SootClass> queue = new LinkedList<SootClass>();
-    queue.add(soot_class);
-  
-    //get classes going up
-    while(queue.isEmpty() == false){
-      SootClass curr = queue.get(0);
-      queue.remove(0);
-
-      if(curr.declaresMethod(subsig)){
-        util.setClassName(curr.getName());
-        ret.add(util.getSignature());
-      }
-
-      if(curr.hasSuperclass()){
-        queue.add(curr.getSuperclass());
-      }
-      if(curr.hasOuterClass()){
-        queue.add(curr.getOuterClass());
-      }
-      Iterator<SootClass> iter = curr.getInterfaces().iterator();
-      while(iter.hasNext()){
-        queue.add(iter.next());
-      }
-    }
-
-    return ret;
-  }
-
-  private boolean derivesFrom(SootClass derived, SootClass parent){
-    if(parent.getName().equals("java.lang.Object")){
-      return false;
-    }
-    if(derived.equals(parent)){
-      return true;
-    }
-    if(derived.hasSuperclass()){
-      if(derivesFrom(derived.getSuperclass(), parent)){
-        return true;
-      }
-    }
-    if(derived.hasOuterClass()){
-      if(derivesFrom(derived.getOuterClass(), parent)){
-        return true;
-      }
-    }
-    Iterator<SootClass> iter = derived.getInterfaces().iterator();
-    while(iter.hasNext()){
-      SootClass curr = iter.next();
-      if(derivesFrom(curr, parent)){
-        return true;
-      }
-    }
-    return false;
-  }
-
   public boolean isLoaded(){
     return m_loaded;
   }
 
-  private void dfs(String signature){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-    
-    SootMethod method = util.getSootMethod();
-    signature = method.getSignature();
-        
-    if(m_visited.contains(signature)){
-      return;
-    }
-    m_visited.add(signature);
-    m_stringCG.addAllSignature(signature);
-
-    if(method.isConcrete() == false){
-      return;
-    }
-
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
-    for(DfsMethodRef ref : methods){
-      SootMethodRef mref = ref.getSootMethodRef();
-      String dest_sig = mref.getSignature();
-      m_stringCG.addEdge(signature, dest_sig);
-      try {
-        dfs(dest_sig);
-      } catch(RuntimeException ex){
-        System.out.println("dfs walk: "+signature);
-        throw ex;
-      }
-    }    
-
-    //dfs visit from clinit
-    String class_name = util.getClassName();
-    String clinit_sig = "<"+class_name+": void <clinit>()>";
-    dfs(clinit_sig);
-  }
-
-  private Set<String> getEntryPointCtors(){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    Set<String> ret = new HashSet<String>();
-    for(String entry : m_entryPoints){
-      util.parse(entry);
-      String class_name = util.getClassName();
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
-        String name = method.getName();
-        if(name.equals("<init>")){
-          ret.add(method.getSignature());
-        }
-      }
-    }
-    return ret;
-  }
-
-  private void findAllFieldsAndMethods(){
-    System.out.println("finding all fields and methods...");
-    Set<String> all = m_currDfsInfo.getStringCallGraph().getAllSignatures();
-    int size = -1;
-
-    while(size != all.size()){
-      size = all.size();
-      all = m_currDfsInfo.getStringCallGraph().getAllSignatures();
-
-      loadReverseStringCallGraph();
-      collectFields();
-      loadAllReachables();   
-      findInterfaces();
-      loadCallbacks();       
-    }
-  }
-
-
-  private void collectFields(){
-    m_reachableFields = new HashSet<String>();
-    Set<String> all = m_stringCG.getAllSignatures();
-    for(String sig : all){
-      collectFieldsForMethod(sig);
-    }
-  }
-
-  private void collectFieldsForMethod(String sig){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(sig);
-
-    SootMethod method = util.getSootMethod();
-                
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<SootFieldRef> fields = value_switch.getFieldRefs();
-    for(SootFieldRef ref : fields){
-      String field_sig = ref.getSignature();
-      if(m_reachableFields.contains(field_sig) == false){
-        m_reachableFields.add(field_sig);          
-      }
-    }
-  }
-
+/*
   private void cloneLibraryClasses(){
     System.out.println("cloning library classes...");
     m_remapping = new HashMap<String, String>();
@@ -996,16 +659,7 @@ public class RootbeerClassLoader {
 
     return util.getSignature();
   }
-*/
-  private boolean isKeepPackage(String declaring_class){
-    for(String keep_package : m_keepPackages){
-      if(declaring_class.startsWith(keep_package)){
-        return true;
-      }
-    }
-    return false;
-  }
-/*
+
   private void remapTypes(){    
     System.out.println("remapping types...");
     Iterator<SootClass> iter = Scene.v().getClasses().snapshotIterator();
@@ -1100,249 +754,58 @@ public class RootbeerClassLoader {
       }
     }
   }
+*/
 
-  private void resetState(){
-    System.out.println("resetting state...");
-    m_stringCG = new StringCallGraph();
-    m_reachableFields.clear();
+  private boolean isKeepPackage(String declaring_class){
+    for(String keep_package : m_keepPackages){
+      if(declaring_class.startsWith(keep_package)){
+        return true;
+      }
+    }
+    return false;
   }
 
   private void dfsForRootbeer(){
-    int prev_size = -1;
-    while(prev_size != m_newInvokes.size()){
-      prev_size = m_newInvokes.size();
-      execRootbeerDfs();
-      execReverseRootbeerDfs();
-      findNewInvokes();
+    SootMethod soot_method = m_currDfsInfo.getRootMethod();
+    
+    Set<String> visited = new HashSet<String>();
+    System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
+    List<SootMethod> queue = new LinkedList<SootMethod>();
+    queue.add(soot_method);
+
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    for(String cuda_entry : m_cudaEntryPoints){
+      util.parse(cuda_entry);
+      soot_method = util.getSootMethod();
+      queue.add(soot_method);    
     }
-  }
 
-  private void execRootbeerDfs(){
-    for(String entry : m_entryPoints){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(entry);
-      util.remap();
-
-      SootMethod soot_method = util.getSootMethod();
-      if(soot_method.getName().equals("gpuMethod") == false){
-        continue;
-      }
-
-      DfsInfo dfs_info = new DfsInfo(soot_method);
-      m_currDfsInfo = dfs_info;
-      m_dfsInfos.put(soot_method.getSignature(), dfs_info);
-
-      Set<String> visited = new HashSet<String>();
-      System.out.println("doing rootbeer dfs: "+soot_method.getSignature());
-      doDfs(soot_method, visited, new HashSet<Type>());     
-
-      for(String cuda_entry : m_cudaEntryPoints){
-        util.parse(cuda_entry);
+    for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
+      if(conditional_entry.condition(m_currDfsInfo)){
+        util.parse(conditional_entry.getSignature());
         soot_method = util.getSootMethod();
-        doDfs(soot_method, visited, new HashSet<Type>());
+        queue.add(soot_method);
       }
+    }
 
-      for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
-        if(conditional_entry.condition(m_currDfsInfo)){
-          util.parse(conditional_entry.getSignature());
-          soot_method = util.getSootMethod();
-          doDfs(soot_method, visited, new HashSet<Type>());
-        }
-      }
+    while(queue.isEmpty() == false){
+      SootMethod curr = queue.get(0);
+      queue.remove(0);
+      doDfs(curr, queue, visited);
+    }
 
-      for(String cuda_field : m_cudaFields){
-        FieldSignatureUtil futil = new FieldSignatureUtil();
-        futil.parse(cuda_field);
+    for(String cuda_field : m_cudaFields){
+      FieldSignatureUtil futil = new FieldSignatureUtil();
+      futil.parse(cuda_field);
       
-        SootField soot_field = futil.getSootField();
-        dfs_info.addField(soot_field);
-      }
+      SootField soot_field = futil.getSootField();
+      m_currDfsInfo.addField(soot_field);
+    }
       
-      System.out.println("building class hierarchy for: "+entry+"...");
-      m_currDfsInfo.expandArrayTypes();
-      m_currDfsInfo.orderTypes();
-      m_currDfsInfo.createClassHierarchy();
-    }
+    System.out.println("building class hierarchy for: "+soot_method.getSignature()+"...");
+    m_currDfsInfo.expandArrayTypes();
   }
 
-  private void execReverseRootbeerDfs(){
-    for(String entry : m_entryPoints){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(entry);
-      util.remap();
-
-      SootMethod soot_method = util.getSootMethod();
-      if(soot_method.getName().equals("gpuMethod") == false){
-        continue;
-      }
-
-      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
-
-      Set<String> reachable = new HashSet<String>();  
-
-      reachable.add("<edu.syr.pcpratts.rootbeer.runtime.Rootbeer: void runAll(java.util.List)>");
-      reachable.add("<edu.syr.pcpratts.rootbeer.runtime.Rootbeer: void runAll(edu.syr.pcpratts.rootbeer.runtime.Kernel)>");
-      reachable.add(entry);
-
-      int prev_size = -1;
-      while(reachable.size() != prev_size){
-        prev_size = reachable.size();
-        for(String app_class : m_appClasses){
-          SootClass soot_class = Scene.v().getSootClass(app_class);
-          List<SootMethod> methods = soot_class.getMethods();
-          for(SootMethod method : methods){
-            reverseDfs2(method, reachable);
-          }
-        }
-      }
-    }
-  }
-
-  private void reverseDfs2(SootMethod method, Set<String> reachable){
-    String signature = method.getSignature();
-    if(method.isConcrete() == false){
-      return;
-    }
-
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
-    for(DfsMethodRef ref : methods){
-      SootMethodRef mref = ref.getSootMethodRef();
-      String dest_sig = mref.getSignature();
-      if(reachable.contains(dest_sig)){
-        m_currDfsInfo.addReverseDfsMethod(signature);
-        reachable.add(signature);
-
-        //add ctors of reachable
-        MethodSignatureUtil util = new MethodSignatureUtil();
-        util.parse(signature);
-        String class_name = util.getClassName();
-        SootClass soot_class = Scene.v().getSootClass(class_name);
-        List<SootMethod> inits = soot_class.getMethods();
-        for(SootMethod init : inits){
-          String name = init.getName();
-          if(name.equals("<init>") || name.equals("<clinit>")){
-            m_currDfsInfo.addReverseDfsMethod(init.getSignature());        
-            reachable.add(init.getSignature());
-          }          
-        }
-      }
-    }
-  }
-
-  private void findNewInvokes(){
-    m_newInvokes.clear();
-    for(String entry : m_entryPoints){
-      if(m_dfsInfos.containsKey(entry) == false){
-        continue;
-      }
-      System.out.println("finding new invokes for: "+entry+"..."); 
-      DfsInfo dfs_info = m_dfsInfos.get(entry);
-      Set<String> methods = dfs_info.getMethods();
-      Set<String> reverse_methods = dfs_info.getReverseMethods();
-      Set<String> all_methods = new HashSet<String>();
-      all_methods.addAll(methods);
-      all_methods.addAll(reverse_methods);
-      for(String method : all_methods){
-        MethodSignatureUtil util = new MethodSignatureUtil();
-        util.parse(method);
-
-        SootMethod soot_method = util.getSootMethod();
-        if(soot_method.isConcrete() == false){
-          continue;
-        }
-        Body body = soot_method.retrieveActiveBody();    
-        Iterator<Unit> iter = body.getUnits().iterator();
-        while(iter.hasNext()){
-          Unit curr = iter.next();
-          List<ValueBox> boxes = curr.getUseAndDefBoxes();
-          for(ValueBox box : boxes){
-            Value value = box.getValue();
-            if(value instanceof NewExpr){
-              NewExpr new_expr = (NewExpr) value;
-              RefType ref_type = new_expr.getBaseType();
-              String class_name = ref_type.getClassName();
-              m_newInvokes.add(class_name);
-            } else if(value instanceof NewArrayExpr){
-              NewArrayExpr new_expr = (NewArrayExpr) value;
-              Type type = new_expr.getBaseType();
-              if(type instanceof RefType){
-                RefType ref_type = (RefType) type;
-                String class_name = ref_type.getClassName();
-                m_newInvokes.add(class_name);
-              }
-            }   
-          }
-        }    
-      }            
-    }
-  }
-
-  private void pointsTo(){
-    PointsToAnalysis analysis = Scene.v().getPointsToAnalysis(); 
-
-    for(String entry : m_entryPoints){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(entry);
-      util.remap();
-
-      SootMethod soot_method = util.getSootMethod();
-      if(soot_method.getName().equals("gpuMethod") == false){
-        continue;
-      }
-
-      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
-
-      Set<String> methods = m_currDfsInfo.getMethods();  
-      for(String method : methods){
-        util.parse(method);
-        SootMethod dfs_method = util.getSootMethod();
-        if(dfs_method.isConcrete() == false){
-          continue;
-        }
-        PatchingChain<Unit> units = dfs_method.retrieveActiveBody().getUnits();
-        Iterator<Unit> iter = units.iterator();
-        while(iter.hasNext()){
-          Unit curr = iter.next();
-          if(curr instanceof InvokeStmt){
-            InvokeStmt stmt = (InvokeStmt) curr;
-            InvokeExpr invoke_expr = stmt.getInvokeExpr();
-            if(invoke_expr instanceof InstanceInvokeExpr){
-              InstanceInvokeExpr instance_expr = (InstanceInvokeExpr) invoke_expr;
-              SootMethod invoking_method = instance_expr.getMethod();
-              Value base = instance_expr.getBase();
-              if(base instanceof Local == false){
-                throw new RuntimeException("how can a base not be a local?");
-              }
-              Local local = (Local) base;
-              PointsToSet set = analysis.reachingObjects(local);
-              Set<Type> possible_types = set.possibleTypes();
-              m_currDfsInfo.addPointsTo(invoking_method.getSignature(), possible_types);
-
-              //load points to for possible_types too
-              for(Type type : possible_types){
-                if(type instanceof RefType == false){
-                  continue;
-                }
-                RefType ref_type = (RefType) type;
-                SootClass points_to_class = ref_type.getSootClass();
-                List<SootMethod> points_to_methods = points_to_class.getMethods();
-                MethodEqual method_equal = new MethodEqual();
-                for(SootMethod points_to_method : points_to_methods){
-                  if(method_equal.exceptReturnType(invoking_method.getSignature(), points_to_method.getSignature())){
-                    m_currDfsInfo.addPointsTo(points_to_method.getSignature(), possible_types);
-                  }
-                }
-              }
-            }
-          } 
-        }
-      }
-    }
-  }
-*/
   public void applyOptimizations(){
     Pack jop = PackManager.v().getPack("jop");
     
@@ -1421,13 +884,15 @@ public class RootbeerClassLoader {
             String name = entry.getName();
             String package_name;
             if(name.endsWith(".class")){
+              String filename = name;
               name = name.replace(".class", "");
               name = name.replace("/", ".");
               package_name = getPackageName(name);
 
               HierarchySootClass hierarchy_class = new HierarchySootClass(name);
-              hierarchy_class.readHierarchy(jin);
+              hierarchy_class.loadClassFile(filename, jin);
               m_classHierarchy.put(name, hierarchy_class);
+              System.out.println("successfully loaded: "+name);
             } else {
               name = name.replace("/", ".");
               package_name = name.substring(0, name.length()-1);
@@ -1454,8 +919,7 @@ public class RootbeerClassLoader {
 
   private void buildClassHierarchy(){
     m_classHierarchy.build();
-    System.out.println(m_classHierarchy.toString());
-    System.exit(0);
+    //System.out.println(m_classHierarchy.toString());
   }
 
   private String getPackageName(String className) {
@@ -1628,66 +1092,14 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void loadToSignatures(){ 
-    System.out.println("loading source paths to signatures...");
-    for(String src_folder : m_sourcePaths){
-      File file = new File(src_folder);
-      if(file.exists()){
-        loadToSignatures(file, file);
-      } else {
-        System.out.println("file: "+src_folder+" does not exist!");
-      }
-    }
+
+  public int getClassNumber(SootClass soot_class){
+    return getClassNumber(soot_class.getName());
   }
 
-  private void loadToSignatures(File curr, File src_file){
-    File[] children = curr.listFiles();
-    for(File child : children){
-      if(child.isDirectory()){
-        loadToSignatures(child, src_file);
-      } else {
-        String name = child.getName();
-        if(name.startsWith(".") || name.endsWith(".class") == false){
-          continue;
-        }
-
-        String full_name = child.getAbsolutePath();
-        String input_folder = src_file.getAbsolutePath() + File.separator;
-        String class_name = full_name.substring(input_folder.length());
-        class_name = class_name.replace(File.separator, ".");
-        class_name = class_name.substring(0, class_name.length() - ".class".length());
-
-        if(ignorePackage(class_name)){
-          continue;
-        } 
-
-        m_classToFilename.put(class_name, full_name);
-
-        SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
-        soot_class.setApplicationClass();        
-
-        m_appClasses.add(soot_class.getName());
-      }
-    }
-  }
-
-  private void loadRuntimeClasses(){
-    System.out.println("loading runtime classes...");
-    BuiltInRemaps built_ins = new BuiltInRemaps();
-    Set<String> to_load = new HashSet<String>();
-    to_load.addAll(m_runtimeClasses);
-    to_load.addAll(built_ins.values());
-    for(String class_name : to_load){
-      SootClass soot_class = SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
-        SootResolver.v().resolveMethod(method);
-  
-        if(method.isConcrete()){
-          method.retrieveActiveBody();
-        }
-      }
-    }
+  public int getClassNumber(String type_string){
+    NumberedType ntype = m_classHierarchy.getNumberedType(type_string);
+    return (int) ntype.getNumber();
   }
 
   private void findEntryPoints(){
@@ -1706,24 +1118,21 @@ public class RootbeerClassLoader {
     }
   }
 
-/*
-  private void doDfs(SootMethod method, Set<String> visited, Set<Type> types){  
+  private void doDfs(SootMethod method, List<SootMethod> queue, Set<String> visited){  
     if(m_dontDfsMethods.contains(method.getSignature())){
       return;
     }
 
-    Set<String> signatures = getVirtualSignaturesDown(method, types);
-    for(String sig : signatures){      
-      if(sig.equals(method.getSignature())){
+    List<SootMethod> virt_methods = m_classHierarchy.getAllVirtualMethods(method.getSignature());
+    for(SootMethod virt_method : virt_methods){
+      if(method.getSignature().equals(virt_method.getSignature())){
         continue;
       }
-
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(sig);
-
-      SootMethod virtual_method = util.getSootMethod();
-      doDfs(virtual_method, visited, types);
-    }    
+    
+      if(visited.contains(virt_method.getSignature()) == false){
+        queue.add(virt_method);
+      }
+    }
 
     SootClass soot_class = method.getDeclaringClass();
     if(ignorePackage(soot_class.getName())){
@@ -1749,8 +1158,7 @@ public class RootbeerClassLoader {
       return;
     }
 
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
+    DfsValueSwitch value_switch = getDfsValueSwitch(signature);
 
     Set<Type> all_types = value_switch.getAllTypes();
     for(Type type : all_types){
@@ -1776,44 +1184,12 @@ public class RootbeerClassLoader {
       SootClass method_class = mref.declaringClass();
       SootMethod dest = mref.resolve();     
 
-      Set<Type> curr_types = new HashSet<Type>();
-      Local base = ref.getBase();
-      if(base != null){
-        PointsToAnalysis analysis = Scene.v().getPointsToAnalysis();
-        PointsToSet set = analysis.reachingObjects(base);
-        curr_types = set.possibleTypes();
-      }
-
-      //System.out.println("  calling doDfs: "+method.getSignature()+" "+dest.getSignature());
-      doDfs(dest, visited, curr_types);
-    }
-
-    //load poly methods
-    String subsig = method.getSubSignature();
-    List<SootClass> queue = new LinkedList<SootClass>();
-    if(soot_class.hasSuperclass()){
-      queue.add(soot_class.getSuperclass());
-    }
-    if(soot_class.hasOuterClass()){
-      queue.add(soot_class.getOuterClass());
-    }
-    while(queue.isEmpty() == false){
-      SootClass curr = queue.get(0);
-      queue.remove(0);
-
-      if(curr.declaresMethod(subsig)){
-        SootMethod new_method = curr.getMethod(subsig);
-        doDfs(new_method, visited, null);
-      }
-      if(curr.hasSuperclass()){
-        queue.add(curr.getSuperclass());
-      }
-      if(curr.hasOuterClass()){
-        queue.add(curr.getOuterClass());
+      if(visited.contains(dest.getSignature()) == false){
+        queue.add(dest);
       }
     }
   }
-*/
+
   private void addType(Type type) {
     List<Type> queue = new LinkedList<Type>();
     queue.add(type);
@@ -1841,8 +1217,6 @@ public class RootbeerClassLoader {
 
       if(type_class.hasSuperclass()){
         queue.add(type_class.getSuperclass().getType());
-        
-        m_currDfsInfo.addSuperClass(curr, type_class.getSuperclass().getType());
       }
       
       if(type_class.hasOuterClass()){

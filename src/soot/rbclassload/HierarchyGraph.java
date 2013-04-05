@@ -32,10 +32,12 @@ public class HierarchyGraph {
 
   private Map<String, List<String>> m_parents;
   private Map<String, List<String>> m_children;
+  private List<String> m_hierarchy;
 
   public HierarchyGraph(){
     m_parents = new HashMap<String, List<String>>();
     m_children = new HashMap<String, List<String>>();
+    m_hierarchy = new ArrayList<String>();
   }
 
   public void addSuperClass(String base_class, String super_class){
@@ -46,6 +48,12 @@ public class HierarchyGraph {
   public void addInterface(String base_class, String iface){
     addEdge(m_parents, base_class, iface);
     addEdge(m_children, iface, base_class);
+  }
+
+  public void addHierarchyClass(String class_name){
+    if(m_hierarchy.contains(class_name) == false){
+      m_hierarchy.add(class_name);
+    }
   }
 
   private void addEdge(Map<String, List<String>> map, String key, String value){
@@ -71,6 +79,29 @@ public class HierarchyGraph {
       return m_parents.get(child);
     }
     return new ArrayList<String>();
+  }
+
+  public List<String> getAllClasses(){
+    return m_hierarchy;
+  }
+
+  public void merge(HierarchyGraph rhs){
+    merge(m_parents, rhs.m_parents);
+    merge(m_children, rhs.m_children);
+    m_hierarchy.addAll(rhs.m_hierarchy);
+  }
+
+  private void merge(Map<String, List<String>> lhs, Map<String, List<String>> rhs){
+    for(String rhs_key : rhs.keySet()){
+      List<String> lhs_values;
+      if(lhs.containsKey(rhs_key)){
+        lhs_values = lhs.get(rhs_key);
+      } else {
+        lhs_values = new ArrayList<String>();
+        lhs.put(rhs_key, lhs_values);
+      }
+      lhs_values.addAll(rhs.get(rhs_key));
+    }
   }
 
   @Override

@@ -126,6 +126,7 @@ public class SootResolver
      * been resolved, just returns the class that was already resolved.
      * */
     public SootClass resolveClass(String className, int desiredLevel) {
+        System.out.println("resolving class: "+className+" to level: "+desiredLevel);
         SootClass resolvedClass = makeClassRef(className);
         addToResolveWorklist(resolvedClass, desiredLevel);
         processResolveWorklist();
@@ -227,6 +228,8 @@ public class SootResolver
             }
         } else {
             Dependencies dependencies = is.resolve(sc);
+            System.out.println("dependencies: ");
+            System.out.println(dependencies.toString());
             classToTypesSignature.put( sc, new ArrayList(dependencies.typesToSignature) );
             classToTypesHierarchy.put( sc, new ArrayList(dependencies.typesToHierarchy) );
             classToTypesBody.put( sc, new ArrayList(dependencies.typesToBody) );

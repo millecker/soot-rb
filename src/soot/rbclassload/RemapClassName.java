@@ -66,7 +66,7 @@ public class RemapClassName {
   private boolean isLibraryClass(String class_name){
     //delayed load to stop singleton init stack overflow
     if(m_stringCG == null){ 
-      m_stringCG = RootbeerClassLoader.v().getStringCallGraph();
+      m_stringCG = RootbeerClassLoader.v().getDfsInfo().getStringCallGraph();
     }
     return m_stringCG.isLibraryClass(class_name);
   }
