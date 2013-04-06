@@ -574,6 +574,10 @@ public class RootbeerClassLoader {
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
 
+      if(method.isConcrete() == false){
+        continue;
+      }
+
       SootClass soot_class = Scene.v().getSootClass(class_name);
       SootMethod soot_method = soot_class.getMethod(method.getSubSignature());
 

@@ -126,7 +126,6 @@ public class SootResolver
      * been resolved, just returns the class that was already resolved.
      * */
     public SootClass resolveClass(String className, int desiredLevel) {
-        System.out.println("resolving class: "+className+" to level: "+desiredLevel);
         SootClass resolvedClass = makeClassRef(className);
         addToResolveWorklist(resolvedClass, desiredLevel);
         processResolveWorklist();
