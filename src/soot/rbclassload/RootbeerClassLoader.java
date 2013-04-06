@@ -417,25 +417,29 @@ public class RootbeerClassLoader {
     System.out.println("loading forward string call graph for: "+entry+"...");
     List<String> bfs_queue = new LinkedList<String>();
     bfs_queue.add(entry);
+    visited_methods.add(entry);
     m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
 
     MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(entry);
+    HierarchySootClass entry_class = m_classHierarchy.getHierarchySootClass(util.getClassName());
+    HierarchySootMethod entry_ctor = entry_class.findMethodBySubSignature("void <init>()");
+    bfs_queue.add(entry_ctor.getSignature());
+    visited_methods.add(entry_ctor.getSignature());
 
     while(bfs_queue.isEmpty() == false){
       String bfs_entry = bfs_queue.get(0);
       bfs_queue.remove(0);
 
-      if(visited_methods.contains(bfs_entry)){
-        continue;
-      }
-      visited_methods.add(bfs_entry);
-
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-      HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());      
-      
+      if(hclass == null){
+        continue;
+      }
+
+      HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
         continue;
       }
@@ -447,6 +451,14 @@ public class RootbeerClassLoader {
       //add virtual methods to queue
       List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
+        if(m_dontDfsMethods.contains(signature)){
+          continue;
+        }
+
+        if(visited_methods.contains(signature)){
+          continue;
+        }
+        visited_methods.add(signature);
         System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
         bfs_queue.add(signature);
       }
@@ -454,6 +466,14 @@ public class RootbeerClassLoader {
       //add bfs methods to queue
       HierarchyValueSwitch value_switch = getValueSwitch(bfs_entry);
       for(String dest_sig : value_switch.getMethodRefs()){
+        if(m_dontDfsMethods.contains(dest_sig)){
+          continue;
+        }
+
+        if(visited_methods.contains(dest_sig)){
+          continue;
+        }
+        visited_methods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
         System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         bfs_queue.add(dest_sig);        
@@ -464,11 +484,11 @@ public class RootbeerClassLoader {
       }
       visited_classes.add(class_name);
 
-      //add <init> and <clinit> to queue
+      //add <clinit> to queue
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
         String name = method.getName();
-        if(name.equals("<init>") || name.equals("<clinit>")){
+        if(name.equals("<clinit>")){
           System.out.println("loadStringGraph adding ctor: "+method.getSignature());
           bfs_queue.add(method.getSignature());          
         }
@@ -478,15 +498,7 @@ public class RootbeerClassLoader {
 
     System.out.println("loading reverse string call graph for: "+entry+"...");
     Set<String> reachable = new HashSet<String>();
-    util.parse(entry);
-    String entry_class = util.getClassName();
-    HierarchySootClass entry_hclass = m_classHierarchy.getHierarchySootClass(entry_class);
-    for(HierarchySootMethod entry_class_method : entry_hclass.getMethods()){
-      String name = entry_class_method.getName();
-      if(name.equals("<init>")){
-        reachable.add(entry_class_method.getSignature());
-      }
-    }
+    reachable.add(entry_ctor.getSignature());
     reachable.add(m_currDfsInfo.getRootMethodSignature());
 
     int prev_size = -1;

@@ -250,6 +250,10 @@ public class ClassHierarchy {
     String class_name = util.getClassName();
 
     List<String> ret = new ArrayList<String>();
+    if(util.getMethodName().equals("<init>") || util.getMethodName().equals("<clinit>")){
+      return ret;
+    }
+
     if(m_hierarchyGraphs.containsKey(class_name) == false){
       return ret;
     }
