@@ -488,6 +488,8 @@ public class RootbeerClassLoader {
         continue;
       }
 
+      System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
+
       //add virtual methods to queue
       List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
@@ -560,6 +562,15 @@ public class RootbeerClassLoader {
         //reflection.
         if(name.equals("<init>") || name.equals("<clinit>")){
           //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
+
+          if(m_dontDfsMethods.contains(method.getSignature())){
+            continue;
+          }
+
+          if(m_cgVisitedMethods.contains(method.getSignature())){
+            continue;
+          }
+          m_cgVisitedMethods.add(method.getSignature());
           m_cgMethodQueue.add(method.getSignature());          
         }
       }
@@ -593,6 +604,15 @@ public class RootbeerClassLoader {
         HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
         List<HierarchySootMethod> methods = hclass.getMethods();
         for(HierarchySootMethod method : methods){
+          if(m_dontDfsMethods.contains(method.getSignature())){
+            continue;
+          }
+
+          if(m_cgVisitedMethods.contains(method.getSignature())){
+            continue;
+          }
+          m_cgVisitedMethods.add(method.getSignature());
+
           String name = method.getName();
           //<init> shouldn't really be included here. 
           //this is because in rootbeer reflection is

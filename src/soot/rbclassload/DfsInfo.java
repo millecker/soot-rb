@@ -246,6 +246,7 @@ public class DfsInfo {
     return m_modifiedClasses;
   }
 
+/*
   public void finalizeTypes(){
     //read in NumberedTypes
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
@@ -265,7 +266,7 @@ public class DfsInfo {
       }
     }
   }
-
+*/
   public List<NumberedType> getNumberedTypes(){
     return m_numberedTypes;
   }
