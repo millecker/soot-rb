@@ -50,12 +50,14 @@ public class ClassHierarchy {
   private List<Type> m_orderedTypes;
   private List<RefType> m_orderedRefTypes;
   private List<Type> m_orderedRefLikeTypes;
+  private MethodSignatureUtil m_util;
 
   public ClassHierarchy(){
     m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
     m_hierarchyGraphs = new HashMap<String, HierarchyGraph>();
     m_numberedTypes = new ArrayList<NumberedType>();
     m_numberedTypeMap = new HashMap<String, NumberedType>();
+    m_util = new MethodSignatureUtil();
   }
 
   public void put(String name, HierarchySootClass hierarchy_class){
@@ -64,6 +66,13 @@ public class ClassHierarchy {
 
   public HierarchySootClass getHierarchySootClass(String name){
     return m_hierarchySootClasses.get(name);
+  }
+
+  public HierarchySootMethod getHierarchySootMethod(String signature){
+    m_util.parse(signature);
+    String class_name = m_util.getClassName();
+    HierarchySootClass hclass = getHierarchySootClass(class_name);
+    return hclass.findMethodBySubSignature(m_util.getSubSignature());
   }
 
   public boolean containsClass(String name){
@@ -239,7 +248,6 @@ public class ClassHierarchy {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
     String class_name = util.getClassName();
-    SootMethod input_method = util.getSootMethod();
 
     List<String> ret = new ArrayList<String>();
     if(m_hierarchyGraphs.containsKey(class_name) == false){

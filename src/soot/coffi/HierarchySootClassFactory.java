@@ -27,17 +27,17 @@ import java.util.List;
 import java.util.ArrayList;
 import java.io.InputStream;
 import java.io.DataInputStream;
-import soot.coffi.ClassPoolConstantReader;
+import soot.coffi.ConstantPoolReader;
 import soot.rbclassload.HierarchySootClass;
 import soot.rbclassload.HierarchySootMethod;
 
 public class HierarchySootClassFactory {
 
-  private ClassPoolConstantReader m_constantReader;
+  private ConstantPoolReader m_constantReader;
   private HierarchySootMethodFactory m_methodFactory;
 
   public HierarchySootClassFactory(){
-    m_constantReader = new ClassPoolConstantReader();
+    m_constantReader = new ConstantPoolReader();
     m_methodFactory = new HierarchySootMethodFactory();
   }
 
@@ -77,7 +77,7 @@ public class HierarchySootClassFactory {
       superClassName, interfaces, methods);
 
     for(int i = 0; i < classFile.methods_count; ++i){
-      HierarchySootMethod method = m_methodFactory.create(classFile.methods[i], constantPool, classFile.attributes);
+      HierarchySootMethod method = m_methodFactory.create(classFile, i);
       method.setHierarchySootClass(ret);
       methods.add(method);
     }

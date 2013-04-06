@@ -79,11 +79,37 @@ public class StringToType {
     }
   }
 
-  private boolean isRefType(String input){
-    //containsType should return false for classes that are not RefTypes.
-    if(Scene.v().containsType(input) == false){
-      return false;
+  public boolean isRefType(String input){
+    String input_no_array = input.replace("[", "");
+    input_no_array = input_no_array.replace("]", "");
+
+    String array_post_fix = input.substring(input_no_array.length());
+    //each dimension has []
+    int num_dimensions = array_post_fix.length() / 2;
+    if(num_dimensions > 0){
+      return true;
     }
-    return true;
+
+    if(input_no_array.equals("byte")){
+      return false;
+    } else if(input_no_array.equals("boolean")){
+      return false;
+    } else if(input_no_array.equals("char")){
+      return false;
+    } else if(input_no_array.equals("short")){
+      return false;
+    } else if(input_no_array.equals("int")){
+      return false;
+    } else if(input_no_array.equals("long")){
+      return false;
+    } else if(input_no_array.equals("float")){
+      return false;
+    } else if(input_no_array.equals("double")){
+      return false;
+    } else if(input_no_array.equals("void")){
+      return false;
+    } else {
+      return true;
+    }
   }
 }

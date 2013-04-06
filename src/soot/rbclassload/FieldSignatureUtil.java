@@ -76,7 +76,7 @@ public class FieldSignatureUtil {
 
   private String remapClass(String cls){
     StringToType converter = new StringToType();
-    Type type = converter.toType(cls);
+    Type type = converter.convert(cls);
 
     type = m_remapClassName.getMapping(type);
 

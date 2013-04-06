@@ -73,7 +73,7 @@ public class MethodFieldFinder {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
 
-    String subsig = util.getMethodSubSignature();
+    String subsig = util.getSubSignature();
     String start_class = util.getClassName();
 
     List<String> queue = new LinkedList<String>();

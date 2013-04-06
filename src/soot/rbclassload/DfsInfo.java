@@ -71,7 +71,6 @@ public class DfsInfo {
     m_newInvokes = new HashSet<String>();
     m_stringCallGraph = new StringCallGraph();
     m_numberedTypes = new ArrayList<NumberedType>();
-    addBuiltInTypes();
   }
 
   public StringCallGraph getStringCallGraph(){
@@ -188,51 +187,6 @@ public class DfsInfo {
 
   public Set<ArrayType> getArrayTypes() {
     return m_arrayTypes;
-  }
-
-  private void addBuiltInTypes() {
-    String prefix = Options.v().rbcl_remap_prefix();
-    if(Options.v().rbcl_remap_all() == false){
-      prefix = "";
-    }
-    addRefType("java.lang.Object");
-    addRefType(prefix+"java.lang.Class");
-    addRefType(prefix+"java.lang.System");
-    addRefType("java.lang.String");
-    addRefType(prefix+"java.lang.AbstractStringBuilder");
-    addRefType(prefix+"java.lang.StringBuilder");
-    addRefType(prefix+"java.lang.StackTraceElement");
-    addRefType(prefix+"java.lang.Throwable");
-    addRefType(prefix+"java.lang.Exception");
-    addRefType(prefix+"java.lang.RuntimeException");
-    addRefType(prefix+"java.lang.NullPointerException");
-    addRefType(prefix+"java.lang.Error");
-    addRefType(prefix+"java.lang.VirtualMachineError");
-    addRefType(prefix+"java.lang.OutOfMemoryError");
-
-    m_builtInTypes.add(ByteType.v());
-    m_builtInTypes.add(CharType.v());
-    m_builtInTypes.add(ShortType.v());
-    m_builtInTypes.add(IntType.v());
-    m_builtInTypes.add(LongType.v());
-    m_builtInTypes.add(FloatType.v());
-    m_builtInTypes.add(DoubleType.v());
-    m_builtInTypes.add(BooleanType.v());
-    m_builtInTypes.add(VoidType.v());
-    m_builtInTypes.add(NullType.v());
-    
-    ArrayType char_arr = ArrayType.v(CharType.v(), 1);
-    m_builtInTypes.add(char_arr);
-  }
-
-  private void addRefType(String class_name) {
-    SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
-    SootClass soot_class = Scene.v().getSootClass(class_name);
-    m_builtInTypes.add(soot_class.getType());
-  }
-
-  public List<Type> getBuiltInTypes(){
-    return m_builtInTypes;
   }
 
   public List<Type> getOrderedRefLikeTypes() {

@@ -107,7 +107,7 @@ public class RootbeerClassLoader {
   private Set<String> m_generatedMethods;
   private Set<String> m_dontDfsMethods;
   private Map<String, String> m_remapping;
-  private Map<String, DfsValueSwitch> m_dfsValueSwitchMap;
+  private Map<String, HierarchyValueSwitch> m_valueSwitchMap;
   private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
@@ -137,7 +137,7 @@ public class RootbeerClassLoader {
     m_generatedMethods = new HashSet<String>();
     m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
     m_dontDfsMethods = new HashSet<String>();
-    m_dfsValueSwitchMap = new HashMap<String, DfsValueSwitch>();
+    m_valueSwitchMap = new HashMap<String, HierarchyValueSwitch>();
 
     m_loaded = false;
   }
@@ -187,6 +187,7 @@ public class RootbeerClassLoader {
     buildClassHierarchy();
     
     for(String entry : m_entryPoints){
+      System.out.println("entry point: "+entry);
       DfsInfo dfs_info = new DfsInfo(entry);
       m_dfsInfos.put(entry, dfs_info);
       m_currDfsInfo = dfs_info;
@@ -451,11 +452,8 @@ public class RootbeerClassLoader {
       }
 
       //add bfs methods to queue
-      DfsValueSwitch value_switch = getDfsValueSwitch(bfs_entry);
-      Set<DfsMethodRef> method_refs = value_switch.getMethodRefs();
-      for(DfsMethodRef ref : method_refs){
-        SootMethodRef mref = ref.getSootMethodRef();
-        String dest_sig = mref.getSignature();
+      HierarchyValueSwitch value_switch = getValueSwitch(bfs_entry);
+      for(String dest_sig : value_switch.getMethodRefs()){
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
         System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         bfs_queue.add(dest_sig);        
@@ -467,9 +465,8 @@ public class RootbeerClassLoader {
       visited_classes.add(class_name);
 
       //add <init> and <clinit> to queue
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      List<SootMethod> methods = soot_class.getMethods();
-      for(SootMethod method : methods){
+      List<HierarchySootMethod> methods = hclass.getMethods();
+      for(HierarchySootMethod method : methods){
         String name = method.getName();
         if(name.equals("<init>") || name.equals("<clinit>")){
           System.out.println("loadStringGraph adding ctor: "+method.getSignature());
@@ -495,15 +492,13 @@ public class RootbeerClassLoader {
     int prev_size = -1;
     while(prev_size != reachable.size()){
       prev_size = reachable.size();
-      Iterator<String> iter = m_dfsValueSwitchMap.keySet().iterator();    
+      Iterator<String> iter = m_valueSwitchMap.keySet().iterator();    
       while(iter.hasNext()){
         String method_sig = iter.next();
-        DfsValueSwitch value_switch = m_dfsValueSwitchMap.get(method_sig);
-        Set<DfsMethodRef> methods = value_switch.getMethodRefs();
+        HierarchyValueSwitch value_switch = m_valueSwitchMap.get(method_sig);
+        Set<String> methods = value_switch.getMethodRefs();
         boolean changed = false;
-        for(DfsMethodRef ref : methods){
-          SootMethodRef mref = ref.getSootMethodRef();
-          String dest_sig = mref.getSignature();
+        for(String dest_sig : methods){
           if(reachable.contains(dest_sig)){
             m_currDfsInfo.getStringCallGraph().addEdge(method_sig, dest_sig);
             reachable.add(method_sig);
@@ -526,19 +521,13 @@ public class RootbeerClassLoader {
     System.out.println("StringCallGraph: "+m_currDfsInfo.getStringCallGraph().toString());
   }
 
-  private DfsValueSwitch getDfsValueSwitch(String signature){
-    if(m_dfsValueSwitchMap.containsKey(signature)){
-      return m_dfsValueSwitchMap.get(signature);
+  private HierarchyValueSwitch getValueSwitch(String signature){
+    if(m_valueSwitchMap.containsKey(signature)){
+      return m_valueSwitchMap.get(signature);
     } else {
-      DfsValueSwitch value_switch = new DfsValueSwitch();
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(signature);
-      SootMethod method = util.getSootMethod();
-
-      if(method.isConcrete()){
-        value_switch.run(method);
-      } 
-      m_dfsValueSwitchMap.put(signature, value_switch);
+      HierarchyValueSwitch value_switch = new HierarchyValueSwitch();
+      value_switch.run(signature);
+      m_valueSwitchMap.put(signature, value_switch);
       return value_switch;
     }
   }

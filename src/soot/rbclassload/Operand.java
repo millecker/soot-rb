@@ -23,37 +23,21 @@
 
 package soot.rbclassload;
 
-import java.util.List;
+public class Operand {
 
-public class HierarchyInstruction {
+  private String m_value;
+  private String m_type;
 
-  private String m_name;
-  private List<Operand> m_operands;
-
-  public HierarchyInstruction(String name, List<Operand> operands){
-    m_name = name;
-    m_operands = operands;
+  public Operand(String value, String type){
+    m_value = value;
+    m_type = type;
   }
 
-  public String getName(){
-    return m_name;
+  public String getValue(){
+    return m_value;
   }
 
-  public List<Operand> getOperands(){
-    return m_operands;
-  }
-
-  @Override
-  public String toString(){
-    StringBuilder ret = new StringBuilder();
-    ret.append(m_name);
-    ret.append(" ");
-    for(int i = 0; i < m_operands.size(); ++i){
-      ret.append(m_operands.get(i).getValue());
-      if(i < m_operands.size() - 1){
-        ret.append(" ");
-      }
-    }
-    return ret.toString();
+  public String getType(){
+    return m_type;
   }
 }

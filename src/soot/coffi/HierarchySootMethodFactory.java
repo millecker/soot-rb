@@ -27,18 +27,23 @@ import java.util.List;
 import java.util.ArrayList;
 import soot.rbclassload.HierarchySootMethod;
 import soot.rbclassload.HierarchyInstruction;
+import soot.rbclassload.Operand;
 
 public class HierarchySootMethodFactory {
 
   private cp_info[] m_constantPool;
   private attribute_info[] m_attributes;
-  private ClassPoolConstantReader m_constantReader;
+  private ConstantPoolReader m_constantReader;
 
   public HierarchySootMethodFactory(){
-    m_constantReader = new ClassPoolConstantReader();
+    m_constantReader = new ConstantPoolReader();
   }
 
-  public HierarchySootMethod create(method_info methodInfo, cp_info[] constantPool, attribute_info[] attributes){
+  public HierarchySootMethod create(ClassFile classFile, int index){
+    method_info methodInfo = classFile.methods[index];
+    cp_info[] constantPool = classFile.constant_pool;
+    attribute_info[] attributes = classFile.attributes;
+
     m_constantPool = constantPool;
     m_attributes = attributes;
 
@@ -68,7 +73,7 @@ public class HierarchySootMethodFactory {
     }
 
     List<HierarchyInstruction> instructions = new ArrayList<HierarchyInstruction>();
-    Instruction inst = methodInfo.instructions;
+    Instruction inst = classFile.parseMethod(methodInfo);
     while(inst != null){
       HierarchyInstruction hinst = parseInstruction(inst);      
       instructions.add(hinst);
@@ -82,45 +87,57 @@ public class HierarchySootMethodFactory {
 
   private HierarchyInstruction parseInstruction(Instruction inst){
     String name = inst.name;
-    List<String> arguments = new ArrayList<String>();
+    List<Operand> operands = new ArrayList<Operand>();
     if(inst instanceof Instruction_noargs){
       //ignore
     } else if(inst instanceof Instruction_byte){
       Instruction_byte inst_byte = (Instruction_byte) inst;
       String arg0 = Byte.valueOf(inst_byte.arg_b).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "byte"));
     } else if(inst instanceof Instruction_bytevar){
       Instruction_bytevar inst_bytevar = (Instruction_bytevar) inst;
       String arg0 = Integer.valueOf(inst_bytevar.arg_b).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "byte"));
     } else if(inst instanceof Instruction_byteindex){
       Instruction_byteindex inst_byteindex = (Instruction_byteindex) inst;  
       String arg0 = m_constantReader.get(inst_byteindex.arg_b, m_constantPool);
-      arguments.add(arg0);
+      String type0 = m_constantReader.getType(inst_byteindex.arg_b, m_constantPool);
+      operands.add(new Operand(arg0, type0));
     } else if(inst instanceof Instruction_int){
       Instruction_int inst_int = (Instruction_int) inst;
       String arg0 = Integer.valueOf(inst_int.arg_i).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "int"));
     } else if(inst instanceof Instruction_intvar){
       Instruction_intvar inst_intvar = (Instruction_intvar) inst;
       String arg0 = Integer.valueOf(inst_intvar.arg_i).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "int"));
     } else if(inst instanceof Instruction_intindex){
       Instruction_intindex inst_intindex = (Instruction_intindex) inst;
       String arg0 = m_constantReader.get(inst_intindex.arg_i, m_constantPool);
-      arguments.add(arg0);
+      String type0 = m_constantReader.getType(inst_intindex.arg_i, m_constantPool);
+      operands.add(new Operand(arg0, type0));
     } else if(inst instanceof Instruction_intbranch){
       Instruction_intbranch inst_intbranch = (Instruction_intbranch) inst;
       String arg0 = Integer.valueOf(inst_intbranch.arg_i).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "int"));
     } else if(inst instanceof Instruction_longbranch){
       Instruction_longbranch inst_longbranch = (Instruction_longbranch) inst;
       String arg0 = Integer.valueOf(inst_longbranch.arg_i).toString();
-      arguments.add(arg0);
+      operands.add(new Operand(arg0, "long"));
+    } else if(inst instanceof Instruction_Lookupswitch){
+      //ignore
+    } else if(inst instanceof Instruction_Tableswitch){
+      //ignore
+    } else if(inst instanceof Instruction_Newarray){
+      Instruction_Newarray inst_newarray = (Instruction_Newarray) inst;
+      String str = inst_newarray.toString(m_constantPool);
+      String[] tokens = str.split(" ");
+      name = tokens[0];
+      operands.add(new Operand(tokens[1], "class_ref"));
     } else {
       throw new RuntimeException("unknown instruction type: "+inst.toString());
     } 
-    HierarchyInstruction ret = new HierarchyInstruction(name, arguments);
+    HierarchyInstruction ret = new HierarchyInstruction(name, operands);
     return ret;
   }
   
