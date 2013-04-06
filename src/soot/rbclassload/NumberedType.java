@@ -28,14 +28,14 @@ import soot.Type;
 public class NumberedType implements Comparable<NumberedType> {
 
   private long m_number;
-  private Type m_type;
+  private String m_type;
   
-  public NumberedType(Type type, long number){
+  public NumberedType(String type, long number){
     m_type = type;
     m_number = number;
   }
   
-  public Type getType(){
+  public String getType(){
     return m_type;
   }
   

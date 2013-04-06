@@ -108,9 +108,14 @@ public class RootbeerClassLoader {
   private Set<String> m_dontDfsMethods;
   private Map<String, String> m_remapping;
   private Map<String, HierarchyValueSwitch> m_valueSwitchMap;
+  private Map<String, List<String>> m_usedFields;
   private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
+
+  private Set<String> m_cgVisitedClasses;
+  private Set<String> m_cgVisitedMethods;
+  private List<String> m_cgMethodQueue;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -138,6 +143,10 @@ public class RootbeerClassLoader {
     m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
     m_dontDfsMethods = new HashSet<String>();
     m_valueSwitchMap = new HashMap<String, HierarchyValueSwitch>();
+
+    m_cgVisitedClasses = new HashSet<String>();
+    m_cgVisitedMethods = new HashSet<String>();
+    m_cgMethodQueue = new LinkedList<String>();
 
     m_loaded = false;
   }
@@ -195,6 +204,7 @@ public class RootbeerClassLoader {
       loadStringCallGraph();
     }
 
+
     //todo: use DfsValueSwitchCache
     //collectFields();
 
@@ -216,16 +226,21 @@ public class RootbeerClassLoader {
     for(DfsInfo dfs_info : m_dfsInfos.values()){
       array_types.addAll(dfs_info.getArrayTypes());
     }
-    m_classHierarchy.addArrayTypes(array_types);
-    m_classHierarchy.numberTypes();
+*/
 
+    //one string call graph
+    //one set of all types
+    //m_classHierarchy.addArrayTypes(array_types);
+    m_classHierarchy.numberTypes();
+    loadScene();
+
+/*
     for(String entry : m_entryPoints){
       m_currDfsInfo = m_dfsInfos.get(entry);
       m_currDfsInfo.finalizeTypes();
     }
-
-    Scene.v().loadDynamicClasses();
 */
+    Scene.v().loadDynamicClasses();
   }
     
 /*
@@ -410,26 +425,51 @@ public class RootbeerClassLoader {
   }
 
   private void loadStringCallGraph(){
-    Set<String> visited_classes = new HashSet<String>();
-    Set<String> visited_methods = new HashSet<String>();
     String entry = m_currDfsInfo.getRootMethodSignature();
 
     System.out.println("loading forward string call graph for: "+entry+"...");
-    List<String> bfs_queue = new LinkedList<String>();
-    bfs_queue.add(entry);
-    visited_methods.add(entry);
+    m_cgMethodQueue.add(entry);
+    m_cgVisitedMethods.add(entry);
+
     m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
 
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(entry);
     HierarchySootClass entry_class = m_classHierarchy.getHierarchySootClass(util.getClassName());
     HierarchySootMethod entry_ctor = entry_class.findMethodBySubSignature("void <init>()");
-    bfs_queue.add(entry_ctor.getSignature());
-    visited_methods.add(entry_ctor.getSignature());
+    m_cgMethodQueue.add(entry_ctor.getSignature());
+    m_cgVisitedMethods.add(entry_ctor.getSignature());
 
-    while(bfs_queue.isEmpty() == false){
-      String bfs_entry = bfs_queue.get(0);
-      bfs_queue.remove(0);
+    processForwardStringCallGraphQueue();
+
+    System.out.println("loading reverse string call graph for: "+entry+"...");
+    Set<String> reachable = new HashSet<String>();
+    Set<String> unvisited = new HashSet<String>();
+    reachable.add(entry_ctor.getSignature());
+    reachable.add(m_currDfsInfo.getRootMethodSignature());
+
+    int prev_size = -1;
+    while(prev_size != reachable.size()){
+      prev_size = reachable.size();
+      unvisited.clear();
+      for(String class_name : m_appClasses){
+        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+        List<HierarchySootMethod> methods = hclass.getMethods();
+        for(HierarchySootMethod method : methods){
+          String method_sig = method.getSignature();
+          reverseStringGraphVisit(method_sig, reachable);   
+        }
+      }
+    }
+
+    //System.out.println("StringCallGraph: "+m_currDfsInfo.getStringCallGraph().toString());
+  }
+
+  private void processForwardStringCallGraphQueue(){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    while(m_cgMethodQueue.isEmpty() == false){
+      String bfs_entry = m_cgMethodQueue.get(0);
+      m_cgMethodQueue.remove(0);
 
       util.parse(bfs_entry);
 
@@ -455,12 +495,12 @@ public class RootbeerClassLoader {
           continue;
         }
 
-        if(visited_methods.contains(signature)){
+        if(m_cgVisitedMethods.contains(signature)){
           continue;
         }
-        visited_methods.add(signature);
-        System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
-        bfs_queue.add(signature);
+        m_cgVisitedMethods.add(signature);
+        //System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
+        m_cgMethodQueue.add(signature);
       }
 
       //add bfs methods to queue
@@ -470,67 +510,186 @@ public class RootbeerClassLoader {
           continue;
         }
 
-        if(visited_methods.contains(dest_sig)){
+        if(m_cgVisitedMethods.contains(dest_sig)){
           continue;
         }
-        visited_methods.add(dest_sig);
+        m_cgVisitedMethods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
-        System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
-        bfs_queue.add(dest_sig);        
+        //System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
+        m_cgMethodQueue.add(dest_sig);        
       }
 
-      if(visited_classes.contains(class_name)){
+      //add <clinit> of class_refs
+      Set<String> class_refs = value_switch.getClasses();
+      for(String class_ref : class_refs){
+        HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
+        if(clinit_class == null){
+          continue;
+        }
+        HierarchySootMethod clinit_method = clinit_class.findMethodBySubSignature("void <clinit>()");
+        if(clinit_method == null){
+          continue;
+        }
+
+        String clinit_sig = clinit_method.getSignature();
+
+        if(m_dontDfsMethods.contains(clinit_sig)){
+          continue;
+        }
+
+        if(m_cgVisitedMethods.contains(clinit_sig)){
+          continue;
+        }
+        m_cgVisitedMethods.add(clinit_sig);
+        m_cgMethodQueue.add(clinit_sig);   
+      }
+
+      if(m_cgVisitedClasses.contains(class_name)){
         continue;
       }
-      visited_classes.add(class_name);
+      m_cgVisitedClasses.add(class_name);
 
-      //add <clinit> to queue
+      //add <init> and <clinit> to queue
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
         String name = method.getName();
-        if(name.equals("<clinit>")){
-          System.out.println("loadStringGraph adding ctor: "+method.getSignature());
-          bfs_queue.add(method.getSignature());          
-        }
-      }
-
-    }
-
-    System.out.println("loading reverse string call graph for: "+entry+"...");
-    Set<String> reachable = new HashSet<String>();
-    reachable.add(entry_ctor.getSignature());
-    reachable.add(m_currDfsInfo.getRootMethodSignature());
-
-    int prev_size = -1;
-    while(prev_size != reachable.size()){
-      prev_size = reachable.size();
-      Iterator<String> iter = m_valueSwitchMap.keySet().iterator();    
-      while(iter.hasNext()){
-        String method_sig = iter.next();
-        HierarchyValueSwitch value_switch = m_valueSwitchMap.get(method_sig);
-        Set<String> methods = value_switch.getMethodRefs();
-        boolean changed = false;
-        for(String dest_sig : methods){
-          if(reachable.contains(dest_sig)){
-            m_currDfsInfo.getStringCallGraph().addEdge(method_sig, dest_sig);
-            reachable.add(method_sig);
-
-            //add virtual methods to queue
-            List<String> virt_methods = m_classHierarchy.getVirtualMethods(method_sig);
-            for(String method : virt_methods){
-              reachable.add(method);
-            }
-
-            changed = true;
-          } 
-        }
-        if(changed){
-         break; 
+        //<init> shouldn't really be included here. 
+        //this is because in rootbeer reflection is
+        //used to load methods for tests. in the future
+        //we could use symbolic execution to get by
+        //reflection.
+        if(name.equals("<init>") || name.equals("<clinit>")){
+          //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
+          m_cgMethodQueue.add(method.getSignature());          
         }
       }
     }
+  }
 
-    System.out.println("StringCallGraph: "+m_currDfsInfo.getStringCallGraph().toString());
+  private void reverseStringGraphVisit(String method_sig, Set<String> reachable){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    HierarchyValueSwitch value_switch = getValueSwitch(method_sig);
+    for(String dest_sig : value_switch.getMethodRefs()){
+      if(m_dontDfsMethods.contains(dest_sig)){
+        continue;
+      }
+      if(reachable.contains(dest_sig)){
+        //System.out.println("loadStringGraph addEdge: "+method_sig+"->"+dest_sig);
+        m_currDfsInfo.getStringCallGraph().addEdge(method_sig, dest_sig);
+        reachable.add(method_sig);
+
+        //add virtual methods to queue
+        List<String> virt_methods = m_classHierarchy.getVirtualMethods(method_sig);
+        for(String virt_method : virt_methods){
+          if(reachable.contains(virt_method) == false){
+            reachable.add(virt_method);
+            reverseStringGraphVisit(virt_method, reachable);
+          }
+        }
+
+        //add <init> and <clinit> to reachable
+        util.parse(method_sig);
+        String class_name = util.getClassName();
+        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+        List<HierarchySootMethod> methods = hclass.getMethods();
+        for(HierarchySootMethod method : methods){
+          String name = method.getName();
+          //<init> shouldn't really be included here. 
+          //this is because in rootbeer reflection is
+          //used to load methods for tests. in the future
+          //we could use symbolic execution to get by
+          //reflection.
+          if(name.equals("<init>") || name.equals("<clinit>")){
+            //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
+            reachable.add(method.getSignature());          
+          }
+        }
+      } 
+    }
+
+    //add <clinit> of class_refs
+    Set<String> class_refs = value_switch.getClasses();
+    for(String class_ref : class_refs){
+      HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
+      if(clinit_class == null){
+        continue;
+      }
+
+      HierarchySootMethod clinit_method = clinit_class.findMethodBySubSignature("void <clinit>()");
+      if(clinit_method == null){
+        continue;
+      }
+
+      String clinit_sig = clinit_method.getSignature();
+
+      if(m_dontDfsMethods.contains(clinit_sig)){
+        continue;
+      }
+
+      if(m_cgVisitedMethods.contains(clinit_sig)){
+        continue;
+      }
+      m_cgVisitedMethods.add(clinit_sig);
+      m_cgMethodQueue.add(clinit_sig);   
+    } 
+    processForwardStringCallGraphQueue();
+  }
+
+  private void loadScene(){
+    System.out.println("loading scene...");
+
+    System.out.println("creating empty classes according to type number...");
+    //create all empty classes from lowest number to highest
+    StringToType string_to_type = new StringToType();
+    List<NumberedType> numbered_types = m_classHierarchy.getNumberedTypes();
+    for(NumberedType ntype : numbered_types){
+      String type_string = ntype.getType();
+      if(string_to_type.isRefType(type_string) == false){
+        continue;
+      }      
+      if(string_to_type.isArrayType(type_string)){
+        type_string = string_to_type.getBaseType(type_string);
+      }
+      SootClass emptyClass = new SootClass(type_string);
+
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(type_string);
+      if(hclass.hasSuperClass()){
+        SootClass superClass = Scene.v().getSootClass(hclass.getSuperClass());
+        emptyClass.setSuperclass(superClass);
+      }
+      for(String iface : hclass.getInterfaces()){
+        SootClass ifaceClass = Scene.v().getSootClass(iface);
+        emptyClass.addInterface(ifaceClass);
+      }
+    }
+
+    System.out.println("collecting fields for classes and adding to declaring class...");
+    //collect fields for classes and add to declaring_class
+    m_usedFields = new HashMap<String, List<String>>();
+    Set<String> all_sigs = m_currDfsInfo.getStringCallGraph().getAllSignatures();
+    for(String signature : all_sigs){
+      HierarchyValueSwitch value_switch = getValueSwitch(signature);
+      for(String field_ref : value_switch.getFieldRefs()){
+        FieldSignatureUtil util = new FieldSignatureUtil();
+        util.parse(field_ref);
+
+        String class_name = util.getDeclaringClass();
+        SootClass declaring_class = Scene.v().getSootClass(class_name);
+        Type field_type = string_to_type.convert(util.getType());
+        SootField new_field = new SootField(util.getName(), field_type);
+        declaring_class.addField(new_field);
+      }
+    }
+
+    System.out.println("adding empty methods...");
+    //add empty methods
+    for(String signature : all_sigs){
+      
+      
+    }
+
+    System.out.println("adding method bodies...");
+    //add method bodies
   }
 
   private HierarchyValueSwitch getValueSwitch(String signature){

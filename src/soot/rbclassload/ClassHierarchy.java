@@ -47,9 +47,6 @@ public class ClassHierarchy {
   private Set<String> m_roots;
   private List<NumberedType> m_numberedTypes;
   private Map<String, NumberedType> m_numberedTypeMap;
-  private List<Type> m_orderedTypes;
-  private List<RefType> m_orderedRefTypes;
-  private List<Type> m_orderedRefLikeTypes;
   private MethodSignatureUtil m_util;
 
   public ClassHierarchy(){
@@ -181,8 +178,6 @@ public class ClassHierarchy {
     queue.add("java.lang.Object");
     HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
 
-    StringToType converter = new StringToType();
-
     while(queue.isEmpty() == false){
       String curr_type = queue.get(0);
       queue.remove(0);
@@ -190,28 +185,11 @@ public class ClassHierarchy {
       List<String> children = hgraph.getChildren(curr_type);
       queue.addAll(children);
 
-      Type type = converter.convert(curr_type);
-      NumberedType numbered_type = new NumberedType(type, number);
+      NumberedType numbered_type = new NumberedType(curr_type, number);
       m_numberedTypes.add(numbered_type);
       m_numberedTypeMap.put(curr_type, numbered_type);
       
       number++;
-    }
-    
-    m_orderedTypes = new ArrayList<Type>();
-    m_orderedRefTypes = new ArrayList<RefType>();
-    m_orderedRefLikeTypes = new ArrayList<Type>();
-    for(NumberedType ntype : m_numberedTypes){
-      Type type = ntype.getType();
-      m_orderedTypes.add(type);
-      
-      if(type instanceof RefType){
-        RefType ref_type = (RefType) type;
-        m_orderedRefTypes.add(ref_type);
-      } 
-      if(type instanceof RefLikeType){
-        m_orderedRefLikeTypes.add(type);
-      }
     }
   }
 

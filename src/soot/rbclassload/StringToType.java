@@ -79,6 +79,25 @@ public class StringToType {
     }
   }
 
+  public boolean isArrayType(String input){
+    String input_no_array = input.replace("[", "");
+    input_no_array = input_no_array.replace("]", "");
+
+    String array_post_fix = input.substring(input_no_array.length());
+    //each dimension has []
+    int num_dimensions = array_post_fix.length() / 2;
+    if(num_dimensions > 0){
+      return true;
+    }
+    return false;
+  }
+
+  public String getBaseType(String input){
+    String input_no_array = input.replace("[", "");
+    input_no_array = input_no_array.replace("]", "");
+    return input_no_array;
+  }
+
   public boolean isRefType(String input){
     String input_no_array = input.replace("[", "");
     input_no_array = input_no_array.replace("]", "");
