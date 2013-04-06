@@ -1489,8 +1489,6 @@ public class ClassFile {
                                   desc.substring(i+1));
                param = "<error>";
             } else {
-               if (j-i>10 && desc.substring(i+1,i+11).compareTo("java/lang/")==0)
-                  i = i+10;
                param = desc.substring(i+1,j);
                // replace '/'s with '.'s
                param = param.replace('/','.');
