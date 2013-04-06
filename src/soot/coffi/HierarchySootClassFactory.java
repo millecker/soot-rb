@@ -71,16 +71,10 @@ public class HierarchySootClassFactory {
       interfaces.add(name);
     }
     
-    List<HierarchySootMethod> methods = new ArrayList<HierarchySootMethod>();
+    int modifiers = classFile.access_flags & ~0x0020;
 
     HierarchySootClass ret = new HierarchySootClass(className, hasSuperClass,
-      superClassName, interfaces, methods);
-
-    for(int i = 0; i < classFile.methods_count; ++i){
-      HierarchySootMethod method = m_methodFactory.create(classFile, i);
-      method.setHierarchySootClass(ret);
-      methods.add(method);
-    }
+      superClassName, interfaces, modifiers, classFile);
 
     return ret;
   }

@@ -228,8 +228,6 @@ public class SootResolver
             }
         } else {
             Dependencies dependencies = is.resolve(sc);
-            System.out.println("dependencies: ");
-            System.out.println(dependencies.toString());
             classToTypesSignature.put( sc, new ArrayList(dependencies.typesToSignature) );
             classToTypesHierarchy.put( sc, new ArrayList(dependencies.typesToHierarchy) );
             classToTypesBody.put( sc, new ArrayList(dependencies.typesToBody) );

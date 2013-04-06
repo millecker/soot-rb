@@ -172,6 +172,7 @@ public class ClassHierarchy {
   }
 
   public void numberTypes(){
+    System.out.println("numbering types...");
     int number = 1;
     List<String> queue = new LinkedList<String>();
     Set<String> visited = new HashSet<String>();
@@ -181,6 +182,11 @@ public class ClassHierarchy {
     while(queue.isEmpty() == false){
       String curr_type = queue.get(0);
       queue.remove(0);
+
+      if(visited.contains(curr_type)){
+        continue;
+      }
+      visited.add(curr_type);
       
       List<String> children = hgraph.getChildren(curr_type);
       queue.addAll(children);

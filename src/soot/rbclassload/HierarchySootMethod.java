@@ -29,6 +29,12 @@ import java.io.InputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import soot.Modifier;
+import soot.coffi.ClassFile;
+import soot.coffi.method_info;
+import soot.coffi.HierarchySootMethodFactory;
+import soot.coffi.CoffiMethodSource;
+import soot.SootMethod;
+import soot.Body;
 
 public class HierarchySootMethod {
 
@@ -39,17 +45,20 @@ public class HierarchySootMethod {
   private int m_modifiers;
   private List<HierarchyInstruction> m_instructions;
   private HierarchySootClass m_class;
+  private ClassFile m_classFile;
+  private method_info m_methodInfo;
 
   public HierarchySootMethod(String name, String returnType,
     List<String> parameterTypes, List<String> exceptionTypes,
-    int modifiers, List<HierarchyInstruction> instructions){
+    int modifiers, ClassFile classFile, method_info methodInfo){
 
     m_name = name;
     m_returnType = returnType;
     m_parameterTypes = parameterTypes;
     m_exceptionTypes = exceptionTypes;
     m_modifiers = modifiers;
-    m_instructions = instructions;
+    m_classFile = classFile;
+    m_methodInfo = methodInfo;
   }
 
   public String getName(){
@@ -69,7 +78,15 @@ public class HierarchySootMethod {
   }
 
   public List<HierarchyInstruction> getInstructions(){
+    if(m_instructions == null){
+      readInstructions();
+    }
     return m_instructions;
+  }
+
+  private void readInstructions(){
+    HierarchySootMethodFactory method_factory = new HierarchySootMethodFactory();
+    m_instructions = method_factory.parseInstructions(m_classFile, m_methodInfo);
   }
 
   public void setHierarchySootClass(HierarchySootClass hclass){
@@ -86,6 +103,11 @@ public class HierarchySootMethod {
 
   public int getModifiers(){
     return m_modifiers;
+  }
+
+  public Body getBody(SootMethod method, String phaseName){
+    CoffiMethodSource method_source = new CoffiMethodSource(m_classFile, m_methodInfo);
+    return method_source.getBody(method, phaseName);
   }
 
   public String getSignature(){

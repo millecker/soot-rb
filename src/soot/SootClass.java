@@ -87,14 +87,6 @@ public class SootClass extends AbstractHost implements Numberable
         refType = RefType.v(name);
         refType.setSootClass(this);
         if(Options.v().debug_resolver()) G.v().out.println("created "+name+" with modifiers "+modifiers);
-        if(name.equals("java.lang.CloneNotSupportedException")){
-          try {
-            throw new RuntimeException("hello");
-          } catch(Exception ex){
-            ex.printStackTrace();
-            System.exit(0);
-          }
-        }
         setResolvingLevel(BODIES);
         
         Scene.v().getClassNumberer().add(this);

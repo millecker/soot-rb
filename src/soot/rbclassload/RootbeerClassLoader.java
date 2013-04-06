@@ -242,184 +242,7 @@ public class RootbeerClassLoader {
 */
     Scene.v().loadDynamicClasses();
   }
-    
-/*
-  private void collectFields(){
-    m_reachableFields = new HashSet<String>();
-    Set<String> all = m_stringCG.getAllSignatures();
-    for(String sig : all){
-      collectFieldsForMethod(sig);
-    }
-  }
-
-  private void collectFieldsForMethod(String sig){
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(sig);
-
-    SootMethod method = util.getSootMethod();
-                
-    DfsValueSwitch value_switch = new DfsValueSwitch();
-    value_switch.run(method);
-
-    Set<SootFieldRef> fields = value_switch.getFieldRefs();
-    for(SootFieldRef ref : fields){
-      String field_sig = ref.getSignature();
-      if(m_reachableFields.contains(field_sig) == false){
-        m_reachableFields.add(field_sig);          
-      }
-    }
-  }
-*/
-/*
-  private List<String> getReachableClasses(){
-    List<String> ret = new ArrayList<String>();
-    Set<String> ret_set = new HashSet<String>();
-
-    Set<String> all_method_sigs = m_stringCG.getAllSignatures();
-    //collect class names and main_classes
-    for(String method_sig : all_method_sigs){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(method_sig);
-      util.remap();
-      String class_name = util.getClassName();
-      if(ret_set.contains(class_name) == false){
-        ret_set.add(class_name);
-      }
-    }  
-
-    //collect class names from reachable fields
-    for(String field_sig : m_reachableFields){
-      FieldSignatureUtil util = new FieldSignatureUtil();
-      util.parse(field_sig);
-      util.remap();
-
-      String declaring_class = util.getDeclaringClass();
-      if(ret_set.contains(declaring_class) == false){
-        ret_set.add(declaring_class);
-      }
-      String field_type = util.getType();
-      if(ret_set.contains(field_type) == false){
-        ret_set.add(field_type);
-      }
-    }
-
-    //collect class names from generated classes
-    List<SootClass> added_classes = Scene.v().getGeneratedClasses();
-    for(SootClass added : added_classes){
-      String name = added.getName();
-      if(ret_set.contains(name) == false){
-        ret_set.add(name);
-      }
-    }
-
-    ret.addAll(ret_set);
-    return ret;    
-  }
-
-  private void findFieldsReachableFromGeneratedMethods(){
-    for(String sig : m_generatedMethods){
-      collectFieldsForMethod(sig); 
-    }
-  }
-
-  public List<String> getClassesToOutput(){
-    List<String> ret = new ArrayList<String>();
-
-    Set<String> main_classes = new HashSet<String>();
-    Set<String> all_method_sigs = m_stringCG.getAllSignatures();
-
-    findFieldsReachableFromGeneratedMethods();
-    List<String> reachable_classes = getReachableClasses();
-
-    //collect class names and main_classes
-    for(String class_name : reachable_classes){
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      String subsig = "void main(java.lang.String[])";
-
-      if(soot_class.declaresMethod(subsig)){
-        if(main_classes.contains(class_name) == false){
-          main_classes.add(class_name);
-        }
-      }
-    }  
-
-    //find <init> of main classes and don't delete them
-    for(String main_class : main_classes){
-      SootClass soot_class = Scene.v().getSootClass(main_class);
-      if(soot_class.declaresMethod("void <init>()")){
-        SootMethod init_method = soot_class.getMethod("void <init>()");
-        String init_sig = init_method.getSignature();
-        if(all_method_sigs.contains(init_sig) == false){
-          all_method_sigs.add(init_sig);
-        }
-      }
-    }
-
-    //trim things in classes that are not reachable
-    for(String class_name : reachable_classes){
-        
-      //don't trim the runtime classes in the keep_packages
-      if(isKeepPackage(class_name)){
-        continue;
-      }
-
-      //don't trim any named runtime classes
-      if(m_runtimeClasses.contains(class_name)){
-        continue;
-      }
-
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      List<SootMethod> methods = soot_class.getMethods();
-      List<SootMethod> methods_to_delete = new ArrayList<SootMethod>();
-      for(SootMethod method : methods){
-        String method_sig = method.getSignature();
-        //don't delete generated methods
-        if(m_generatedMethods.contains(method_sig)){
-          continue;
-        }
-        if(all_method_sigs.contains(method_sig) == false){
-          methods_to_delete.add(method);
-        } else {
-          //load the body in case it hasn't
-          if(method.isConcrete()){
-            method.retrieveActiveBody();
-          }
-        }
-      }
-      for(SootMethod to_delete : methods_to_delete){
-        soot_class.removeMethod(to_delete);
-      }
-      List<SootField> fields_to_delete = new ArrayList<SootField>();
-      Iterator<SootField> field_iter = soot_class.getFields().iterator();
-      while(field_iter.hasNext()){
-        SootField curr_field = field_iter.next();
-        String field_sig = curr_field.getSignature();
-        if(m_reachableFields.contains(field_sig) == false){
-          fields_to_delete.add(curr_field);
-        }
-      }
-      for(SootField to_delete : fields_to_delete){
-        soot_class.removeField(to_delete);
-      }
-    }
-
-    //load bodies for all methods
-    Set<String> body_load_sigs = new HashSet<String>();
-    body_load_sigs.addAll(m_generatedMethods);
-    body_load_sigs.addAll(all_method_sigs);
-    for(String sig : body_load_sigs){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(sig);
-
-      SootMethod method = util.getSootMethod();
-      if(method.isConcrete() && method.hasActiveBody() == false){
-        method.retrieveActiveBody();
-      }
-    }
-
-    return reachable_classes;
-  }
-*/
+ 
   public void setLoaded(){
     m_loaded = true;
   }
@@ -456,8 +279,13 @@ public class RootbeerClassLoader {
         HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
         List<HierarchySootMethod> methods = hclass.getMethods();
         for(HierarchySootMethod method : methods){
-          String method_sig = method.getSignature();
-          reverseStringGraphVisit(method_sig, reachable);   
+          String signature = method.getSignature();
+
+          if(dontFollow(signature)){
+            continue;
+          }
+
+          reverseStringGraphVisit(signature, reachable);   
         }
       }
     }
@@ -488,12 +316,12 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
+      //System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
 
       //add virtual methods to queue
       List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
-        if(m_dontDfsMethods.contains(signature)){
+        if(dontFollow(signature)){
           continue;
         }
 
@@ -508,10 +336,10 @@ public class RootbeerClassLoader {
       //add bfs methods to queue
       HierarchyValueSwitch value_switch = getValueSwitch(bfs_entry);
       for(String dest_sig : value_switch.getMethodRefs()){
-        if(m_dontDfsMethods.contains(dest_sig)){
+        if(dontFollow(dest_sig)){
           continue;
         }
-
+ 
         if(m_cgVisitedMethods.contains(dest_sig)){
           continue;
         }
@@ -522,6 +350,7 @@ public class RootbeerClassLoader {
       }
 
       //add <clinit> of class_refs
+      /*
       Set<String> class_refs = value_switch.getClasses();
       for(String class_ref : class_refs){
         HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
@@ -545,25 +374,20 @@ public class RootbeerClassLoader {
         m_cgVisitedMethods.add(clinit_sig);
         m_cgMethodQueue.add(clinit_sig);   
       }
+      */
 
       if(m_cgVisitedClasses.contains(class_name)){
         continue;
       }
       m_cgVisitedClasses.add(class_name);
 
-      //add <init> and <clinit> to queue
+      //add <clinit> to queue
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
         String name = method.getName();
-        //<init> shouldn't really be included here. 
-        //this is because in rootbeer reflection is
-        //used to load methods for tests. in the future
-        //we could use symbolic execution to get by
-        //reflection.
-        if(name.equals("<init>") || name.equals("<clinit>")){
+        if(name.equals("<clinit>") && false){
           //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
-
-          if(m_dontDfsMethods.contains(method.getSignature())){
+          if(dontFollow(method.getSignature())){
             continue;
           }
 
@@ -578,10 +402,11 @@ public class RootbeerClassLoader {
   }
 
   private void reverseStringGraphVisit(String method_sig, Set<String> reachable){
+    //System.out.println("reverseStringGraphVisit: "+method_sig);
     MethodSignatureUtil util = new MethodSignatureUtil();
     HierarchyValueSwitch value_switch = getValueSwitch(method_sig);
     for(String dest_sig : value_switch.getMethodRefs()){
-      if(m_dontDfsMethods.contains(dest_sig)){
+      if(dontFollow(dest_sig)){
         continue;
       }
       if(reachable.contains(dest_sig)){
@@ -593,33 +418,31 @@ public class RootbeerClassLoader {
         List<String> virt_methods = m_classHierarchy.getVirtualMethods(method_sig);
         for(String virt_method : virt_methods){
           if(reachable.contains(virt_method) == false){
-            reachable.add(virt_method);
+            reachable.add(virt_method);      
+
+            if(dontFollow(virt_method)){
+              continue;
+            }
             reverseStringGraphVisit(virt_method, reachable);
           }
         }
 
-        //add <init> and <clinit> to reachable
+        //add <clinit> to reachable
         util.parse(method_sig);
         String class_name = util.getClassName();
         HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
         List<HierarchySootMethod> methods = hclass.getMethods();
         for(HierarchySootMethod method : methods){
-          if(m_dontDfsMethods.contains(method.getSignature())){
+          if(dontFollow(method.getSignature())){
             continue;
-          }
-
+          } 
           if(m_cgVisitedMethods.contains(method.getSignature())){
             continue;
           }
           m_cgVisitedMethods.add(method.getSignature());
 
           String name = method.getName();
-          //<init> shouldn't really be included here. 
-          //this is because in rootbeer reflection is
-          //used to load methods for tests. in the future
-          //we could use symbolic execution to get by
-          //reflection.
-          if(name.equals("<init>") || name.equals("<clinit>")){
+          if(name.equals("<clinit>") && false){
             //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
             reachable.add(method.getSignature());          
           }
@@ -628,6 +451,7 @@ public class RootbeerClassLoader {
     }
 
     //add <clinit> of class_refs
+    /*
     Set<String> class_refs = value_switch.getClasses();
     for(String class_ref : class_refs){
       HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
@@ -652,7 +476,18 @@ public class RootbeerClassLoader {
       m_cgVisitedMethods.add(clinit_sig);
       m_cgMethodQueue.add(clinit_sig);   
     } 
+    */
     processForwardStringCallGraphQueue();
+  }
+
+  private boolean dontFollow(String signature){
+    if(m_dontDfsMethods.contains(signature)){
+      return true;
+    }
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    String class_name = util.getClassName();
+    return ignorePackage(class_name);
   }
 
   private void loadScene(){
@@ -670,9 +505,9 @@ public class RootbeerClassLoader {
       if(string_to_type.isArrayType(type_string)){
         type_string = string_to_type.getBaseType(type_string);
       }
-      SootClass emptyClass = new SootClass(type_string);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(type_string);
+      SootClass emptyClass = new SootClass(type_string, hclass.getModifiers());
       if(hclass.hasSuperClass()){
         SootClass superClass = Scene.v().getSootClass(hclass.getSuperClass());
         emptyClass.setSuperclass(superClass);
@@ -704,12 +539,47 @@ public class RootbeerClassLoader {
     System.out.println("adding empty methods...");
     //add empty methods
     for(String signature : all_sigs){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(signature);
+      String class_name = util.getClassName();
+
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
       
-      
+      List<Type> parameterTypes = new ArrayList<Type>();
+      for(String paramType : method.getParameterTypes()){
+        parameterTypes.add(string_to_type.convert(paramType));
+      }
+      Type returnType = string_to_type.convert(method.getReturnType());
+      int modifiers = method.getModifiers();
+      List<SootClass> thrownExceptions = new ArrayList<SootClass>();
+      for(String exception : method.getExceptionTypes()){
+        SootClass ex_class = Scene.v().getSootClass(exception);
+        thrownExceptions.add(ex_class);
+      }
+      SootMethod soot_method = new SootMethod(method.getName(), parameterTypes,
+        returnType, modifiers, thrownExceptions);
+
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      soot_class.addMethod(soot_method);
     }
 
     System.out.println("adding method bodies...");
     //add method bodies
+    for(String signature : all_sigs){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(signature);
+      String class_name = util.getClassName();
+
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
+
+      SootClass soot_class = Scene.v().getSootClass(class_name);
+      SootMethod soot_method = soot_class.getMethod(method.getSubSignature());
+
+      Body body = method.getBody(soot_method, "jb");
+      soot_method.setActiveBody(body);
+    }
   }
 
   private HierarchyValueSwitch getValueSwitch(String signature){
@@ -971,8 +841,6 @@ public class RootbeerClassLoader {
 */
 
   public void applyOptimizations(){
-    throw new UnsupportedOperationException();
-/*
     Pack jop = PackManager.v().getPack("jop");
     
     for(String entry : m_entryPoints){
@@ -990,14 +858,13 @@ public class RootbeerClassLoader {
       for(String curr_sig : methods){
         util.parse(curr_sig);
         SootClass soot_class = Scene.v().getSootClass(util.getClassName());
-        SootMethod curr_method = soot_class.getMethod(util.getMethodSubSignature());
+        SootMethod curr_method = soot_class.getMethod(util.getSubSignature());
         if(curr_method.isConcrete()){
           Body body = curr_method.retrieveActiveBody();
           jop.apply(body);
         }
       }
     }
-*/
   }
 
   public List<SootMethod> getEntryPoints(){
@@ -1108,77 +975,6 @@ public class RootbeerClassLoader {
       }
     }
     return ret;
-  }
-
-  private void loadBuiltIns(){
-    //copied from soot.Scene.addSootBasicClasses()
-
-    System.out.println("loading built-ins...");
-    addBasicClass("java.lang.Object");
-	  addBasicClass("java.lang.Class");
-
-	  addBasicClass("java.lang.Void");
-	  addBasicClass("java.lang.Boolean");
-	  addBasicClass("java.lang.Byte");
-	  addBasicClass("java.lang.Character");
-	  addBasicClass("java.lang.Short");
-	  addBasicClass("java.lang.Integer");
-	  addBasicClass("java.lang.Long");
-	  addBasicClass("java.lang.Float");
-	  addBasicClass("java.lang.Double");
-
-	  addBasicClass("java.lang.String");
-	  addBasicClass("java.lang.StringBuffer");
-
-	  addBasicClass("java.lang.Error");
-	  addBasicClass("java.lang.AssertionError");
-	  addBasicClass("java.lang.Throwable");
-	  addBasicClass("java.lang.NoClassDefFoundError");
-	  addBasicClass("java.lang.ExceptionInInitializerError");
-	  addBasicClass("java.lang.RuntimeException");
-	  addBasicClass("java.lang.ClassNotFoundException");
-	  addBasicClass("java.lang.ArithmeticException");
-	  addBasicClass("java.lang.ArrayStoreException");
-	  addBasicClass("java.lang.ClassCastException");
-	  addBasicClass("java.lang.IllegalMonitorStateException");
-	  addBasicClass("java.lang.IndexOutOfBoundsException");
-	  addBasicClass("java.lang.ArrayIndexOutOfBoundsException");
-	  addBasicClass("java.lang.NegativeArraySizeException");
-	  addBasicClass("java.lang.NullPointerException");
-	  addBasicClass("java.lang.InstantiationError");
-	  addBasicClass("java.lang.InternalError");
-	  addBasicClass("java.lang.OutOfMemoryError");
-	  addBasicClass("java.lang.StackOverflowError");
-	  addBasicClass("java.lang.UnknownError");
-	  addBasicClass("java.lang.ThreadDeath");
-	  addBasicClass("java.lang.ClassCircularityError");
-	  addBasicClass("java.lang.ClassFormatError");
-	  addBasicClass("java.lang.IllegalAccessError");
-	  addBasicClass("java.lang.IncompatibleClassChangeError");
-	  addBasicClass("java.lang.LinkageError");
-	  addBasicClass("java.lang.VerifyError");
-	  addBasicClass("java.lang.NoSuchFieldError");
-	  addBasicClass("java.lang.AbstractMethodError");
-	  addBasicClass("java.lang.NoSuchMethodError");
-	  addBasicClass("java.lang.UnsatisfiedLinkError");
-
-	  addBasicClass("java.lang.Thread");
-	  addBasicClass("java.lang.Runnable");
-	  addBasicClass("java.lang.Cloneable");
-	  addBasicClass("java.io.Serializable");	
-	  addBasicClass("java.lang.ref.Finalizer");
-  }
-
-  private void addBasicClass(String class_name) {
-    addBasicClass(class_name, SootClass.HIERARCHY);
-  }
-
-  private void addBasicClass(String class_name, int level) {
-    resolveClass(class_name, level);
-  }
-
-  public void resolveClass(String class_name, int level){
-    SootResolver.v().resolveClass(class_name, level);
   }
 
   private boolean findClass(Collection<String> jars, String filename, String class_name) throws Exception {
@@ -1295,130 +1091,6 @@ public class RootbeerClassLoader {
     }
   }
 
-/*
-  private void doDfs(String method, List<String> queue, Set<String> visited){  
-    if(m_dontDfsMethods.contains(method)){
-      return;
-    }
-
-    List<String> virt_methods = m_classHierarchy.getVirtualMethods(method.getSignature());
-    for(String virt_method : virt_methods){
-      if(method.getSignature().equals(virt_method)){
-        continue;
-      }
-    
-      if(visited.contains(virt_method) == false){
-        queue.add(virt_method);
-      }
-    }
-
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(method);
-    if(ignorePackage(util.getClassName()){
-      return;
-    }
-
-    if(isKeepPackage(util.getClassName()){
-      return;
-    }
-
-    if(visited.contains(method)){
-      return;
-    }
-    visited.add(method);
-    
-    //System.out.println("doDfs: "+signature);
-
-    m_currDfsInfo.addMethod(method);
-    m_currDfsInfo.addType(soot_class.getType());
-    
-    if(method.isConcrete() == false){
-      return;
-    }
-
-    DfsValueSwitch value_switch = getDfsValueSwitch(signature);
-
-    Set<Type> all_types = value_switch.getAllTypes();
-    for(Type type : all_types){
-      m_currDfsInfo.addType(type);
-    }
-
-    Set<SootFieldRef> fields = value_switch.getFieldRefs();
-    for(SootFieldRef ref : fields){
-      m_currDfsInfo.addType(ref.type());
-      
-      SootField field = ref.resolve();
-      m_currDfsInfo.addField(field);
-    }
-    
-    Set<Type> instance_ofs = value_switch.getInstanceOfs();
-    for(Type type : instance_ofs){
-      m_currDfsInfo.addInstanceOf(type);
-    }
-
-    Set<DfsMethodRef> methods = value_switch.getMethodRefs();
-    for(DfsMethodRef ref : methods){
-      SootMethodRef mref = ref.getSootMethodRef();
-      SootClass method_class = mref.declaringClass();
-      SootMethod dest = mref.resolve();     
-
-      if(visited.contains(dest.getSignature()) == false){
-        queue.add(dest);
-      }
-    }
-  }
-
-  private void addType(Type type) {
-    List<Type> queue = new LinkedList<Type>();
-    queue.add(type);
-    while(queue.isEmpty() == false){
-      Type curr = queue.get(0);
-      queue.remove(0);
-      
-      if(m_currDfsInfo.containsType(curr)){
-        continue;
-      }
-        
-      SootClass type_class = findTypeClass(curr);
-      if(type_class == null){
-        m_currDfsInfo.addType(curr);
-        continue;
-      }
-      
-      type_class = SootResolver.v().resolveClass(type_class.getName(), SootClass.HIERARCHY);
-
-      if(isKeepPackage(type_class.getName())){
-        continue;
-      }
-      
-      m_currDfsInfo.addType(curr);
-
-      if(type_class.hasSuperclass()){
-        queue.add(type_class.getSuperclass().getType());
-      }
-      
-      if(type_class.hasOuterClass()){
-        queue.add(type_class.getOuterClass().getType());
-      }
-
-      Iterator<SootClass> iter0 = type_class.getInterfaces().iterator();
-      while(iter0.hasNext()){
-        SootClass soot_class = iter0.next();
-        addType(soot_class.getType());
-      }
-
-      Iterator<SootField> iter = type_class.getFields().iterator();
-      while(iter.hasNext()){
-        SootField curr_field = iter.next();
-        String field_sig = curr_field.getSignature();
-        
-        Type field_type = curr_field.getType();
-        addType(field_type);
-        addType(curr_field.getDeclaringClass().getType());
-      }
-    }
-  }
-*/
   private SootClass findTypeClass(Type type){
     if(type instanceof ArrayType){
       ArrayType array_type = (ArrayType) type;

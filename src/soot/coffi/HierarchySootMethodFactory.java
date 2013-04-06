@@ -72,6 +72,15 @@ public class HierarchySootMethodFactory {
       }      
     }
 
+    HierarchySootMethod ret = new HierarchySootMethod(name, returnType,
+      parameterTypes, exceptionTypes, methodInfo.access_flags, classFile,
+      methodInfo);
+
+    return ret;
+  }
+
+  public List<HierarchyInstruction> parseInstructions(ClassFile classFile, method_info methodInfo){
+    m_constantPool = classFile.constant_pool;
     List<HierarchyInstruction> instructions = new ArrayList<HierarchyInstruction>();
     Instruction inst = classFile.parseMethod(methodInfo);
     while(inst != null){
@@ -79,10 +88,7 @@ public class HierarchySootMethodFactory {
       instructions.add(hinst);
       inst = inst.next;
     }
-
-    HierarchySootMethod ret = new HierarchySootMethod(name, returnType,
-      parameterTypes, exceptionTypes, methodInfo.access_flags, instructions);
-    return ret;
+    return instructions;
   }
 
   private HierarchyInstruction parseInstruction(Instruction inst){
