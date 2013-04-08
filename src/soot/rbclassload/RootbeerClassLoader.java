@@ -345,7 +345,7 @@ public class RootbeerClassLoader {
         }
         m_cgVisitedMethods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
-        //System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
+        System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         m_cgMethodQueue.add(dest_sig);        
       }
 
@@ -401,7 +401,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  private void reverseStringGraphVisit(String method_sig, Set<String> reachable){
+  private void reverseStringGraphVisit(String method_sig, Set<String> reachable){      
     //System.out.println("reverseStringGraphVisit: "+method_sig);
     MethodSignatureUtil util = new MethodSignatureUtil();
     HierarchyValueSwitch value_switch = getValueSwitch(method_sig);
@@ -410,9 +410,18 @@ public class RootbeerClassLoader {
         continue;
       }
       if(reachable.contains(dest_sig)){
-        //System.out.println("loadStringGraph addEdge: "+method_sig+"->"+dest_sig);
+        System.out.println("loadStringGraph addEdge: "+method_sig+"->"+dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(method_sig, dest_sig);
-        reachable.add(method_sig);
+        reachable.add(method_sig);        
+
+        //add to forward dfs
+        //if(dontFollow(method_sig) == false){
+        //  if(m_cgVisitedMethods.contains(method_sig) == false){
+        //    m_cgVisitedMethods.add(method_sig);
+        //    //System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
+        //    m_cgMethodQueue.add(method_sig);
+        //  }
+        //}
 
         //add virtual methods to queue
         List<String> virt_methods = m_classHierarchy.getVirtualMethods(method_sig);
@@ -440,6 +449,7 @@ public class RootbeerClassLoader {
             continue;
           }
           m_cgVisitedMethods.add(method.getSignature());
+          //m_cgMethodQueue.add(method.getSignature());
 
           String name = method.getName();
           if(name.equals("<clinit>") && false){
@@ -576,6 +586,11 @@ public class RootbeerClassLoader {
 
       if(method.isConcrete() == false){
         continue;
+      }
+
+      List<HierarchyInstruction> instructions = method.getInstructions();
+      for(HierarchyInstruction inst : instructions){
+        System.out.println("  "+inst.toString());
       }
 
       SootClass soot_class = Scene.v().getSootClass(class_name);
@@ -923,6 +938,7 @@ public class RootbeerClassLoader {
             }
 
             if(entry.getCompressedSize() == -1 && entry.getSize() == -1){
+              //System.out.println("ignoring: "+entry.getName());
               continue;
             } 
 
@@ -1067,7 +1083,6 @@ public class RootbeerClassLoader {
       return null;
     }
   }
-
 
   public int getClassNumber(SootClass soot_class){
     return getClassNumber(soot_class.getName());

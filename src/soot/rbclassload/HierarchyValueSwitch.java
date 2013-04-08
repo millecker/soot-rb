@@ -104,6 +104,7 @@ public class HierarchyValueSwitch {
       if(type.equals("class_ref")){
         m_classes.add(value);
       } else if(type.equals("method_ref")){
+        System.out.println("method_ref: "+value);
         m_methodRefs.add(value);
         m_methodUtil.parse(value);
         m_classes.add(m_methodUtil.getClassName());
