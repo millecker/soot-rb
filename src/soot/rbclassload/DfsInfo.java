@@ -40,7 +40,6 @@ public class DfsInfo {
   private List<Type> m_orderedRefLikeTypes;
   private Set<SootField> m_dfsFields;
   private Set<ArrayType> m_arrayTypes;
-  private List<Type> m_builtInTypes;
   private List<NumberedType> m_numberedTypes;
   private Set<Type> m_instanceOfs;
   private List<String> m_reachableMethodSigs;
@@ -48,29 +47,22 @@ public class DfsInfo {
   private List<SootMethod> m_otherEntryPoints;
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
-  private Map<String, Set<Type>> m_pointsTo;
   private Set<String> m_reachableFields;
-  private Set<String> m_interfaceSignatures;
-  private Set<String> m_interfaceClasses;
-  private Set<String> m_newInvokes;
-  private Set<SootClass> m_validHierarchyClasses;
 
   public DfsInfo(String method_signature) {
     m_dfsMethods = new LinkedHashSet<String>();
     m_reverseDfsMethods = new LinkedHashSet<String>();
     m_dfsTypes = new HashSet<Type>();
     m_dfsFields = new HashSet<SootField>();
-    m_builtInTypes = new ArrayList<Type>();
+    m_arrayTypes = new HashSet<ArrayType>();
     m_instanceOfs = new HashSet<Type>();
-    m_reachableMethodSigs = new ArrayList<String>();
     m_rootMethod = method_signature;
     m_otherEntryPoints = new ArrayList<SootMethod>();
-    m_pointsTo = new HashMap<String, Set<Type>>();
-    m_interfaceSignatures = new HashSet<String>();
-    m_interfaceClasses = new HashSet<String>();
-    m_newInvokes = new HashSet<String>();
     m_stringCallGraph = new StringCallGraph();
     m_numberedTypes = new ArrayList<NumberedType>();
+    m_orderedTypes = new ArrayList<Type>();
+    m_orderedRefTypes = new ArrayList<RefType>();
+    m_orderedRefLikeTypes = new ArrayList<Type>();
   }
 
   public StringCallGraph getStringCallGraph(){
@@ -78,18 +70,11 @@ public class DfsInfo {
   }
   
   public void expandArrayTypes(){  
-    m_arrayTypes = new HashSet<ArrayType>();
-    for(Type type : m_dfsTypes){
-      if(type instanceof ArrayType){
-        ArrayType array_type = (ArrayType) type;
-        m_arrayTypes.add(array_type);
-      }
-    }
-    
     MultiDimensionalArrayTypeCreator creator = new MultiDimensionalArrayTypeCreator();
-    Set<ArrayType> added = creator.create(m_arrayTypes);
-    m_dfsTypes.addAll(added);
-    m_arrayTypes.addAll(added);
+    m_arrayTypes = creator.createType(m_arrayTypes);    
+
+    m_dfsTypes.addAll(m_arrayTypes);
+    m_arrayTypes.addAll(m_arrayTypes);
   }
   
   private void printSet(String name, Set curr_set) {
@@ -106,10 +91,7 @@ public class DfsInfo {
   }
 
   public void addMethod(String signature) {
-    if(m_dfsMethods.contains(signature) == false){
-      m_dfsMethods.add(signature);
-    }
-    addReachableMethodSig(signature);
+    m_dfsMethods.add(signature);
   }
 
   public boolean containsMethod(String signature) {
@@ -124,41 +106,18 @@ public class DfsInfo {
     return m_dfsTypes;
   }
 
-  public boolean reachesJavaLangClass(){
-    for(Type type : m_dfsTypes){
-      if(type instanceof RefType){
-        RefType ref_type = (RefType) type;
-        String class_name = ref_type.getClassName();
-        if(class_name.equals("java.lang.Class")){
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   public void addType(Type name) {
-    if(m_dfsTypes.contains(name) == false){
-      m_dfsTypes.add(name);
-    }
+    m_dfsTypes.add(name);
   }
 
-  private SootClass getSootClassIfPossible(Type type){
-    if(type instanceof ArrayType){
-      ArrayType array_type = (ArrayType) type;
-      return getSootClassIfPossible(array_type.baseType);
-    } else if(type instanceof RefType){
-      RefType ref_type = (RefType) type;
-      return ref_type.getSootClass();
-    } else {
-      return null;
-    }
+  public void addType(String type_str) {
+    StringToType converter = new StringToType();
+    Type name = converter.convert(type_str);
+    m_dfsTypes.add(name);
   }
   
   public void addField(SootField field){
-    if(m_dfsFields.contains(field) == false){
-      m_dfsFields.add(field);
-    }
+    m_dfsFields.add(field);
   }
 
   public List<Type> getOrderedTypes() {
@@ -185,6 +144,10 @@ public class DfsInfo {
     return m_dfsFields;
   }
 
+  public void addArrayType(ArrayType array_type){
+    m_arrayTypes.add(array_type);
+  }
+
   public Set<ArrayType> getArrayTypes() {
     return m_arrayTypes;
   }
@@ -198,25 +161,13 @@ public class DfsInfo {
   }
 
   public void addInstanceOf(Type type) {
-    if(m_instanceOfs.contains(type) == false){
-      m_instanceOfs.add(type);
-    }
-  }
-  
-  public List<String> getReachableMethodSigs(){
-    return m_reachableMethodSigs;
-  }
-  
-  public void addReachableMethodSig(String signature){
-    if(m_reachableMethodSigs.contains(signature) == false){
-      m_reachableMethodSigs.add(signature);
-    }
+    m_instanceOfs.add(type);
   }
   
   public Set<String> getAllMethods() {
     Set<String> ret = new HashSet<String>();
     ret.addAll(m_dfsMethods);
-    ret.addAll(m_reachableMethodSigs);
+    ret.addAll(m_reverseDfsMethods);
     return ret;
   }
 
@@ -224,10 +175,6 @@ public class DfsInfo {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(m_rootMethod);
     return util.getSootMethod();
-  }
-
-  public Set<String> getInterfaceSignatures(){
-    return m_interfaceSignatures;
   }
 
   public String getRootMethodSignature() {
@@ -246,13 +193,14 @@ public class DfsInfo {
     return m_modifiedClasses;
   }
 
-/*
   public void finalizeTypes(){
     //read in NumberedTypes
+    StringToType converter = new StringToType();
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
     List<NumberedType> numbered_types = class_hierarchy.getNumberedTypes();
     for(NumberedType ntype : numbered_types){
-      Type type = ntype.getType();
+      String type_str = ntype.getType();
+      Type type = converter.convert(type_str);
       if(m_dfsTypes.contains(type) || m_arrayTypes.contains(type)){
         m_numberedTypes.add(ntype);
         m_orderedTypes.add(type);
@@ -266,7 +214,7 @@ public class DfsInfo {
       }
     }
   }
-*/
+
   public List<NumberedType> getNumberedTypes(){
     return m_numberedTypes;
   }

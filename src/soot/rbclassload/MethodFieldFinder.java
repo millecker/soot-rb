@@ -51,7 +51,6 @@ public class MethodFieldFinder {
       String class_name = queue.get(0);
       queue.remove(0);
 
-      SootResolver.v().resolveClass(class_name, SootClass.HIERARCHY);
       SootClass soot_class = Scene.v().getSootClass(class_name);
 
       if(soot_class.declaresField(subsig)){
@@ -85,12 +84,10 @@ public class MethodFieldFinder {
       String class_name = queue.get(0);
       queue.remove(0);
 
-      SootResolver.v().resolveClass(class_name, SootClass.BODIES);
       SootClass soot_class = Scene.v().getSootClass(class_name);
 
       if(soot_class.declaresMethod(subsig)){
         SootMethod soot_method = soot_class.getMethod(subsig);
-        SootResolver.v().resolveMethod(soot_method);
         ret.add(soot_method);
       }
 

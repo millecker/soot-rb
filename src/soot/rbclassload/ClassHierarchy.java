@@ -45,6 +45,7 @@ public class ClassHierarchy {
   private Map<String, List<HierarchyGraph>> m_unmergedGraphs;
   private Map<String, HierarchyGraph> m_hierarchyGraphs;
   private Set<String> m_roots;
+  private Set<String> m_arrayTypes;
   private List<NumberedType> m_numberedTypes;
   private Map<String, NumberedType> m_numberedTypeMap;
   private MethodSignatureUtil m_util;
@@ -52,6 +53,7 @@ public class ClassHierarchy {
   public ClassHierarchy(){
     m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
     m_hierarchyGraphs = new HashMap<String, HierarchyGraph>();
+    m_arrayTypes = new HashSet<String>();
     m_numberedTypes = new ArrayList<NumberedType>();
     m_numberedTypeMap = new HashMap<String, NumberedType>();
     m_util = new MethodSignatureUtil();
@@ -69,6 +71,9 @@ public class ClassHierarchy {
     m_util.parse(signature);
     String class_name = m_util.getClassName();
     HierarchySootClass hclass = getHierarchySootClass(class_name);
+    if(hclass == null){
+      return null;
+    }
     return hclass.findMethodBySubSignature(m_util.getSubSignature());
   }
 
@@ -129,9 +134,15 @@ public class ClassHierarchy {
     mergeGraphs();
   }
 
-  public void addArrayTypes(Set<Type> array_types){
-    for(Type type : array_types){
-      String curr_class = type.toString();
+  public void addArrayType(String array_type){
+    m_arrayTypes.add(array_type);
+  }
+
+  public void buildArrayTypes(){
+    MultiDimensionalArrayTypeCreator creator = new MultiDimensionalArrayTypeCreator();
+    m_arrayTypes = creator.createString(m_arrayTypes);    
+
+    for(String curr_class : m_arrayTypes){
       HierarchyGraph hgraph = new HierarchyGraph();
       hgraph.addHierarchyClass(curr_class);
       hgraph.addSuperClass(curr_class, "java.lang.Object");
@@ -235,19 +246,27 @@ public class ClassHierarchy {
 
     List<String> ret = new ArrayList<String>();
     if(util.getMethodName().equals("<init>") || util.getMethodName().equals("<clinit>")){
+      ret.add(signature);
       return ret;
     }
 
     if(m_hierarchyGraphs.containsKey(class_name) == false){
+      ret.add(signature);
       return ret;
     }
-    
+
+    Set<String> new_invokes = RootbeerClassLoader.v().getNewInvokes();    
     HierarchyGraph hgraph = m_hierarchyGraphs.get(class_name);
     List<String> all_classes = hgraph.getAllClasses();
     for(String curr_class : all_classes){
       if(containsClass(curr_class) == false){
         continue;
       }
+
+      if(new_invokes.contains(curr_class) == false){
+        continue;
+      }
+
       HierarchySootClass hclass = getHierarchySootClass(curr_class);
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){

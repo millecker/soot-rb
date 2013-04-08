@@ -30,16 +30,24 @@ import java.util.HashSet;
 public class HierarchyValueSwitch {
 
   private Set<String> m_classes;
+  private Set<String> m_types;
+  private Set<String> m_arrayTypes;
   private Set<String> m_methodRefs;
   private Set<String> m_fieldRefs;
+  private Set<String> m_instanceofs;
+  private Set<String> m_newInvokes;
   private MethodSignatureUtil m_methodUtil;
   private FieldSignatureUtil m_fieldUtil;
   private StringToType m_stringToType;
 
   public HierarchyValueSwitch(){
     m_classes = new HashSet<String>();
+    m_types = new HashSet<String>();
+    m_arrayTypes = new HashSet<String>();
     m_methodRefs = new HashSet<String>();
     m_fieldRefs = new HashSet<String>();
+    m_instanceofs = new HashSet<String>();
+    m_newInvokes = new HashSet<String>();
     m_methodUtil = new MethodSignatureUtil();
     m_fieldUtil = new FieldSignatureUtil();
     m_stringToType = new StringToType();
@@ -47,6 +55,14 @@ public class HierarchyValueSwitch {
 
   public Set<String> getClasses(){
     return m_classes;
+  }
+
+  public Set<String> getTypes(){
+    return m_types;
+  }
+
+  public Set<String> getArrayTypes(){
+    return m_arrayTypes;
   }
 
   public Set<String> getMethodRefs(){
@@ -57,9 +73,21 @@ public class HierarchyValueSwitch {
     return m_fieldRefs;
   }
 
+  public Set<String> getInstanceOfs(){
+    return m_instanceofs;
+  }
+
+  public Set<String> getNewInvokes(){
+    return m_newInvokes;
+  }
+
   public void run(String signature){
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
     HierarchySootMethod method = class_hierarchy.getHierarchySootMethod(signature);
+    if(method == null){
+      return;
+    }
+
     HierarchySootClass hclass = method.getHierarchySootClass();
 
     if(method.isConcrete() == false){
@@ -96,6 +124,26 @@ public class HierarchyValueSwitch {
   }
   
   private void addInstruction(HierarchyInstruction inst){
+    addInstructionName(inst);
+    addInstructionOperands(inst);
+  }
+
+  private void addInstructionName(HierarchyInstruction inst){
+    String name = inst.getName();
+    if(name.equals("anewarray")){
+      addNewInvoke(inst);
+    } else if(name.equals("instanceof")){
+      addInstanceOf(inst);
+    } else if(name.equals("multianewarray")){
+      addNewInvoke(inst);
+    } else if(name.equals("newarray")){
+      addNewInvoke(inst);
+    } else if(name.equals("new")){
+      addNewInvoke(inst);
+    }
+  }
+
+  private void addInstructionOperands(HierarchyInstruction inst){
     List<Operand> operands = inst.getOperands();
     for(Operand operand : operands){
       String value = operand.getValue();
@@ -104,26 +152,53 @@ public class HierarchyValueSwitch {
       if(type.equals("class_ref")){
         m_classes.add(value);
       } else if(type.equals("method_ref")){
-        System.out.println("method_ref: "+value);
         m_methodRefs.add(value);
         m_methodUtil.parse(value);
         m_classes.add(m_methodUtil.getClassName());
-        addRefType(m_methodUtil.getReturnType());
+        addType(m_methodUtil.getReturnType());
         for(String param : m_methodUtil.getParameterTypes()){
-          addRefType(param);
+          addType(param);
         }
       } else if(type.equals("field_ref")){
         m_fieldRefs.add(value);
         m_fieldUtil.parse(value);
         m_classes.add(m_fieldUtil.getDeclaringClass());
-        addRefType(m_fieldUtil.getType());
+        addType(m_fieldUtil.getType());
       } 
     }
   }
 
-  private void addRefType(String type_string){
+  private void addType(String type_string){
     if(m_stringToType.isRefType(type_string)){
       m_classes.add(type_string);
+    }
+    if(m_stringToType.isArrayType(type_string)){
+      m_arrayTypes.add(type_string);
+    }
+    m_types.add(type_string);
+  }
+
+  private void addNewInvoke(HierarchyInstruction inst){
+    List<Operand> operands = inst.getOperands();
+    for(Operand operand : operands){
+      String value = operand.getValue();
+      String type = operand.getType();
+
+      if(type.equals("class_ref")){
+        m_newInvokes.add(value);
+      }
+    }
+  }
+
+  private void addInstanceOf(HierarchyInstruction inst){
+    List<Operand> operands = inst.getOperands();
+    for(Operand operand : operands){
+      String value = operand.getValue();
+      String type = operand.getType();
+
+      if(type.equals("class_ref")){
+        m_instanceofs.add(value);
+      }
     }
   }
 }

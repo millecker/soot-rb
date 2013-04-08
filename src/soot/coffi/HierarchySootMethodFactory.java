@@ -60,6 +60,10 @@ public class HierarchySootMethodFactory {
     String[] parametersArray = parsedParameterTypes.split(",");
     List<String> parameterTypes = new ArrayList<String>();
     for(String param : parametersArray){
+      String trimmed = param.trim();
+      if(trimmed.equals("")){
+        continue;
+      }
       parameterTypes.add(param);
     }
 

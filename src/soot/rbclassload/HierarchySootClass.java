@@ -31,6 +31,8 @@ import java.io.IOException;
 
 import soot.coffi.ClassFile;
 import soot.coffi.HierarchySootMethodFactory;
+import soot.coffi.ConstantPoolReader;
+import soot.coffi.field_info;
 
 public class HierarchySootClass {
 
@@ -41,6 +43,8 @@ public class HierarchySootClass {
   private List<HierarchySootMethod> m_methods;
   private ClassFile m_classFile;
   private int m_modifiers;
+  private boolean m_isApplicationClass;
+  private ConstantPoolReader m_constantReader;
 
   public HierarchySootClass(String class_name, boolean has_super_class, 
     String super_class_name, List<String> interfaces, int modifiers, 
@@ -52,6 +56,7 @@ public class HierarchySootClass {
     m_interfaceNames = interfaces;
     m_classFile = class_file;
     m_modifiers = modifiers;
+    m_constantReader = new ConstantPoolReader();
   }
 
   public void readMethods(){
@@ -62,6 +67,17 @@ public class HierarchySootClass {
       method.setHierarchySootClass(this);
       m_methods.add(method);
     }
+  }
+
+  public int getFieldModifiers(String field_name){
+    for(field_info field : m_classFile.fields){
+      int name_index = field.name_index;
+      String curr_name = m_constantReader.get(name_index, m_classFile.constant_pool);
+      if(curr_name.equals(field_name)){
+        return field.access_flags;
+      }
+    }
+    return 0;
   }
 
   public String getName(){
@@ -89,6 +105,14 @@ public class HierarchySootClass {
 
   public int getModifiers(){
     return m_modifiers;
+  }
+
+  public void setApplicationClass(boolean value){
+    m_isApplicationClass = value;
+  }
+
+  public boolean isApplicationClass(){
+    return m_isApplicationClass;
   }
 
   public HierarchySootMethod findMethodByName(String name){

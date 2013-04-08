@@ -588,7 +588,6 @@ public class SootClass extends AbstractHost implements Numberable
         methodList.add(m);
         m.isDeclared = true;
         m.declaringClass = this;
-        
     }
 
     /**

@@ -32,17 +32,32 @@ public class MultiDimensionalArrayTypeCreator {
   public MultiDimensionalArrayTypeCreator(){
   }
 
-  public Set<ArrayType> create(Set<ArrayType> types){
-    Set<ArrayType> ret = new HashSet<ArrayType>();
-    for(ArrayType type : types){
+  public Set<String> createString(Set<String> types){
+    StringToType converter = new StringToType();
+    Set<String> ret = new HashSet<String>();
+    for(String type_str : types){
+      ArrayType type = (ArrayType) converter.convert(type_str);
       Type base_type = type.baseType;
       int dim = type.numDimensions;
-      for(int i = dim - 1; i > 0; --i){
+      for(int i = dim; i > 0; --i){
         ArrayType curr = ArrayType.v(base_type, i);
-        if(types.contains(curr) == false){
-          ret.add(curr);
-        }
+        ret.add(curr.toString());
       }
+    }
+    return ret;
+  }
+
+  public Set<ArrayType> createType(Set<ArrayType> types){
+    Set<String> input = new HashSet<String>();
+    for(ArrayType array_type : types){
+      input.add(array_type.toString());
+    }
+    Set<String> output = createString(input);
+    StringToType converter = new StringToType();
+    Set<ArrayType> ret = new HashSet<ArrayType>();
+    for(String output_str : output){
+      ArrayType type = (ArrayType) converter.convert(output_str);
+      ret.add(type);
     }
     return ret;
   }

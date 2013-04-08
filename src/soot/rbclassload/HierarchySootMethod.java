@@ -106,7 +106,6 @@ public class HierarchySootMethod {
   }
 
   public Body getBody(SootMethod method, String phaseName){
-    System.out.println("getBody: "+method.getSignature());
     CoffiMethodSource method_source = new CoffiMethodSource(m_classFile, m_methodInfo);
     return method_source.getBody(method, phaseName);
   }

@@ -31,8 +31,6 @@ import soot.*;
 import java.util.*;
 import soot.jimple.*;
 
-import soot.rbclassload.BodyTypeLoader;
-
 public class CoffiMethodSource implements MethodSource
 {
     public ClassFile coffiClass;

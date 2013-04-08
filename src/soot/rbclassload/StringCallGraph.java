@@ -52,11 +52,13 @@ public class StringCallGraph {
   public void addEdge(String source_sig, String dest_sig){
     addEdge(m_forwardEdges, source_sig, dest_sig);
     addEdge(m_reverseEdges, dest_sig, source_sig);
-    if(m_allSignatures.contains(source_sig) == false){
-      m_allSignatures.add(source_sig);
-    }
-    if(m_allSignatures.contains(dest_sig) == false){
-      m_allSignatures.add(dest_sig); 
+    addSignature(source_sig);
+    addSignature(dest_sig);
+  }
+
+  public void addSignature(String signature){
+    if(m_allSignatures.contains(signature) == false){
+      m_allSignatures.add(signature); 
     }
   }
  
