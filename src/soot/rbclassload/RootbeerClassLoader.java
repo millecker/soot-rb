@@ -349,15 +349,21 @@ public class RootbeerClassLoader {
     m_cgVisitedMethods.clear();
     m_cgMethodQueue.add(entry);
     m_cgVisitedMethods.add(entry);
+    Set<String> reverse_reachable = new HashSet<String>();
 
     m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
 
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(entry);
     HierarchySootClass entry_class = m_classHierarchy.getHierarchySootClass(util.getClassName());
-    HierarchySootMethod entry_ctor = entry_class.findMethodBySubSignature("void <init>()");
-    m_cgMethodQueue.add(entry_ctor.getSignature());
-    m_cgVisitedMethods.add(entry_ctor.getSignature());
+    List<HierarchySootMethod> entry_methods = entry_class.getMethods();
+    for(HierarchySootMethod entry_method : entry_methods){
+      if(entry_method.getName().equals("<init>")){
+        m_cgMethodQueue.add(entry_method.getSignature());
+        m_cgVisitedMethods.add(entry_method.getSignature());
+        reverse_reachable.add(entry_method.getSignature());
+      }
+    }
     m_newInvokes.add(util.getClassName());
 
     for(String follow_signature : m_followMethods){
@@ -377,15 +383,11 @@ public class RootbeerClassLoader {
     processForwardStringCallGraphQueue();
 
     System.out.println("loading reverse string call graph for: "+entry+"...");
-    Set<String> reachable = new HashSet<String>();
-    Set<String> unvisited = new HashSet<String>();
-    reachable.add(entry_ctor.getSignature());
-    reachable.add(m_currDfsInfo.getRootMethodSignature());
+    reverse_reachable.add(m_currDfsInfo.getRootMethodSignature());
 
     int prev_size = -1;
-    while(prev_size != reachable.size()){
-      prev_size = reachable.size();
-      unvisited.clear();
+    while(prev_size != reverse_reachable.size()){
+      prev_size = reverse_reachable.size();
       for(String class_name : m_appClasses){
         if(dontFollowClass(class_name)){
           continue;
@@ -399,7 +401,7 @@ public class RootbeerClassLoader {
             continue;
           }
 
-          reverseStringGraphVisit(signature, reachable);   
+          reverseStringGraphVisit(signature, reverse_reachable);   
         }
       }
     }
@@ -743,9 +745,17 @@ public class RootbeerClassLoader {
     //collect fields for classes and add to declaring_class
     m_usedFields = new HashMap<String, List<String>>();
     Set<String> all_sigs = m_currDfsInfo.getStringCallGraph().getAllSignatures();
+    Set<String> visited_fields = new HashSet<String>();
     for(String signature : all_sigs){
+      System.out.println("  sig: "+signature);
       HierarchyValueSwitch value_switch = getValueSwitch(signature);
       for(String field_ref : value_switch.getFieldRefs()){
+        if(visited_fields.contains(field_ref)){
+          continue;
+        }
+        visited_fields.add(field_ref);
+
+        System.out.println("    field_ref: "+field_ref);
         FieldSignatureUtil util = new FieldSignatureUtil();
         util.parse(field_ref);
 
@@ -757,6 +767,10 @@ public class RootbeerClassLoader {
 
         SootClass declaring_class = Scene.v().getSootClass(class_name);
         Type field_type = string_to_type.convert(util.getType());
+        System.out.println("  field_name: "+field_name);
+        System.out.println("  field_type: "+field_type.toString());
+        System.out.println("  field_modifiers: "+field_modifiers);
+        System.out.println("  declaring_class: "+declaring_class);
         SootField new_field = new SootField(field_name, field_type, field_modifiers);
         declaring_class.addField(new_field);
       }
@@ -786,7 +800,14 @@ public class RootbeerClassLoader {
       String class_name = util.getClassName();
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      if(hclass == null){
+        continue;
+      }
+
       HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
+      if(method == null){
+        continue;
+      }
       
       List<Type> parameterTypes = new ArrayList<Type>();
       for(String paramType : method.getParameterTypes()){
@@ -814,14 +835,25 @@ public class RootbeerClassLoader {
       String class_name = util.getClassName();
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-      HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
-
-      if(method.isConcrete() == false){
+      if(hclass == null){
         continue;
       }
 
+      HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
+      if(method == null){
+        continue;
+      }
+      
       SootClass soot_class = Scene.v().getSootClass(class_name);
+      if(soot_class.declaresMethod(method.getSubSignature()) == false){
+        continue;
+      }
+
       SootMethod soot_method = soot_class.getMethod(method.getSubSignature());
+
+      if(soot_method.isConcrete() == false){
+        continue;
+      }
 
       Body body = method.getBody(soot_method, "jb");
       soot_method.setActiveBody(body);
@@ -1380,6 +1412,9 @@ public class RootbeerClassLoader {
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
     HierarchySootClass hclass = getHierarchySootClass(util.getClassName());
+    if(hclass == null){
+      return null;
+    }
     return hclass.findMethodBySubSignature(util.getSubSignature());
     
   }

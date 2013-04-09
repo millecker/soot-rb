@@ -37,6 +37,10 @@ public class ConstantPoolReader {
       String class_name = get(methodref_info.class_index, constant_pool);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
+      class_name = parseDesc(class_name);
+      if(class_name.equals("[Ljava.lang.Class;")){
+        throw new RuntimeException("hello");
+      }
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Utf8_info){
       CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) entry;
@@ -46,6 +50,10 @@ public class ConstantPoolReader {
       String class_name = get(fieldref_info.class_index, constant_pool);
       String type = getNameAndTypeInfo(fieldref_info.name_and_type_index, 
         constant_pool, false);
+      class_name = parseDesc(class_name);
+      if(class_name.equals("[Ljava.lang.Class;")){
+        throw new RuntimeException("hello");
+      }
       return "<"+class_name+": "+type+">";
     } else if(entry instanceof CONSTANT_String_info){
       CONSTANT_String_info string_info = (CONSTANT_String_info) entry;
@@ -55,6 +63,10 @@ public class ConstantPoolReader {
       String class_name = get(methodref_info.class_index, constant_pool);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
+      class_name = parseDesc(class_name);
+      if(class_name.equals("[Ljava.lang.Class;")){
+        throw new RuntimeException("hello");
+      }
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Integer_info){
       CONSTANT_Integer_info integer_info = (CONSTANT_Integer_info) entry;
@@ -113,8 +125,53 @@ public class ConstantPoolReader {
       String ret = return_type+" "+name+"("+params+")";
       return ret;
     } else {
-      return ClassFile.parseDesc(desc, ",")+" "+name;
+      return parseDesc(desc)+" "+name;
     }
   }
 
+  private String parseDesc(String str){
+    String ret = "";
+    int array_count = 0;
+    int index = 0;
+    while(str.charAt(index) == '['){
+      array_count++;
+      ++index;
+    }
+    String param;
+    if(str.charAt(index) == 'B'){
+      param = "byte";
+    } else if(str.charAt(index) == 'C'){
+      param = "char";
+    } else if(str.charAt(index) == 'D'){
+      param = "double";
+    } else if(str.charAt(index) == 'D'){
+      param = "double";
+    } else if(str.charAt(index) == 'F'){
+      param = "float";
+    } else if(str.charAt(index) == 'I'){
+      param = "int";
+    } else if(str.charAt(index) == 'J'){
+      param = "long";
+    } else if(str.charAt(index) == 'S'){
+      param = "short";
+    } else if(str.charAt(index) == 'Z'){
+      param = "boolean";
+    } else if(str.charAt(index) == 'V'){
+      param = "void";
+    } else if(str.charAt(index) == 'L'){
+      ++index;
+      param = "";
+      while(str.charAt(index) != ';'){
+        param += str.charAt(index);
+        ++index;
+      }
+      param = param.replace('/','.');
+    } else {
+      return str;
+    }
+    for(int i = 0; i < array_count; ++i){
+      param += "[]";
+    }
+    return param;
+  }
 }
