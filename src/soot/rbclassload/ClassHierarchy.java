@@ -67,6 +67,10 @@ public class ClassHierarchy {
     return m_hierarchySootClasses.get(name);
   }
 
+  public Set<String> getClasses(){
+    return m_hierarchySootClasses.keySet();
+  }
+
   public HierarchySootMethod getHierarchySootMethod(String signature){
     m_util.parse(signature);
     String class_name = m_util.getClassName();

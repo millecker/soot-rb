@@ -93,20 +93,27 @@ public class RootbeerClassLoader {
   private String m_tempFolder;
   private List<String> m_classPaths;
   private int m_loadedCount;
-  private List<EntryPointDetector> m_entryDetectors;
-  private List<String> m_ignorePackages;
-  private List<String> m_keepPackages;
-  private List<String> m_testCasePackages;
-  private List<String> m_signaturesClasses;
+
+  private List<MethodTester> m_entryMethodTesters;
+  private List<MethodTester> m_dontFollowMethodTesters;
+  private List<MethodTester> m_followMethodTesters;
+  private List<MethodTester> m_toSignaturesMethodTesters;
+
+  private List<ClassTester> m_dontFollowClassTesters;
+  private List<ClassTester> m_followClassTesters;
+  private List<ClassTester> m_toSignaturesClassTesters;
+
+  private Set<String> m_followMethods;
+  private Set<String> m_toSignaturesMethods;
+  private Set<String> m_followClasses;
+  private Set<String> m_toSignaturesClasses;
+
   private List<String> m_appClasses;
   private List<String> m_entryPoints;
   private List<String> m_cudaFields;
   private Set<String> m_visited;
   private String m_userJar;
   private Set<String> m_generatedMethods;
-  private Set<String> m_dontDfsMethods;
-  private Set<String> m_followClasses;
-  private Set<String> m_followSignatures;
   private Set<String> m_newInvokes;
   private Map<String, String> m_remapping;
   private Map<String, HierarchyValueSwitch> m_valueSwitchMap;
@@ -124,7 +131,6 @@ public class RootbeerClassLoader {
     m_packageNameCache = new HashMap<String, Set<String>>();
     m_classHierarchy = new ClassHierarchy();
     m_classToFilename = new HashMap<String, String>();
-    m_entryDetectors = new ArrayList<EntryPointDetector>();
 
     String home = System.getProperty("user.home");
     File soot_folder = new File(home + File.separator + ".soot" + File.separator + "rbcl_cache");
@@ -132,10 +138,19 @@ public class RootbeerClassLoader {
     m_tempFolder = soot_folder.getAbsolutePath() + File.separator;
     m_loadedCount = 0;
 
-    m_ignorePackages = new ArrayList<String>();    
-    m_keepPackages = new ArrayList<String>();
-    m_testCasePackages = new ArrayList<String>();    
-    m_signaturesClasses = new ArrayList<String>();
+    m_entryMethodTesters = new ArrayList<MethodTester>();
+    m_dontFollowMethodTesters = new ArrayList<MethodTester>();
+    m_followMethodTesters = new ArrayList<MethodTester>();
+    m_toSignaturesMethodTesters = new ArrayList<MethodTester>();
+
+    m_dontFollowClassTesters = new ArrayList<ClassTester>();
+    m_followClassTesters = new ArrayList<ClassTester>();
+    m_toSignaturesClassTesters = new ArrayList<ClassTester>();
+
+    m_followMethods = new HashSet<String>();
+    m_toSignaturesMethods = new HashSet<String>();
+    m_followClasses = new HashSet<String>();
+    m_toSignaturesClasses = new HashSet<String>();
 
     m_appClasses = new ArrayList<String>();
     m_userJar = null;
@@ -143,9 +158,6 @@ public class RootbeerClassLoader {
     m_remapClassName = new RemapClassName();
     m_generatedMethods = new HashSet<String>();
     m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
-    m_dontDfsMethods = new HashSet<String>();
-    m_followClasses = new HashSet<String>();
-    m_followSignatures = new HashSet<String>();
     m_newInvokes = new HashSet<String>();
     m_valueSwitchMap = new HashMap<String, HierarchyValueSwitch>();
 
@@ -166,16 +178,32 @@ public class RootbeerClassLoader {
     m_conditionalCudaEntries.add(entry);
   }
 
-  public void addDontDfsMethod(String entry){
-    m_dontDfsMethods.add(entry);
+  public void addEntryMethodTester(MethodTester method_tester){
+    m_entryMethodTesters.add(method_tester);
   }
 
-  public void addFollowClass(String class_name){
-    m_followClasses.add(class_name);
+  public void addDontFollowMethodTester(MethodTester method_tester){
+    m_dontFollowMethodTesters.add(method_tester);
   }
 
-  public void addFollowSignature(String signature){
-    m_followSignatures.add(signature);
+  public void addFollowMethodTester(MethodTester method_tester){
+    m_followMethodTesters.add(method_tester);
+  }
+
+  public void addToSignaturesMethodTester(MethodTester method_tester){
+    m_toSignaturesMethodTesters.add(method_tester);
+  }
+
+  public void addDontFollowClassTester(ClassTester class_tester){
+    m_dontFollowClassTesters.add(class_tester);
+  }
+
+  public void addFollowClassTester(ClassTester class_tester){
+    m_followClassTesters.add(class_tester);
+  }
+
+  public void addToSignaturesClassTester(ClassTester class_tester){
+    m_toSignaturesClassTesters.add(class_tester);
   }
 
   public void addNewInvoke(String class_name){
@@ -268,14 +296,12 @@ public class RootbeerClassLoader {
     loadHierarchySootClasses();
     findEntryPoints();
     buildClassHierarchy();
+    loadFollowsStrings();
+    loadToSignaturesString();
     
     int prev_size = -1;
     while(prev_size != m_newInvokes.size()){
       prev_size = m_newInvokes.size();
-      System.out.println("new_invokes: ");
-      for(String new_invoke : m_newInvokes){
-        System.out.println("  "+new_invoke);
-      }
       for(String entry : m_entryPoints){
         System.out.println("entry point: "+entry);
         DfsInfo dfs_info = new DfsInfo(entry);
@@ -334,7 +360,7 @@ public class RootbeerClassLoader {
     m_cgVisitedMethods.add(entry_ctor.getSignature());
     m_newInvokes.add(util.getClassName());
 
-    for(String follow_signature : m_followSignatures){
+    for(String follow_signature : m_followMethods){
       m_cgMethodQueue.add(follow_signature);
       m_cgVisitedMethods.add(follow_signature);
     }
@@ -361,12 +387,15 @@ public class RootbeerClassLoader {
       prev_size = reachable.size();
       unvisited.clear();
       for(String class_name : m_appClasses){
+        if(dontFollowClass(class_name)){
+          continue;
+        }
         HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
         List<HierarchySootMethod> methods = hclass.getMethods();
         for(HierarchySootMethod method : methods){
           String signature = method.getSignature();
 
-          if(dontFollow(signature)){
+          if(dontFollowMethod(signature)){
             continue;
           }
 
@@ -675,17 +704,6 @@ public class RootbeerClassLoader {
     }
   }
 
-
-  private boolean dontFollow(String signature){
-    if(m_dontDfsMethods.contains(signature)){
-      return true;
-    }
-    MethodSignatureUtil util = new MethodSignatureUtil();
-    util.parse(signature);
-    String class_name = util.getClassName();
-    return ignorePackage(class_name);
-  }
-
   private void loadScene(){
     System.out.println("loading scene...");
 
@@ -706,10 +724,8 @@ public class RootbeerClassLoader {
       SootClass empty_class = new SootClass(type_string, hclass.getModifiers());
       Scene.v().addClass(empty_class);
       if(hclass.isApplicationClass()){
-        System.out.println("  is_application_class true: "+type_string);
         empty_class.setApplicationClass();
       } else {
-        System.out.println("  is_application_class false: "+type_string);
         empty_class.setLibraryClass();
       }
 
@@ -749,16 +765,22 @@ public class RootbeerClassLoader {
     //add empty methods
     System.out.println("adding empty methods...");
     Set<String> to_signatures = new HashSet<String>();
-    for(String signature_class : m_signaturesClasses){
+    for(String signature_class : m_toSignaturesClasses){
       HierarchySootClass signature_hclass = m_classHierarchy.getHierarchySootClass(signature_class);
+      if(signature_hclass == null){
+        System.out.println("cannot find: "+signature_class);
+        continue;
+      }
       List<HierarchySootMethod> signature_methods = signature_hclass.getMethods();
       for(HierarchySootMethod signature_method : signature_methods){
         to_signatures.add(signature_method.getSignature());
       }
     }
+
     to_signatures.addAll(all_sigs);
+    to_signatures.addAll(m_toSignaturesMethods);
     for(String signature : to_signatures){
-      System.out.println("  sig: "+signature);
+      //System.out.println("  sig: "+signature);
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
@@ -801,7 +823,6 @@ public class RootbeerClassLoader {
       SootClass soot_class = Scene.v().getSootClass(class_name);
       SootMethod soot_method = soot_class.getMethod(method.getSubSignature());
 
-      System.out.println("  method.getBody: "+soot_method.getSignature());
       Body body = method.getBody(soot_method, "jb");
       soot_method.setActiveBody(body);
     }
@@ -1023,15 +1044,6 @@ public class RootbeerClassLoader {
   }
 */
 
-  private boolean isKeepPackage(String declaring_class){
-    for(String keep_package : m_keepPackages){
-      if(declaring_class.startsWith(keep_package)){
-        return true;
-      }
-    }
-    return false;
-  }
-
   private void dfsForRootbeer(){
     String signature = m_currDfsInfo.getRootMethodSignature();
     
@@ -1157,10 +1169,6 @@ public class RootbeerClassLoader {
     m_currDfsInfo = m_dfsInfos.get(sig);
   }
 
-  public void addEntryPointDetector(EntryPointDetector detector){
-    m_entryDetectors.add(detector);
-  }
-
   private void loadHierarchySootClasses(){
     HierarchySootClassFactory hclassFactory = new HierarchySootClassFactory();
     List<String> paths = SourceLocator.v().classPath();
@@ -1244,6 +1252,45 @@ public class RootbeerClassLoader {
     //System.out.println(m_classHierarchy.toString());
   }
 
+  private void loadFollowsStrings(){
+    System.out.println("loading follows strings...");
+    loadMethodStrings(m_followMethodTesters, m_followMethods);
+    loadClassStrings(m_followClassTesters, m_followClasses);
+  }
+
+  private void loadToSignaturesString(){
+    System.out.println("loading to_signatures strings...");
+    loadMethodStrings(m_toSignaturesMethodTesters, m_toSignaturesMethods);
+    loadClassStrings(m_toSignaturesClassTesters, m_toSignaturesClasses);
+  }
+
+  private void loadMethodStrings(List<MethodTester> testers, Set<String> dest){
+    Set<String> classes = m_classHierarchy.getClasses();
+    for(MethodTester tester : testers){
+      for(String class_name : classes){
+        HierarchySootClass hclass = getHierarchySootClass(class_name);
+        List<HierarchySootMethod> methods = hclass.getMethods();
+        for(HierarchySootMethod hmethod : methods){
+          if(tester.test(hmethod)){
+            dest.add(hmethod.getSignature());
+          }
+        }
+      }
+    }
+  }
+
+  private void loadClassStrings(List<ClassTester> testers, Set<String> dest){
+    Set<String> classes = m_classHierarchy.getClasses();
+    for(ClassTester tester : testers){
+      for(String class_name : classes){
+        HierarchySootClass hclass = getHierarchySootClass(class_name);
+        if(tester.test(hclass)){
+          dest.add(class_name);
+        }
+      }
+    }
+  }
+
   private String getPackageName(String className) {
     String[] tokens = className.split("\\.");
     String ret = "";
@@ -1272,58 +1319,73 @@ public class RootbeerClassLoader {
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(app_class);
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
-        for(EntryPointDetector detector : m_entryDetectors){
-          detector.testEntryPoint(method);
+        if(testMethod(m_entryMethodTesters, method)){
+          m_entryPoints.add(method.getSignature());
         }
       }
     }
-    for(EntryPointDetector detector : m_entryDetectors){
-      m_entryPoints.addAll(detector.getEntryPoints());
-    }
   }
 
-  private boolean shouldDfsMethod(SootMethod method){
-    SootClass soot_class = method.getDeclaringClass();
-    String pkg = soot_class.getPackageName();
-    if(ignorePackage(pkg)){
+  private boolean dontFollow(String signature){
+    if(dontFollowMethod(signature)){
+      return true;
+    }
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    if(dontFollowClass(util.getClassName())){
+      return true;
+    }
+    return false;
+  }
+
+  private boolean dontFollowMethod(String signature){
+    HierarchySootMethod hmethod = getHierarchySootMethod(signature);
+    if(hmethod == null){
       return false;
-    } 
-    return true;
+    }
+    return testMethod(m_dontFollowMethodTesters, hmethod);
   }
 
-  private boolean ignorePackage(String class_name) {
-    for(String keep_package : m_keepPackages){
-      if(class_name.startsWith(keep_package)){
-        return false;
-      }
+  private boolean dontFollowClass(String class_name) {
+    HierarchySootClass hclass = getHierarchySootClass(class_name);
+    if(hclass == null){
+      return false;
     }
-    for(String test_package : m_testCasePackages){
-      if(class_name.startsWith(test_package)){
-        return false;
-      }
-    }
-    for(String ignore_package : m_ignorePackages){
-      if(class_name.startsWith(ignore_package)){
+    return testClass(m_dontFollowClassTesters, hclass);
+  }
+
+  private boolean testMethod(List<MethodTester> testers, HierarchySootMethod hmethod){
+    for(MethodTester tester : testers){
+      if(tester.test(hmethod)){
         return true;
       }
     }
     return false;
   }
 
+  private boolean testClass(List<ClassTester> testers, HierarchySootClass hclass){
+    for(ClassTester tester : testers){
+      if(tester.test(hclass)){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private HierarchySootClass getHierarchySootClass(String class_name){
+    return m_classHierarchy.getHierarchySootClass(class_name);
+  }
+
+  private HierarchySootMethod getHierarchySootMethod(String signature){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    HierarchySootClass hclass = getHierarchySootClass(util.getClassName());
+    return hclass.findMethodBySubSignature(util.getSubSignature());
+    
+  }
+
   public void addSignaturesClass(String class_name){
-    m_signaturesClasses.add(class_name);
-  }
-
-  public void addIgnorePackage(String pkg_name){
-    m_ignorePackages.add(pkg_name);
-  }
-
-  public void addKeepPackages(String pkg_name){
-    m_keepPackages.add(pkg_name);
-  }
-
-  public void addTestCasePackage(String pkg_name){
-    m_testCasePackages.add(pkg_name);
+    m_toSignaturesClasses.add(class_name);
   }
 
   public DfsInfo getDfsInfo(){
