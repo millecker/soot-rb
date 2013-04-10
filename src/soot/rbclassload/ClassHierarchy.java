@@ -115,8 +115,6 @@ public class ClassHierarchy {
         String curr_class = queue.get(0);
         queue.remove(0);
 
-        //fill temp_graphs
-        mapPut(m_unmergedGraphs, curr_class, hgraph);
         hgraph.addHierarchyClass(curr_class);
 
         HierarchySootClass hclass = m_hierarchySootClasses.get(curr_class);
@@ -134,10 +132,15 @@ public class ClassHierarchy {
           hgraph.addInterface(curr_class, iface);
           queue.add(iface);
         }
+
+        if(m_hierarchyGraphs.containsKey(curr_class)){
+          HierarchyGraph rhs_hgraph = m_hierarchyGraphs.get(curr_class);
+          rhs_hgraph.merge(hgraph);
+        } else {
+          m_hierarchyGraphs.put(curr_class, hgraph); 
+        }
       }
     }
-
-    mergeGraphs();
   }
 
   public void addArrayType(String array_type){

@@ -294,8 +294,8 @@ public class RootbeerClassLoader {
     m_classPaths = SourceLocator.v().classPath();
 
     loadHierarchySootClasses();
-    findEntryPoints();
     buildClassHierarchy();
+    findEntryPoints();
     loadFollowsStrings();
     loadToSignaturesString();
     
