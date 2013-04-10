@@ -166,6 +166,20 @@ public class MethodSignatureUtil {
     return ret.toString();
   }
 
+  public String getCovarientSubSignature(){
+    StringBuilder ret = new StringBuilder();
+    ret.append(m_methodName);
+    ret.append("(");
+    for(int i = 0; i < m_params.size(); ++i){
+      ret.append(m_params.get(i));
+      if(i < m_params.size() - 1){
+        ret.append(","); 
+      }
+    }
+    ret.append(")");
+    return ret.toString();
+  }
+
   public boolean covarientEqual(String rhs_signature){
     MethodSignatureUtil rhs_util = new MethodSignatureUtil();
     rhs_util.parse(rhs_signature);

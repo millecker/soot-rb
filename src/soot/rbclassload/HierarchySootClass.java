@@ -25,6 +25,8 @@ package soot.rbclassload;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.io.InputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -41,6 +43,7 @@ public class HierarchySootClass {
   private String m_superClassName;
   private List<String> m_interfaceNames;
   private List<HierarchySootMethod> m_methods;
+  private Map<String, HierarchySootMethod> m_covarientMethods;
   private ClassFile m_classFile;
   private int m_modifiers;
   private boolean m_isApplicationClass;
@@ -61,11 +64,16 @@ public class HierarchySootClass {
 
   public void readMethods(){
     m_methods = new ArrayList<HierarchySootMethod>();
+    m_covarientMethods = new HashMap<String, HierarchySootMethod>();
     HierarchySootMethodFactory method_factory = new HierarchySootMethodFactory();
+    MethodSignatureUtil util = new MethodSignatureUtil();
     for(int i = 0; i < m_classFile.methods_count; ++i){
       HierarchySootMethod method = method_factory.create(m_classFile, i);
       method.setHierarchySootClass(this);
       m_methods.add(method);
+
+      util.parse(method.getSignature());
+      m_covarientMethods.put(util.getCovarientSubSignature(), method);
     }
   }
 
@@ -101,6 +109,20 @@ public class HierarchySootClass {
       readMethods();
     }
     return m_methods;
+  }
+
+  public boolean declaresCovarientSubSignature(String covarient_subsignature){
+    if(m_methods == null){
+      readMethods();
+    }
+    return m_covarientMethods.containsKey(covarient_subsignature);
+  }
+
+  public HierarchySootMethod getMethodForCovarientSubSignature(String covarient_subsignature){
+    if(m_methods == null){
+      readMethods();
+    }
+    return m_covarientMethods.get(covarient_subsignature);
   }
 
   public int getModifiers(){

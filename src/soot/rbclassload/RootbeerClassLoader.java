@@ -385,9 +385,9 @@ public class RootbeerClassLoader {
     System.out.println("loading reverse string call graph for: "+entry+"...");
     reverse_reachable.add(m_currDfsInfo.getRootMethodSignature());
 
-    int prev_size = -1;
-    while(prev_size != reverse_reachable.size()){
-      prev_size = reverse_reachable.size();
+    //int prev_size = -1;
+    //while(prev_size != reverse_reachable.size()){
+      //prev_size = reverse_reachable.size();
       for(String class_name : m_appClasses){
         if(dontFollowClass(class_name)){
           continue;
@@ -404,7 +404,7 @@ public class RootbeerClassLoader {
           reverseStringGraphVisit(signature, reverse_reachable);   
         }
       }
-    }
+    //}
 
     //System.out.println("StringCallGraph: "+m_currDfsInfo.getStringCallGraph().toString());
   }
@@ -419,6 +419,7 @@ public class RootbeerClassLoader {
 
       String class_name = util.getClassName();
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      
       if(hclass == null){
         continue;
       }
@@ -432,7 +433,7 @@ public class RootbeerClassLoader {
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
-      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
+      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);;
       for(String signature : virt_methods){
         if(dontFollow(signature)){
           continue;
@@ -747,7 +748,6 @@ public class RootbeerClassLoader {
     Set<String> all_sigs = m_currDfsInfo.getStringCallGraph().getAllSignatures();
     Set<String> visited_fields = new HashSet<String>();
     for(String signature : all_sigs){
-      System.out.println("  sig: "+signature);
       HierarchyValueSwitch value_switch = getValueSwitch(signature);
       for(String field_ref : value_switch.getFieldRefs()){
         if(visited_fields.contains(field_ref)){
@@ -755,7 +755,6 @@ public class RootbeerClassLoader {
         }
         visited_fields.add(field_ref);
 
-        System.out.println("    field_ref: "+field_ref);
         FieldSignatureUtil util = new FieldSignatureUtil();
         util.parse(field_ref);
 
@@ -767,10 +766,6 @@ public class RootbeerClassLoader {
 
         SootClass declaring_class = Scene.v().getSootClass(class_name);
         Type field_type = string_to_type.convert(util.getType());
-        System.out.println("  field_name: "+field_name);
-        System.out.println("  field_type: "+field_type.toString());
-        System.out.println("  field_modifiers: "+field_modifiers);
-        System.out.println("  declaring_class: "+declaring_class);
         SootField new_field = new SootField(field_name, field_type, field_modifiers);
         declaring_class.addField(new_field);
       }
@@ -1281,6 +1276,8 @@ public class RootbeerClassLoader {
   private void buildClassHierarchy(){
     System.out.println("building class hierarchy...");
     m_classHierarchy.build();
+    System.out.println("caching virtual methods...");
+    m_classHierarchy.cacheVirtualMethods();
     //System.out.println(m_classHierarchy.toString());
   }
 

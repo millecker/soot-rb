@@ -44,15 +44,18 @@ public class ClassHierarchy {
   private Map<String, HierarchySootClass> m_hierarchySootClasses;
   private Map<String, List<HierarchyGraph>> m_unmergedGraphs;
   private Map<String, HierarchyGraph> m_hierarchyGraphs;
+  private Map<String, List<String>> m_virtualMethodSignatures;
   private Set<String> m_roots;
   private Set<String> m_arrayTypes;
   private List<NumberedType> m_numberedTypes;
   private Map<String, NumberedType> m_numberedTypeMap;
   private MethodSignatureUtil m_util;
+  private Map<HierarchySootMethod, HierarchySootMethod> m_virtMap;
 
   public ClassHierarchy(){
     m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
     m_hierarchyGraphs = new HashMap<String, HierarchyGraph>();
+    m_virtualMethodSignatures = new HashMap<String, List<String>>();
     m_arrayTypes = new HashSet<String>();
     m_numberedTypes = new ArrayList<NumberedType>();
     m_numberedTypeMap = new HashMap<String, NumberedType>();
@@ -104,7 +107,6 @@ public class ClassHierarchy {
 
     //foreach root
     for(String root : m_roots){    
-      //build flyweight HierarchyGraph
       HierarchyGraph hgraph = new HierarchyGraph();
       List<String> queue = new LinkedList<String>();
       queue.add(root);
@@ -218,6 +220,70 @@ public class ClassHierarchy {
     return m_numberedTypes;
   }
 
+  public void cacheVirtualMethods(){   
+    m_virtMap = new HashMap<HierarchySootMethod, HierarchySootMethod>();
+    for(String base_class : getClasses()){
+      HierarchySootClass base_hclass = getHierarchySootClass(base_class);
+      if(base_hclass == null){
+        continue;
+      }
+      List<HierarchySootMethod> base_methods = base_hclass.getMethods(); 
+      for(HierarchySootMethod method : base_methods){
+        HierarchySootClass super_hclass = base_hclass;
+        while(super_hclass.hasSuperClass()){
+          super_hclass = getHierarchySootClass(super_hclass.getSuperClass());
+          if(super_hclass == null){
+            break;
+          }
+          if(super_hclass.declaresCovarientSubSignature(method.getCovarientSubSignature())){
+            HierarchySootMethod super_hmethod = super_hclass.getMethodForCovarientSubSignature(method.getCovarientSubSignature());
+            m_virtMap.put(method, super_hmethod);
+            break;
+          }
+        }
+      }          
+    }
+
+    Set<String> visited_sigs = new HashSet<String>();
+    List<String> bfs_queue = new LinkedList<String>();
+    bfs_queue.addAll(m_roots);
+
+    while(bfs_queue.isEmpty() == false){
+      String curr_class = bfs_queue.get(0);
+      bfs_queue.remove(0);
+
+      HierarchySootClass hclass = getHierarchySootClass(curr_class);
+      if(hclass == null){
+        continue;
+      }
+
+      List<HierarchySootMethod> methods = hclass.getMethods();
+      for(HierarchySootMethod method : methods){
+        String curr_sig = method.getSignature();
+        if(visited_sigs.contains(curr_sig)){
+          continue;
+        }
+        visited_sigs.add(curr_sig);
+
+        List<String> path = new ArrayList<String>();
+        path.add(curr_sig);
+        m_virtualMethodSignatures.put(curr_sig, path);
+
+        HierarchySootMethod trace_method = method;
+        while(m_virtMap.containsKey(trace_method)){
+          trace_method = m_virtMap.get(trace_method);
+          String trace_sig = trace_method.getSignature();
+          path.add(trace_sig);
+          m_virtualMethodSignatures.put(trace_sig, path);
+        }
+      }
+
+      if(hclass.hasSuperClass()){
+        bfs_queue.add(hclass.getSuperClass());
+      }
+    }   
+  }
+
   private void mapPut(Map<String, List<HierarchyGraph>> temp_graphs, String curr_class, 
     HierarchyGraph hgraph){
 
@@ -259,27 +325,23 @@ public class ClassHierarchy {
       return ret;
     }
 
-    Set<String> new_invokes = RootbeerClassLoader.v().getNewInvokes();    
-    HierarchyGraph hgraph = m_hierarchyGraphs.get(class_name);
-    List<String> all_classes = hgraph.getAllClasses();
-    for(String curr_class : all_classes){
-      if(containsClass(curr_class) == false){
-        continue;
-      }
+    Set<String> new_invokes = RootbeerClassLoader.v().getNewInvokes();  
+    if(m_virtualMethodSignatures.containsKey(signature) == false){
+      //todo: fix this
+      //throw new RuntimeException("cannot find virtual signature: "+signature);
+      ret.add(signature);
+      return ret;
+    }
 
-      if(new_invokes.contains(curr_class) == false){
-        continue;
-      }
-
-      HierarchySootClass hclass = getHierarchySootClass(curr_class);
-      List<HierarchySootMethod> methods = hclass.getMethods();
-      for(HierarchySootMethod method : methods){
-        if(util.covarientEqual(method.getSignature())){
-          ret.add(method.getSignature());
-        }
+    List<String> virt_sigs = m_virtualMethodSignatures.get(signature); 
+    for(String virt_sig : virt_sigs){
+      util.parse(virt_sig);
+      String virt_class_name = util.getClassName();
+      if(new_invokes.contains(virt_class_name)){
+        ret.add(virt_sig);
       }
     }
-    
+  
     return ret;
   }
 

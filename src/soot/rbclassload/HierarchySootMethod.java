@@ -136,4 +136,19 @@ public class HierarchySootMethod {
     ret.append(")");
     return ret.toString();
   }
+
+  public String getCovarientSubSignature(){
+    StringBuilder ret = new StringBuilder();
+    ret.append(m_name);
+    ret.append("(");
+    for(int i = 0; i < m_parameterTypes.size(); ++i){
+      String param_type = m_parameterTypes.get(i);
+      ret.append(param_type);
+      if(i < m_parameterTypes.size() - 1){
+        ret.append(",");
+      }
+    }
+    ret.append(")");
+    return ret.toString();
+  }
 }
