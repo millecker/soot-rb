@@ -304,6 +304,10 @@ public class RootbeerClassLoader {
       prev_size = m_newInvokes.size();
       for(String entry : m_entryPoints){
         System.out.println("entry point: "+entry);
+        System.out.println("  new_invokes: ");
+        for(String new_invoke : m_newInvokes){
+          System.out.println("    "+new_invoke);
+        }
         DfsInfo dfs_info = new DfsInfo(entry);
         m_dfsInfos.put(entry, dfs_info);
         m_currDfsInfo = dfs_info;
@@ -311,6 +315,7 @@ public class RootbeerClassLoader {
         loadStringCallGraph();
       }
     }
+
 
 
     //todo: use DfsValueSwitchCache
@@ -418,18 +423,24 @@ public class RootbeerClassLoader {
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
+
+      System.out.println("forward: ");
+      System.out.println("  bfs_entry: "+bfs_entry);
+      System.out.println("  class_name: "+class_name);
+
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-      
       if(hclass == null){
+        System.out.println("  hclass == null");
         continue;
       }
 
       HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
+        System.out.println("  hmethod == null");
         continue;
       }
 
-      //System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
+      System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
@@ -443,7 +454,7 @@ public class RootbeerClassLoader {
           continue;
         }
         m_cgVisitedMethods.add(signature);
-        //System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
+        System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
         m_cgMethodQueue.add(signature);
       }
 
@@ -470,7 +481,7 @@ public class RootbeerClassLoader {
         }
         m_cgVisitedMethods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
-        //System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
+        System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         m_cgMethodQueue.add(dest_sig);        
       }
 
@@ -514,8 +525,8 @@ public class RootbeerClassLoader {
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
         String name = method.getName();
-        if(name.equals("<clinit>") && false){
-          //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
+        if(name.equals("<clinit>")){
+          System.out.println("loadStringGraph adding ctor: "+method.getSignature());
           if(dontFollow(method.getSignature())){
             continue;
           }

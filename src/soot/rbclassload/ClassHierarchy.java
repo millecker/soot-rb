@@ -46,6 +46,7 @@ public class ClassHierarchy {
   private Map<String, HierarchyGraph> m_hierarchyGraphs;
   private Map<String, List<String>> m_virtualMethodSignatures;
   private Set<String> m_roots;
+  private Set<String> m_interfaces;
   private Set<String> m_arrayTypes;
   private List<NumberedType> m_numberedTypes;
   private Map<String, NumberedType> m_numberedTypeMap;
@@ -91,6 +92,7 @@ public class ClassHierarchy {
   public void build(){
     //find roots
     m_roots = new HashSet<String>();
+    m_interfaces = new HashSet<String>();
     m_roots.addAll(m_hierarchySootClasses.keySet());
 
     Iterator<String> all_classes = m_hierarchySootClasses.keySet().iterator();
@@ -100,6 +102,7 @@ public class ClassHierarchy {
       m_roots.remove(hsoot_class.getSuperClass());
       for(String iface : hsoot_class.getInterfaces()){
         m_roots.remove(iface);
+        m_interfaces.add(iface);
       }
     }
 
@@ -115,6 +118,7 @@ public class ClassHierarchy {
         String curr_class = queue.get(0);
         queue.remove(0);
 
+        mapPut(m_unmergedGraphs, curr_class, hgraph);
         hgraph.addHierarchyClass(curr_class);
 
         HierarchySootClass hclass = m_hierarchySootClasses.get(curr_class);
@@ -132,15 +136,9 @@ public class ClassHierarchy {
           hgraph.addInterface(curr_class, iface);
           queue.add(iface);
         }
-
-        if(m_hierarchyGraphs.containsKey(curr_class)){
-          HierarchyGraph rhs_hgraph = m_hierarchyGraphs.get(curr_class);
-          rhs_hgraph.merge(hgraph);
-        } else {
-          m_hierarchyGraphs.put(curr_class, hgraph); 
-        }
       }
     }
+    mergeGraphs();
   }
 
   public void addArrayType(String array_type){
@@ -226,6 +224,9 @@ public class ClassHierarchy {
   public void cacheVirtualMethods(){   
     m_virtMap = new HashMap<HierarchySootMethod, HierarchySootMethod>();
     for(String base_class : getClasses()){
+      if(m_interfaces.contains(base_class)){
+        continue;
+      }
       HierarchySootClass base_hclass = getHierarchySootClass(base_class);
       if(base_hclass == null){
         continue;
@@ -284,7 +285,61 @@ public class ClassHierarchy {
       if(hclass.hasSuperClass()){
         bfs_queue.add(hclass.getSuperClass());
       }
-    }   
+    }  
+
+    visited_sigs.clear();
+    bfs_queue.addAll(m_roots);
+    while(bfs_queue.isEmpty() == false){
+      String curr_class = bfs_queue.get(0);
+      bfs_queue.remove(0);
+
+      HierarchySootClass hclass = getHierarchySootClass(curr_class);
+      if(hclass == null){
+        continue;
+      }
+
+      List<HierarchySootMethod> methods = hclass.getMethods();
+      for(HierarchySootMethod method : methods){
+        String curr_sig = method.getSignature();
+        if(visited_sigs.contains(curr_sig)){
+          continue;
+        }
+        visited_sigs.add(curr_sig);
+
+        String subsig = method.getSubSignature();
+        for(String iface : hclass.getInterfaces()){
+          HierarchySootClass iface_hclass = getHierarchySootClass(iface);
+          if(iface_hclass == null){
+            continue;
+          }
+          HierarchySootMethod iface_method = iface_hclass.findMethodBySubSignature(subsig);
+          if(iface_method == null){
+            continue;
+          } 
+          List<String> path = m_virtualMethodSignatures.get(curr_sig);
+          String iface_sig = iface_method.getSignature();
+
+          if(m_virtualMethodSignatures.containsKey(iface_sig)){
+            List<String> new_path = new ArrayList<String>();
+            new_path.addAll(path);
+            List<String> old_path = m_virtualMethodSignatures.get(iface_sig);
+            for(String element : old_path){
+              if(new_path.contains(element) == false){
+                new_path.add(element);
+              }
+            }
+            m_virtualMethodSignatures.put(iface_sig, new_path);
+          } else {
+            m_virtualMethodSignatures.put(iface_sig, path);
+          }
+        }
+      }
+
+      if(hclass.hasSuperClass()){
+        bfs_queue.add(hclass.getSuperClass());
+      }
+    }
+
   }
 
   private void mapPut(Map<String, List<HierarchyGraph>> temp_graphs, String curr_class, 
@@ -337,11 +392,25 @@ public class ClassHierarchy {
     }
 
     List<String> virt_sigs = m_virtualMethodSignatures.get(signature); 
+    boolean print = false;
+    if(signature.equals("<java.util.List: boolean add(java.lang.Object)>")){
+      print = true;
+    }
+    if(print){
+      System.out.println("virtual_sigs for: "+signature);
+    }
     for(String virt_sig : virt_sigs){
       util.parse(virt_sig);
       String virt_class_name = util.getClassName();
       if(new_invokes.contains(virt_class_name)){
         ret.add(virt_sig);
+        if(print){
+          System.out.println("  added: "+virt_sig);
+        }
+      } else {
+        if(print){
+          System.out.println("  no added: "+virt_sig);
+        }
       }
     }
   

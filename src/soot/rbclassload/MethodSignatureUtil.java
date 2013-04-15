@@ -224,7 +224,7 @@ public class MethodSignatureUtil {
   }
   
   public static void main(String[] args){
-    String sig = "<rootbeertest.GpuWorkItem: void <init>()>";
+    String sig = "<java.util.LinkedList: java.util.LinkedList$Entry addBefore(java.lang.Object,java.util.LinkedList$Entry)>";
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(sig);
     util.print();
