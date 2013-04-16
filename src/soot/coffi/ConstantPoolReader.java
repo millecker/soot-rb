@@ -29,16 +29,19 @@ public class ConstantPoolReader {
     cp_info entry = constant_pool[index];
     if(entry instanceof CONSTANT_Class_info){
       CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
-      String converted_name = get(class_info.name_index, constant_pool);
-      String java_name = converted_name.replace("/", ".");
-      return java_name;
+      String class_name = get(class_info.name_index, constant_pool);
+      class_name = parseDesc(class_name);
+      if(class_name.startsWith("[")){
+        throw new RuntimeException("hello");
+      }
+      return class_name;
     } else if(entry instanceof CONSTANT_Methodref_info){
       CONSTANT_Methodref_info methodref_info = (CONSTANT_Methodref_info) entry;
       String class_name = get(methodref_info.class_index, constant_pool);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
       class_name = parseDesc(class_name);
-      if(class_name.equals("[Ljava.lang.Class;")){
+      if(class_name.startsWith("[")){
         throw new RuntimeException("hello");
       }
       return "<"+class_name+": "+subsig+">";
@@ -51,7 +54,7 @@ public class ConstantPoolReader {
       String type = getNameAndTypeInfo(fieldref_info.name_and_type_index, 
         constant_pool, false);
       class_name = parseDesc(class_name);
-      if(class_name.equals("[Ljava.lang.Class;")){
+      if(class_name.startsWith("[")){
         throw new RuntimeException("hello");
       }
       return "<"+class_name+": "+type+">";
@@ -64,7 +67,7 @@ public class ConstantPoolReader {
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
       class_name = parseDesc(class_name);
-      if(class_name.equals("[Ljava.lang.Class;")){
+      if(class_name.startsWith("[")){
         throw new RuntimeException("hello");
       }
       return "<"+class_name+": "+subsig+">";
@@ -167,6 +170,7 @@ public class ConstantPoolReader {
       }
       param = param.replace('/','.');
     } else {
+      str = str.replace('/','.');
       return str;
     }
     for(int i = 0; i < array_count; ++i){

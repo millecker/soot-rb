@@ -27,17 +27,19 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 
 public class HierarchyGraph {
 
-  private Map<String, List<String>> m_parents;
-  private Map<String, List<String>> m_children;
-  private List<String> m_hierarchy;
+  private Map<String, Set<String>> m_parents;
+  private Map<String, Set<String>> m_children;
+  private Set<String> m_hierarchy;
 
   public HierarchyGraph(){
-    m_parents = new HashMap<String, List<String>>();
-    m_children = new HashMap<String, List<String>>();
-    m_hierarchy = new ArrayList<String>();
+    m_parents = new HashMap<String, Set<String>>();
+    m_children = new HashMap<String, Set<String>>();
+    m_hierarchy = new HashSet<String>();
   }
 
   public void addSuperClass(String base_class, String super_class){
@@ -56,32 +58,32 @@ public class HierarchyGraph {
     }
   }
 
-  private void addEdge(Map<String, List<String>> map, String key, String value){
-    List<String> values;
+  private void addEdge(Map<String, Set<String>> map, String key, String value){
+    Set<String> values;
     if(map.containsKey(key)){
       values = map.get(key);
     } else {
-      values = new ArrayList<String>();
+      values = new HashSet<String>();
       map.put(key, values);
     }
     values.add(value);
   }
 
-  public List<String> getChildren(String parent){
+  public Set<String> getChildren(String parent){
     if(m_children.containsKey(parent)){
       return m_children.get(parent);
     }
-    return new ArrayList<String>();
+    return new HashSet<String>();
   }
 
-  public List<String> getParents(String child){
+  public Set<String> getParents(String child){
     if(m_parents.containsKey(child)){
       return m_parents.get(child);
     }
-    return new ArrayList<String>();
+    return new HashSet<String>();
   }
 
-  public List<String> getAllClasses(){
+  public Set<String> getAllClasses(){
     return m_hierarchy;
   }
 
@@ -91,13 +93,13 @@ public class HierarchyGraph {
     m_hierarchy.addAll(rhs.m_hierarchy);
   }
 
-  private void merge(Map<String, List<String>> lhs, Map<String, List<String>> rhs){
+  private void merge(Map<String, Set<String>> lhs, Map<String, Set<String>> rhs){
     for(String rhs_key : rhs.keySet()){
-      List<String> lhs_values;
+      Set<String> lhs_values;
       if(lhs.containsKey(rhs_key)){
         lhs_values = lhs.get(rhs_key);
       } else {
-        lhs_values = new ArrayList<String>();
+        lhs_values = new HashSet<String>();
         lhs.put(rhs_key, lhs_values);
       }
       lhs_values.addAll(rhs.get(rhs_key));
@@ -112,11 +114,11 @@ public class HierarchyGraph {
     return ret.toString();
   }
 
-  private String printMap(Map<String, List<String>> map, String heading, String key_name, String value_name){
+  private String printMap(Map<String, Set<String>> map, String heading, String key_name, String value_name){
     StringBuilder ret = new StringBuilder();
     ret.append(heading+"\n");    
     for(String key : map.keySet()){
-      List<String> values = map.get(key);
+      Set<String> values = map.get(key);
       ret.append("  "+key_name+": "+key+" "+value_name+": "+values.toString()+"\n");
     }
     return ret.toString();

@@ -149,15 +149,13 @@ public class ClassHierarchy {
     MultiDimensionalArrayTypeCreator creator = new MultiDimensionalArrayTypeCreator();
     m_arrayTypes = creator.createString(m_arrayTypes);    
 
+    HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
     for(String curr_class : m_arrayTypes){
-      HierarchyGraph hgraph = new HierarchyGraph();
       hgraph.addHierarchyClass(curr_class);
       hgraph.addSuperClass(curr_class, "java.lang.Object");
 
-      List<HierarchyGraph> graph_list = new ArrayList<HierarchyGraph>();
-      graph_list.add(hgraph);
-
-      m_unmergedGraphs.put(curr_class, graph_list);
+      mapPut(m_unmergedGraphs, curr_class, hgraph);
+      mapPut(m_unmergedGraphs, "java.lang.Object", hgraph);
     }
 
     mergeGraphs();
@@ -166,6 +164,7 @@ public class ClassHierarchy {
   private void mergeGraphs(){
     m_hierarchyGraphs.clear();
     for(String curr_class : m_unmergedGraphs.keySet()){
+      boolean print = false;  
       List<HierarchyGraph> graphs = m_unmergedGraphs.get(curr_class);
       HierarchyGraph new_graph = new HierarchyGraph();
       for(HierarchyGraph curr_graph : graphs){
@@ -184,6 +183,11 @@ public class ClassHierarchy {
       while(iter.hasNext()){
         System.out.println("  "+iter.next());
       }      
+      try {
+        throw new RuntimeException("");
+      } catch(Exception ex){
+        ex.printStackTrace(System.out);
+      }
       System.exit(0);
       return null;
     }
@@ -196,6 +200,7 @@ public class ClassHierarchy {
     Set<String> visited = new HashSet<String>();
     queue.add("java.lang.Object");
     HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
+    Set<String> children0 = hgraph.getChildren("java.lang.Object");
 
     while(queue.isEmpty() == false){
       String curr_type = queue.get(0);
@@ -206,7 +211,7 @@ public class ClassHierarchy {
       }
       visited.add(curr_type);
       
-      List<String> children = hgraph.getChildren(curr_type);
+      Set<String> children = hgraph.getChildren(curr_type);
       queue.addAll(children);
 
       NumberedType numbered_type = new NumberedType(curr_type, number);

@@ -225,7 +225,7 @@ public class DfsInfo {
   public List<NumberedType> getNumberedHierarchyDown(SootClass soot_class){
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
     HierarchyGraph hgraph = class_hierarchy.getHierarchyGraph(soot_class);
-    List<String> parents = hgraph.getParents(soot_class.getName());
+    Set<String> parents = hgraph.getParents(soot_class.getName());
     System.out.println("DfsInfo.getNumberedHierarchyDown: "+soot_class.getName());
     for(String parent : parents){
       System.out.println("  "+parent);

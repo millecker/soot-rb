@@ -424,9 +424,9 @@ public class RootbeerClassLoader {
 
       String class_name = util.getClassName();
 
-      System.out.println("forward: ");
-      System.out.println("  bfs_entry: "+bfs_entry);
-      System.out.println("  class_name: "+class_name);
+      //System.out.println("forward: ");
+      //System.out.println("  bfs_entry: "+bfs_entry);
+      //System.out.println("  class_name: "+class_name);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
@@ -440,7 +440,7 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
+      //System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
@@ -454,7 +454,7 @@ public class RootbeerClassLoader {
           continue;
         }
         m_cgVisitedMethods.add(signature);
-        System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
+        //System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
         m_cgMethodQueue.add(signature);
       }
 
@@ -481,7 +481,7 @@ public class RootbeerClassLoader {
         }
         m_cgVisitedMethods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
-        System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
+        //System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         m_cgMethodQueue.add(dest_sig);        
       }
 
@@ -526,7 +526,7 @@ public class RootbeerClassLoader {
       for(HierarchySootMethod method : methods){
         String name = method.getName();
         if(name.equals("<clinit>")){
-          System.out.println("loadStringGraph adding ctor: "+method.getSignature());
+          //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
           if(dontFollow(method.getSignature())){
             continue;
           }
@@ -733,7 +733,9 @@ public class RootbeerClassLoader {
       if(string_to_type.isArrayType(type_string)){
         type_string = string_to_type.getBaseType(type_string);
       }
-
+      if(string_to_type.isRefType(type_string) == false){
+        continue;
+      }
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(type_string);
       SootClass empty_class = new SootClass(type_string, hclass.getModifiers());
       Scene.v().addClass(empty_class);
@@ -861,6 +863,7 @@ public class RootbeerClassLoader {
         continue;
       }
 
+      System.out.println("  loading method: "+soot_method.getSignature());
       Body body = method.getBody(soot_method, "jb");
       soot_method.setActiveBody(body);
     }
@@ -1122,6 +1125,20 @@ public class RootbeerClassLoader {
     m_currDfsInfo.addType(mutil.getClassName());
     m_currDfsInfo.addType(mutil.getReturnType());
     m_currDfsInfo.addMethod(signature);
+
+    List<String> virt_methods = m_classHierarchy.getVirtualMethods(signature);
+    for(String virt_method : virt_methods){
+      if(dontFollow(virt_method)){
+        continue;
+      }
+
+      if(visited.contains(virt_method)){
+        continue;
+      }
+      visited.add(virt_method);
+      System.out.println("doDfsForRootbeer adding virtual_method to queue: "+virt_method);
+      queue.add(virt_method);
+    }
 
     for(String param_type : mutil.getParameterTypes()){
       m_currDfsInfo.addType(param_type);
