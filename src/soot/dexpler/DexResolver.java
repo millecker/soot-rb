@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -49,6 +49,7 @@ public class DexResolver {
     	if(wrapper==null) {
     		wrapper = new DexlibWrapper(file);
     		cache.put(file, wrapper);
+    		wrapper.initialize();
     	}
         DexClass c = wrapper.getClass(className);
         if (c == null)

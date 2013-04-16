@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -74,6 +74,8 @@ public class DexlibWrapper {
     
     private final static Set<String> systemAnnotationNames;
 
+	private final File inputDexFile;
+
     /**
      * Construct a DexlibWrapper from a dex file and stores its classes referenced by their name.
      * No further process is done here.
@@ -82,8 +84,11 @@ public class DexlibWrapper {
      */
 
     public DexlibWrapper(File inputDexFile) {
+        this.inputDexFile = inputDexFile;
+    }
 
-        this.dexClasses = new HashMap<String, ClassDefItem>();
+	public void initialize() {
+		this.dexClasses = new HashMap<String, ClassDefItem>();
         this.classesByName = new HashMap<String, DexClass>();
 
         try {
@@ -102,7 +107,7 @@ public class DexlibWrapper {
 			if (st instanceof ArrayType) {
 				st = ((ArrayType) st).baseType;
 			}
-			//Debug.printDbg("Type: "+ t +" soot type:"+ st);
+			//Debug.printDbg("Type: ", t ," soot type:", st);
 			String sootTypeName = st.toString();
 			if (!Scene.v().containsClass(sootTypeName)) {
 				if (st instanceof PrimType || st instanceof VoidType || systemAnnotationNames.contains(sootTypeName)) {
@@ -119,10 +124,9 @@ public class DexlibWrapper {
 			}
 		}
 		for (StringIdItem i: this.dexFile.StringIdsSection.getItems()) {
-			Debug.printDbg("String: "+ i);
+			Debug.printDbg("String: ", i);
 		}
-
-    }
+	}
 
 	/**
      * Returns and processes the dex class by its fully classified name.

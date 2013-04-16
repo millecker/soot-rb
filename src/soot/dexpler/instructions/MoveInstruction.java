@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -46,7 +46,7 @@ public class MoveInstruction extends DexlibAbstractInstruction {
        
         TwoRegisterInstruction i = (TwoRegisterInstruction) instruction;
         
-        Debug.printDbg("moveInstruction: "+ i);
+        Debug.printDbg("moveInstruction: ", i);
         
         int dest = i.getRegisterA();
         int source = i.getRegisterB();

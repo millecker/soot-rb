@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -40,6 +40,7 @@ import soot.dexpler.DexBody;
 import soot.dexpler.DexType;
 import soot.dexpler.IDalvikTyper;
 import soot.tagkit.Host;
+import soot.tagkit.LineNumberTag;
 import soot.tagkit.SourceLineNumberTag;
 
 /**
@@ -154,8 +155,10 @@ public abstract class DexlibAbstractInstruction {
      * @param host the host to tag
      */
     protected void tagWithLineNumber(Host host) {
-        if (lineNumber != -1)
+        if (lineNumber != -1) {
+            host.addTag(new LineNumberTag(lineNumber));
             host.addTag(new SourceLineNumberTag(lineNumber));
+        }
     }
 
 //    /**

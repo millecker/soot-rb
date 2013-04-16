@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -68,7 +68,7 @@ public class NewArrayInstruction extends DexlibAbstractInstruction {
         Type t = DexType.toSoot((TypeIdItem) newArray.getReferencedItem());
         // NewArrayExpr needs the ElementType as it increases the array dimension by 1
         Type arrayType = ((ArrayType) t).getElementType();
-        Debug.printDbg("new array element type: "+ arrayType);
+        Debug.printDbg("new array element type: ", arrayType);
 
         NewArrayExpr newArrayExpr = Jimple.v().newNewArrayExpr(arrayType, size);
 

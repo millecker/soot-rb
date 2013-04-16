@@ -1,7 +1,7 @@
 /* Soot - a Java Optimization Framework
  * Copyright (C) 2012 Michael Markert, Frank Hartmann
  * 
- * (c) 2012 University of Luxembourg – Interdisciplinary Centre for
+ * (c) 2012 University of Luxembourg - Interdisciplinary Centre for
  * Security Reliability and Trust (SnT) - All rights reserved
  * Alexandre Bartel
  * 
@@ -192,7 +192,7 @@ public class FillArrayDataInstruction extends PseudoInstruction {
     } else {
       throw new RuntimeException("Invalid Array Type occured in FillArrayDataInstruction: "+ elementType);
     }
-    Debug.printDbg("array element: "+ value);
+    Debug.printDbg("array element: ", value);
     return value;
 
   }
