@@ -796,7 +796,6 @@ public class RootbeerClassLoader {
     to_signatures.addAll(all_sigs);
     to_signatures.addAll(m_toSignaturesMethods);
     for(String signature : to_signatures){
-      System.out.println("  sig: "+signature);
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
@@ -857,7 +856,6 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      //System.out.println("  loading method: "+soot_method.getSignature());
       Body body = method.getBody(soot_method, "jb");
       SpecialInvokeFixup fixer = new SpecialInvokeFixup();
       body = fixer.fixup(body);
