@@ -108,16 +108,16 @@ public class RootbeerClassLoader {
   private Set<String> m_followClasses;
   private Set<String> m_toSignaturesClasses;
 
+  private List<String> m_loadFields;
+
   private List<String> m_appClasses;
   private List<String> m_entryPoints;
-  private List<String> m_cudaFields;
   private Set<String> m_visited;
   private String m_userJar;
   private Set<String> m_generatedMethods;
   private Set<String> m_newInvokes;
   private Map<String, String> m_remapping;
   private Map<String, HierarchyValueSwitch> m_valueSwitchMap;
-  private Map<String, List<String>> m_usedFields;
   private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
@@ -151,6 +151,8 @@ public class RootbeerClassLoader {
     m_toSignaturesMethods = new HashSet<String>();
     m_followClasses = new HashSet<String>();
     m_toSignaturesClasses = new HashSet<String>();
+
+    m_loadFields = new ArrayList<String>();
 
     m_appClasses = new ArrayList<String>();
     m_userJar = null;
@@ -210,12 +212,12 @@ public class RootbeerClassLoader {
     m_newInvokes.add(class_name);
   }
 
-  public void setCudaFields(List<String> fields){
-    m_cudaFields = fields;
-  }
-
   public void addGeneratedMethod(String signature){
     m_generatedMethods.add(signature);
+  }
+
+  public void loadField(String field_sig){
+    m_loadFields.add(field_sig);
   }
 
   public List<String> getAllAppClasses(){
@@ -750,31 +752,30 @@ public class RootbeerClassLoader {
 
     System.out.println("collecting fields for classes and adding to declaring class...");
     //collect fields for classes and add to declaring_class
-    m_usedFields = new HashMap<String, List<String>>();
     Set<String> all_sigs = m_currDfsInfo.getStringCallGraph().getAllSignatures();
-    Set<String> visited_fields = new HashSet<String>();
+    Set<String> fields_to_load = new HashSet<String>();
     for(String signature : all_sigs){
       HierarchyValueSwitch value_switch = getValueSwitch(signature);
       for(String field_ref : value_switch.getFieldRefs()){
-        if(visited_fields.contains(field_ref)){
-          continue;
-        }
-        visited_fields.add(field_ref);
-
-        FieldSignatureUtil util = new FieldSignatureUtil();
-        util.parse(field_ref);
-
-        String class_name = util.getDeclaringClass();
-        String field_name = util.getName();
-
-        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-        int field_modifiers = hclass.getFieldModifiers(field_name);
-
-        SootClass declaring_class = Scene.v().getSootClass(class_name);
-        Type field_type = string_to_type.convert(util.getType());
-        SootField new_field = new SootField(field_name, field_type, field_modifiers);
-        declaring_class.addField(new_field);
+        fields_to_load.add(field_ref);
       }
+    }
+    fields_to_load.addAll(m_loadFields);
+
+    for(String field_ref : fields_to_load){
+      FieldSignatureUtil util = new FieldSignatureUtil();
+      util.parse(field_ref);
+
+      String class_name = util.getDeclaringClass();
+      String field_name = util.getName();
+
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      int field_modifiers = hclass.getFieldModifiers(field_name);
+
+      SootClass declaring_class = Scene.v().getSootClass(class_name);
+      Type field_type = string_to_type.convert(util.getType());
+      SootField new_field = new SootField(field_name, field_type, field_modifiers);
+      declaring_class.addField(new_field);
     }
 
     //add empty methods
@@ -795,7 +796,7 @@ public class RootbeerClassLoader {
     to_signatures.addAll(all_sigs);
     to_signatures.addAll(m_toSignaturesMethods);
     for(String signature : to_signatures){
-      //System.out.println("  sig: "+signature);
+      System.out.println("  sig: "+signature);
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
@@ -858,6 +859,8 @@ public class RootbeerClassLoader {
 
       //System.out.println("  loading method: "+soot_method.getSignature());
       Body body = method.getBody(soot_method, "jb");
+      SpecialInvokeFixup fixer = new SpecialInvokeFixup();
+      body = fixer.fixup(body);
       soot_method.setActiveBody(body);
     }
   }
@@ -1097,15 +1100,6 @@ public class RootbeerClassLoader {
       queue.remove(0);
       doDfsForRootbeer(curr, queue, visited);
     }
-
-    //for(String cuda_field : m_cudaFields){
-    //  FieldSignatureUtil futil = new FieldSignatureUtil();
-    //  futil.parse(cuda_field);
-    //  
-    //  SootField soot_field = futil.getSootField();
-    //  m_currDfsInfo.addField(soot_field);
-    //  m_currDfsInfo.addType(futil.getDeclaringClass());
-    //}
   }
 
   private void doDfsForRootbeer(String signature, List<String> queue, Set<String> visited){

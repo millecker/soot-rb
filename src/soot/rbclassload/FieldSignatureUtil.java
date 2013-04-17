@@ -51,6 +51,11 @@ public class FieldSignatureUtil {
     m_name = tokens1[1].substring(0, tokens1[1].length()-1);   
   }
 
+  private void quoteStrings(){
+    m_declaringClass = Scene.v().quotedNameOf(m_declaringClass);
+    m_name = Scene.v().quotedNameOf(m_name);
+  }
+
   public String getSignature(){
     StringBuilder ret = new StringBuilder();
     ret.append("<");
@@ -66,6 +71,14 @@ public class FieldSignatureUtil {
     ret.append(m_type);
     ret.append(" ");
     ret.append(m_name);
+    return ret.toString();
+  }
+
+  public String getQuotedSubSignature(){
+    StringBuilder ret = new StringBuilder();
+    ret.append(m_type);
+    ret.append(" ");
+    ret.append(Scene.v().quotedNameOf(m_name));
     return ret.toString();
   }
 

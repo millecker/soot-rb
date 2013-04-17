@@ -79,6 +79,8 @@ public class JasminClass extends AbstractJasminClass
     
     protected void emitMethodBody(SootMethod method)//, Map options)
     {
+        System.out.println("emitMethodBody: "+method.getSignature());
+
         if(Options.v().time())
             Timers.v().buildJasminTimer.end();
                     

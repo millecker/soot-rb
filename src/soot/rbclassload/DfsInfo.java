@@ -198,6 +198,7 @@ public class DfsInfo {
     StringToType converter = new StringToType();
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
     List<NumberedType> numbered_types = class_hierarchy.getNumberedTypes();
+    Collections.reverse(numbered_types);
     for(NumberedType ntype : numbered_types){
       String type_str = ntype.getType();
       Type type = converter.convert(type_str);

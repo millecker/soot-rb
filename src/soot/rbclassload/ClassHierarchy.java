@@ -223,7 +223,9 @@ public class ClassHierarchy {
   }
 
   public List<NumberedType> getNumberedTypes(){
-    return m_numberedTypes;
+    List<NumberedType> ret_copy = new ArrayList<NumberedType>();
+    ret_copy.addAll(m_numberedTypes);
+    return ret_copy;
   }
 
   public void cacheVirtualMethods(){   
@@ -378,13 +380,13 @@ public class ClassHierarchy {
     String class_name = util.getClassName();
 
     List<String> ret = new ArrayList<String>();
+    ret.add(signature);
+
     if(util.getMethodName().equals("<init>") || util.getMethodName().equals("<clinit>")){
-      ret.add(signature);
       return ret;
     }
 
     if(m_hierarchyGraphs.containsKey(class_name) == false){
-      ret.add(signature);
       return ret;
     }
 
@@ -392,7 +394,6 @@ public class ClassHierarchy {
     if(m_virtualMethodSignatures.containsKey(signature) == false){
       //todo: fix this
       //throw new RuntimeException("cannot find virtual signature: "+signature);
-      ret.add(signature);
       return ret;
     }
 
@@ -400,7 +401,7 @@ public class ClassHierarchy {
     for(String virt_sig : virt_sigs){
       util.parse(virt_sig);
       String virt_class_name = util.getClassName();
-      if(new_invokes.contains(virt_class_name)){
+      if(new_invokes.contains(virt_class_name) && ret.contains(virt_sig) == false){
         ret.add(virt_sig);
       }
     }

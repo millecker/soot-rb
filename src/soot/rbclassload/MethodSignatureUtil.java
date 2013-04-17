@@ -78,6 +78,11 @@ public class MethodSignatureUtil {
     }
   }
 
+  private void quoteStrings(){
+    m_className = Scene.v().quotedNameOf(m_className);
+    m_methodName = Scene.v().quotedNameOf(m_methodName);
+  }
+
   public void remap(){
     m_className = remapClass(m_className);
     m_returnType = remapClass(m_returnType);
