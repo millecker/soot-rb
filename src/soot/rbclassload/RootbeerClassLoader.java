@@ -304,10 +304,10 @@ public class RootbeerClassLoader {
       prev_size = m_newInvokes.size();
       for(String entry : m_entryPoints){
         System.out.println("entry point: "+entry);
-        System.out.println("  new_invokes: ");
-        for(String new_invoke : m_newInvokes){
-          System.out.println("    "+new_invoke);
-        }
+        //System.out.println("  new_invokes: ");
+        //for(String new_invoke : m_newInvokes){
+        //  System.out.println("    "+new_invoke);
+        //}
         DfsInfo dfs_info = new DfsInfo(entry);
         m_dfsInfos.put(entry, dfs_info);
         m_currDfsInfo = dfs_info;
@@ -315,11 +315,6 @@ public class RootbeerClassLoader {
         loadStringCallGraph();
       }
     }
-
-
-
-    //todo: use DfsValueSwitchCache
-    //collectFields();
 
     //todo: look at these closely
     //cloneLibraryClasses();
@@ -430,13 +425,11 @@ public class RootbeerClassLoader {
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
-        System.out.println("  hclass == null");
         continue;
       }
 
       HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
-        System.out.println("  hmethod == null");
         continue;
       }
 
@@ -863,7 +856,7 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      System.out.println("  loading method: "+soot_method.getSignature());
+      //System.out.println("  loading method: "+soot_method.getSignature());
       Body body = method.getBody(soot_method, "jb");
       soot_method.setActiveBody(body);
     }
@@ -1136,7 +1129,7 @@ public class RootbeerClassLoader {
         continue;
       }
       visited.add(virt_method);
-      System.out.println("doDfsForRootbeer adding virtual_method to queue: "+virt_method);
+      //System.out.println("doDfsForRootbeer adding virtual_method to queue: "+virt_method);
       queue.add(virt_method);
     }
 

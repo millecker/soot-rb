@@ -397,25 +397,11 @@ public class ClassHierarchy {
     }
 
     List<String> virt_sigs = m_virtualMethodSignatures.get(signature); 
-    boolean print = false;
-    if(signature.equals("<java.util.List: boolean add(java.lang.Object)>")){
-      print = true;
-    }
-    if(print){
-      System.out.println("virtual_sigs for: "+signature);
-    }
     for(String virt_sig : virt_sigs){
       util.parse(virt_sig);
       String virt_class_name = util.getClassName();
       if(new_invokes.contains(virt_class_name)){
         ret.add(virt_sig);
-        if(print){
-          System.out.println("  added: "+virt_sig);
-        }
-      } else {
-        if(print){
-          System.out.println("  no added: "+virt_sig);
-        }
       }
     }
   
