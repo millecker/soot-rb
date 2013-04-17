@@ -125,7 +125,9 @@ public class DfsInfo {
   }
 
   public List<RefType> getOrderedRefTypes() {
-    return m_orderedRefTypes;
+    List<RefType> ret_copy = new ArrayList<RefType>();
+    ret_copy.addAll(m_orderedRefTypes);
+    return ret_copy;
   }
 
   public Set<String> getMethods() {
