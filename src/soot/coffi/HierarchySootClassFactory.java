@@ -30,6 +30,7 @@ import java.io.DataInputStream;
 import soot.coffi.ConstantPoolReader;
 import soot.rbclassload.HierarchySootClass;
 import soot.rbclassload.HierarchySootMethod;
+import soot.rbclassload.HierarchyField;
 
 public class HierarchySootClassFactory {
 
@@ -73,8 +74,17 @@ public class HierarchySootClassFactory {
     
     int modifiers = classFile.access_flags & ~0x0020;
 
+    List<HierarchyField> fields = new ArrayList<HierarchyField>();
+    for(int i = 0; i < classFile.fields.length; ++i){
+      field_info info = classFile.fields[i];
+      String name = m_constantReader.get(info.name_index, constantPool);
+      String type = m_constantReader.get(info.descriptor_index, constantPool);
+      HierarchyField field = new HierarchyField(name, type, info.access_flags);
+      fields.add(field);
+    }
+
     HierarchySootClass ret = new HierarchySootClass(className, hasSuperClass,
-      superClassName, interfaces, modifiers, classFile);
+      superClassName, interfaces, fields, modifiers, classFile);
 
     return ret;
   }

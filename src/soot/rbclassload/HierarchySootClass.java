@@ -36,12 +36,15 @@ import soot.coffi.HierarchySootMethodFactory;
 import soot.coffi.ConstantPoolReader;
 import soot.coffi.field_info;
 
+import soot.Modifier;
+
 public class HierarchySootClass {
 
   private String m_className;
   private boolean m_hasSuperClass;
   private String m_superClassName;
   private List<String> m_interfaceNames;
+  private List<HierarchyField> m_fields;
   private List<HierarchySootMethod> m_methods;
   private Map<String, HierarchySootMethod> m_covarientMethods;
   private ClassFile m_classFile;
@@ -50,13 +53,14 @@ public class HierarchySootClass {
   private ConstantPoolReader m_constantReader;
 
   public HierarchySootClass(String class_name, boolean has_super_class, 
-    String super_class_name, List<String> interfaces, int modifiers, 
-    ClassFile class_file){
+    String super_class_name, List<String> interfaces, List<HierarchyField> fields, 
+    int modifiers, ClassFile class_file){
 
     m_className = class_name;
     m_hasSuperClass = has_super_class;
     m_superClassName = super_class_name;
     m_interfaceNames = interfaces;
+    m_fields = fields;
     m_classFile = class_file;
     m_modifiers = modifiers;
     m_constantReader = new ConstantPoolReader();
@@ -111,6 +115,19 @@ public class HierarchySootClass {
     return m_methods;
   }
 
+  public List<HierarchyField> getFields(){
+    return m_fields;
+  }
+
+  public boolean hasField(String name){
+    for(HierarchyField field : m_fields){
+      if(field.getName().equals(name)){
+        return true;
+      }
+    }
+    return false;
+  }
+
   public boolean declaresCovarientSubSignature(String covarient_subsignature){
     if(m_methods == null){
       readMethods();
@@ -127,6 +144,10 @@ public class HierarchySootClass {
 
   public int getModifiers(){
     return m_modifiers;
+  }
+
+  public boolean isInterface(){
+    return Modifier.isInterface(m_modifiers);
   }
 
   public void setApplicationClass(boolean value){

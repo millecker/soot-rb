@@ -111,12 +111,11 @@ public class ClassHierarchy {
     //foreach root
     for(String root : m_roots){    
       HierarchyGraph hgraph = new HierarchyGraph();
-      List<String> queue = new LinkedList<String>();
+      LinkedList<String> queue = new LinkedList<String>();
       queue.add(root);
 
       while(queue.isEmpty() == false){
-        String curr_class = queue.get(0);
-        queue.remove(0);
+        String curr_class = queue.removeFirst();
 
         mapPut(m_unmergedGraphs, curr_class, hgraph);
         hgraph.addHierarchyClass(curr_class);
@@ -196,23 +195,62 @@ public class ClassHierarchy {
   public void numberTypes(){
     System.out.println("numbering types...");
     int number = 1;
-    List<String> queue = new LinkedList<String>();
+    LinkedList<String> queue = new LinkedList<String>();
     Set<String> visited = new HashSet<String>();
     queue.add("java.lang.Object");
     HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
     Set<String> children0 = hgraph.getChildren("java.lang.Object");
 
     while(queue.isEmpty() == false){
-      String curr_type = queue.get(0);
-      queue.remove(0);
+      String curr_type = queue.removeFirst();
 
       if(visited.contains(curr_type)){
         continue;
       }
       visited.add(curr_type);
       
-      Set<String> children = hgraph.getChildren(curr_type);
-      queue.addAll(children);
+      //Here we only add the child interfaces of interfaces.
+      //take java.io.PrintStream and java.io.FilterOutputStream. PrintStream
+      //derives from FilterOutputStream but implements an extra interface
+      //(java.lang.Appendable). Implementing the extra interface gets us 
+      //to number PrintStream sooner unless we ignore concrete classes of 
+      //interfaces.
+      HierarchySootClass hclass = getHierarchySootClass(curr_type);
+      if(hclass == null){
+        continue;
+      }
+      if(hclass.isInterface()){
+        Set<String> children = hgraph.getChildren(curr_type); 
+        for(String child : children){
+          HierarchySootClass child_hclass = getHierarchySootClass(child);
+          if(child_hclass.isInterface()){
+            queue.add(child);
+          }
+        }
+      } else {
+        Set<String> children = hgraph.getChildren(curr_type);
+        //Now we add interfaces to the queue first
+        for(String child : children){
+          HierarchySootClass child_hclass = getHierarchySootClass(child);
+          if(child_hclass == null){
+            continue;
+          }
+          if(child_hclass.isInterface()){
+            queue.add(child);
+          }
+        }
+        //And then concrete classes. In this way interfaces that derive from
+        //Object are visited before concrete classes that derive from Object.
+        for(String child : children){
+          HierarchySootClass child_hclass = getHierarchySootClass(child);
+          if(child_hclass == null){
+            continue;
+          }
+          if(!child_hclass.isInterface()){
+            queue.add(child);
+          }
+        }
+      }
 
       NumberedType numbered_type = new NumberedType(curr_type, number);
       m_numberedTypes.add(numbered_type);
@@ -256,12 +294,11 @@ public class ClassHierarchy {
     }
 
     Set<String> visited_sigs = new HashSet<String>();
-    List<String> bfs_queue = new LinkedList<String>();
+    LinkedList<String> bfs_queue = new LinkedList<String>();
     bfs_queue.addAll(m_roots);
 
     while(bfs_queue.isEmpty() == false){
-      String curr_class = bfs_queue.get(0);
-      bfs_queue.remove(0);
+      String curr_class = bfs_queue.removeFirst();
 
       HierarchySootClass hclass = getHierarchySootClass(curr_class);
       if(hclass == null){
@@ -297,8 +334,7 @@ public class ClassHierarchy {
     visited_sigs.clear();
     bfs_queue.addAll(m_roots);
     while(bfs_queue.isEmpty() == false){
-      String curr_class = bfs_queue.get(0);
-      bfs_queue.remove(0);
+      String curr_class = bfs_queue.removeFirst();
 
       HierarchySootClass hclass = getHierarchySootClass(curr_class);
       if(hclass == null){

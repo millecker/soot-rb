@@ -137,13 +137,11 @@ public class StringCallGraph {
 
   //for debugging
   private void printDfsTrace(String heading, Map<String, Set<String>> map, String source){
-    List<String> queue = new LinkedList<String>();
+    LinkedList<String> queue = new LinkedList<String>();
     System.out.println(heading);
     queue.add(source);
     while(queue.isEmpty() == false){
-      String curr = queue.get(0);
-      queue.remove(0);
-
+      String curr = queue.removeFirst();
       System.out.println("key: "+curr);
       Set<String> targets = map.get(curr);
       for(String target : targets){
@@ -174,13 +172,11 @@ public class StringCallGraph {
     StringBuilder ret = new StringBuilder();
     ret.append("forward edges: \n");
     for(String entry : m_entryPoints){
-      List<String> queue = new LinkedList<String>();
+      LinkedList<String> queue = new LinkedList<String>();
       queue.add(entry);
       Set<String> visited = new HashSet<String>();
       while(queue.isEmpty() == false){
-        String source = queue.get(0);
-        queue.remove(0);
-
+        String source = queue.removeFirst();
         if(visited.contains(source)){
           continue;
         }
@@ -195,13 +191,11 @@ public class StringCallGraph {
     }
     ret.append("reverse edges: \n");
     for(String entry : m_entryPoints){
-      List<String> queue = new LinkedList<String>();
+      LinkedList<String> queue = new LinkedList<String>();
       queue.add(entry);
       Set<String> visited = new HashSet<String>();
       while(queue.isEmpty() == false){
-        String source = queue.get(0);
-        queue.remove(0);
-
+        String source = queue.removeFirst();
         if(visited.contains(source)){
           continue;
         }

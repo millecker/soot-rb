@@ -106,14 +106,18 @@ public class DfsInfo {
     return m_dfsTypes;
   }
 
-  public void addType(Type name) {
-    m_dfsTypes.add(name);
+  public void addType(Type type) {
+    m_dfsTypes.add(type);
+    if(type instanceof ArrayType){
+      ArrayType array_type = (ArrayType) type;
+      m_arrayTypes.add(array_type);
+    }
   }
 
   public void addType(String type_str) {
     StringToType converter = new StringToType();
-    Type name = converter.convert(type_str);
-    m_dfsTypes.add(name);
+    Type type = converter.convert(type_str);
+    addType(type);
   }
   
   public void addField(SootField field){
@@ -209,10 +213,25 @@ public class DfsInfo {
         m_orderedTypes.add(type);
         if(type instanceof RefType){
           RefType ref_type = (RefType) type;
-          m_orderedRefTypes.add(ref_type);
+          SootClass soot_class = ref_type.getSootClass();
+          if(!soot_class.isInterface()){
+            m_orderedRefTypes.add(ref_type);            
+            m_orderedRefLikeTypes.add(type);
+          }
         }
-        if(type instanceof RefLikeType){
-          m_orderedRefLikeTypes.add(type);
+        if(type instanceof ArrayType){
+          ArrayType array_type = (ArrayType) type;
+          Type base_type = array_type.baseType;
+          if(base_type instanceof RefType){
+            RefType ref_type = (RefType) base_type;
+            SootClass soot_class = ref_type.getSootClass();
+            if(!soot_class.isInterface()){
+              m_orderedRefTypes.add(ref_type);  
+              m_orderedRefLikeTypes.add(type);
+            }
+          } else {
+            m_orderedRefLikeTypes.add(type);
+          }
         }
       }
     }

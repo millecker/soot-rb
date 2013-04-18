@@ -124,7 +124,7 @@ public class RootbeerClassLoader {
 
   private Set<String> m_cgVisitedClasses;
   private Set<String> m_cgVisitedMethods;
-  private List<String> m_cgMethodQueue;
+  private LinkedList<String> m_cgMethodQueue;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -414,9 +414,7 @@ public class RootbeerClassLoader {
   private void processForwardStringCallGraphQueue(){
     MethodSignatureUtil util = new MethodSignatureUtil();
     while(m_cgMethodQueue.isEmpty() == false){
-      String bfs_entry = m_cgMethodQueue.get(0);
-      m_cgMethodQueue.remove(0);
-
+      String bfs_entry = m_cgMethodQueue.removeFirst();
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
@@ -720,6 +718,7 @@ public class RootbeerClassLoader {
     //create all empty classes from lowest number to highest
     StringToType string_to_type = new StringToType();
     List<NumberedType> numbered_types = m_classHierarchy.getNumberedTypes();
+    Set<String> visited_classes = new HashSet<String>();
     for(NumberedType ntype : numbered_types){
       String type_string = ntype.getType();
       if(string_to_type.isRefType(type_string) == false){
@@ -731,6 +730,11 @@ public class RootbeerClassLoader {
       if(string_to_type.isRefType(type_string) == false){
         continue;
       }
+      if(visited_classes.contains(type_string)){
+        System.out.println("  visited_class: "+type_string);
+        continue;
+      }
+      visited_classes.add(type_string);
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(type_string);
       SootClass empty_class = new SootClass(type_string, hclass.getModifiers());
       Scene.v().addClass(empty_class);
@@ -759,7 +763,6 @@ public class RootbeerClassLoader {
 
     Set<String> fields_to_load = new HashSet<String>();
     for(String signature : all_sigs){
-      System.out.println("  sig: "+signature);
       HierarchyValueSwitch value_switch = getValueSwitch(signature);
       for(String field_ref : value_switch.getFieldRefs()){
         fields_to_load.add(field_ref);
@@ -768,20 +771,35 @@ public class RootbeerClassLoader {
     fields_to_load.addAll(m_loadFields);
 
     for(String field_ref : fields_to_load){
-      System.out.println("  loading field_ref: "+field_ref);
       FieldSignatureUtil util = new FieldSignatureUtil();
       util.parse(field_ref);
 
       String class_name = util.getDeclaringClass();
       String field_name = util.getName();
 
-      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-      int field_modifiers = hclass.getFieldModifiers(field_name);
+      while(true){
+        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+        if(hclass.hasField(field_name) == false){
+          if(hclass.hasSuperClass() == false){
+            System.out.println("cannot find field: "+field_ref);
+            break;
+          }
+          class_name = hclass.getSuperClass();
+          continue;
+        }
 
-      SootClass declaring_class = Scene.v().getSootClass(class_name);
-      Type field_type = string_to_type.convert(util.getType());
-      SootField new_field = new SootField(field_name, field_type, field_modifiers);
-      declaring_class.addField(new_field);
+        SootClass declaring_class = Scene.v().getSootClass(class_name);
+        if(declaring_class.declaresFieldByName(field_name)){
+          break;
+        }
+
+        int field_modifiers = hclass.getFieldModifiers(field_name);
+        Type field_type = string_to_type.convert(util.getType());
+        SootField new_field = new SootField(field_name, field_type, field_modifiers);
+        declaring_class.addField(new_field);
+
+        break;
+      }
     }
 
     //add empty methods
@@ -1090,7 +1108,7 @@ public class RootbeerClassLoader {
     
     Set<String> visited = new HashSet<String>();
     System.out.println("doing rootbeer dfs: "+signature);
-    List<String> queue = new LinkedList<String>();
+    LinkedList<String> queue = new LinkedList<String>();
     queue.add(signature);
 
     for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
@@ -1101,12 +1119,13 @@ public class RootbeerClassLoader {
 
     while(queue.isEmpty() == false){
       String curr = queue.get(0);
-      queue.remove(0);
+      queue.removeFirst();
       doDfsForRootbeer(curr, queue, visited);
     }
   }
 
-  private void doDfsForRootbeer(String signature, List<String> queue, Set<String> visited){
+  private void doDfsForRootbeer(String signature, LinkedList<String> queue, Set<String> visited){
+    System.out.println("doDfsForRootbeer: "+signature);
     HierarchyValueSwitch value_switch = getValueSwitch(signature);
     StringToType converter = new StringToType();
     FieldSignatureUtil futil = new FieldSignatureUtil();
@@ -1131,18 +1150,9 @@ public class RootbeerClassLoader {
       queue.add(virt_method);
     }
 
-    for(String param_type : mutil.getParameterTypes()){
-      m_currDfsInfo.addType(param_type);
-    }
-
-    for(String type_str : value_switch.getTypes()){
+    for(String type_str : value_switch.getAllTypes()){
       Type type = converter.convert(type_str);
       m_currDfsInfo.addType(type);
-    }    
-
-    for(String type_str : value_switch.getArrayTypes()){
-      ArrayType type = (ArrayType) converter.convert(type_str);
-      m_currDfsInfo.addArrayType(type);
     }    
 
     for(String method_sig : value_switch.getMethodRefs()){

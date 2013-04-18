@@ -42,14 +42,13 @@ public class MethodFieldFinder {
     String subsig = util.getQuotedSubSignature();
     String start_class = util.getDeclaringClass();
 
-    List<String> queue = new LinkedList<String>();
+    LinkedList<String> queue = new LinkedList<String>();
     queue.add(start_class);
 
     List<SootField> ret = new ArrayList<SootField>();
 
     while(queue.isEmpty() == false){
-      String class_name = queue.get(0);
-      queue.remove(0);
+      String class_name = queue.removeFirst();
 
       SootClass soot_class = Scene.v().getSootClass(class_name);
 
@@ -75,14 +74,13 @@ public class MethodFieldFinder {
     String subsig = util.getSubSignature();
     String start_class = util.getClassName();
 
-    List<String> queue = new LinkedList<String>();
+    LinkedList<String> queue = new LinkedList<String>();
     queue.add(start_class);
 
     List<SootMethod> ret = new ArrayList<SootMethod>();
 
     while(queue.isEmpty() == false){
-      String class_name = queue.get(0);
-      queue.remove(0);
+      String class_name = queue.removeFirst();
 
       SootClass soot_class = Scene.v().getSootClass(class_name);
 
