@@ -752,9 +752,14 @@ public class RootbeerClassLoader {
 
     System.out.println("collecting fields for classes and adding to declaring class...");
     //collect fields for classes and add to declaring_class
-    Set<String> all_sigs = m_currDfsInfo.getStringCallGraph().getAllSignatures();
+    Set<String> all_sigs = new HashSet<String>();
+    for(DfsInfo dfs_info : m_dfsInfos.values()){
+      all_sigs.addAll(dfs_info.getStringCallGraph().getAllSignatures());
+    }
+
     Set<String> fields_to_load = new HashSet<String>();
     for(String signature : all_sigs){
+      System.out.println("  sig: "+signature);
       HierarchyValueSwitch value_switch = getValueSwitch(signature);
       for(String field_ref : value_switch.getFieldRefs()){
         fields_to_load.add(field_ref);
@@ -763,6 +768,7 @@ public class RootbeerClassLoader {
     fields_to_load.addAll(m_loadFields);
 
     for(String field_ref : fields_to_load){
+      System.out.println("  loading field_ref: "+field_ref);
       FieldSignatureUtil util = new FieldSignatureUtil();
       util.parse(field_ref);
 
@@ -1159,33 +1165,6 @@ public class RootbeerClassLoader {
     for(String instanceof_str : value_switch.getInstanceOfs()){
       Type type = converter.convert(instanceof_str);
       m_currDfsInfo.addInstanceOf(type);
-    }
-  }
-
-  public void applyOptimizations(){
-    Pack jop = PackManager.v().getPack("jop");
-    
-    for(String entry : m_entryPoints){
-      MethodSignatureUtil util = new MethodSignatureUtil();
-      util.parse(entry);
-      util.remap();
-
-      SootMethod soot_method = util.getSootMethod();
-      if(soot_method.getName().equals("gpuMethod") == false){
-        continue;
-      }
-
-      m_currDfsInfo = m_dfsInfos.get(soot_method.getSignature());
-      Set<String> methods = m_currDfsInfo.getMethods();
-      for(String curr_sig : methods){
-        util.parse(curr_sig);
-        SootClass soot_class = Scene.v().getSootClass(util.getClassName());
-        SootMethod curr_method = soot_class.getMethod(util.getSubSignature());
-        if(curr_method.isConcrete()){
-          Body body = curr_method.retrieveActiveBody();
-          jop.apply(body);
-        }
-      }
     }
   }
 
