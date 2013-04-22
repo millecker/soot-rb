@@ -145,6 +145,7 @@ public class ClassHierarchy {
   }
 
   public void buildArrayTypes(){
+    System.out.println("building array types...");
     MultiDimensionalArrayTypeCreator creator = new MultiDimensionalArrayTypeCreator();
     m_arrayTypes = creator.createString(m_arrayTypes);    
 
@@ -161,9 +162,9 @@ public class ClassHierarchy {
   }
 
   private void mergeGraphs(){
+    System.out.println("merging graphs...");
     m_hierarchyGraphs.clear();
     for(String curr_class : m_unmergedGraphs.keySet()){
-      boolean print = false;  
       List<HierarchyGraph> graphs = m_unmergedGraphs.get(curr_class);
       HierarchyGraph new_graph = new HierarchyGraph();
       for(HierarchyGraph curr_graph : graphs){
@@ -217,8 +218,18 @@ public class ClassHierarchy {
       //interfaces.
       HierarchySootClass hclass = getHierarchySootClass(curr_type);
       if(hclass == null){
+        //if the current type is an array, number it and continue    
+        if(curr_type.contains("[]")){
+          
+          NumberedType numbered_type = new NumberedType(curr_type, number);
+          m_numberedTypes.add(numbered_type);
+          m_numberedTypeMap.put(curr_type, numbered_type);
+      
+          number++;
+        } 
         continue;
-      }
+      } 
+
       if(hclass.isInterface()){
         Set<String> children = hgraph.getChildren(curr_type); 
         for(String child : children){
@@ -244,6 +255,10 @@ public class ClassHierarchy {
         for(String child : children){
           HierarchySootClass child_hclass = getHierarchySootClass(child);
           if(child_hclass == null){
+            //if child is an array, add it to the queue
+            if(child.contains("[]")){
+              queue.add(child);
+            } 
             continue;
           }
           if(!child_hclass.isInterface()){

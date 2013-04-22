@@ -350,7 +350,6 @@ public class RootbeerClassLoader {
     System.out.println("loading forward string call graph for: "+entry+"...");
     m_cgVisitedMethods.clear();
     m_cgMethodQueue.add(entry);
-    m_cgVisitedMethods.add(entry);
     Set<String> reverse_reachable = new HashSet<String>();
 
     m_currDfsInfo.getStringCallGraph().addEntryPoint(entry);
@@ -362,7 +361,6 @@ public class RootbeerClassLoader {
     for(HierarchySootMethod entry_method : entry_methods){
       if(entry_method.getName().equals("<init>")){
         m_cgMethodQueue.add(entry_method.getSignature());
-        m_cgVisitedMethods.add(entry_method.getSignature());
         reverse_reachable.add(entry_method.getSignature());
       }
     }
@@ -370,7 +368,6 @@ public class RootbeerClassLoader {
 
     for(String follow_signature : m_followMethods){
       m_cgMethodQueue.add(follow_signature);
-      m_cgVisitedMethods.add(follow_signature);
     }
 
     for(String follow_class : m_followClasses){
@@ -378,7 +375,6 @@ public class RootbeerClassLoader {
       List<HierarchySootMethod> follow_methods = follow_hclass.getMethods();
       for(HierarchySootMethod follow_method : follow_methods){
         m_cgMethodQueue.add(follow_method.getSignature());
-        m_cgVisitedMethods.add(follow_method.getSignature());
       }
     }
 
@@ -415,13 +411,15 @@ public class RootbeerClassLoader {
     MethodSignatureUtil util = new MethodSignatureUtil();
     while(m_cgMethodQueue.isEmpty() == false){
       String bfs_entry = m_cgMethodQueue.removeFirst();
+
+      if(m_cgVisitedMethods.contains(bfs_entry)){
+        continue;
+      }
+      m_cgVisitedMethods.add(bfs_entry);
+      
       util.parse(bfs_entry);
 
       String class_name = util.getClassName();
-
-      //System.out.println("forward: ");
-      //System.out.println("  bfs_entry: "+bfs_entry);
-      //System.out.println("  class_name: "+class_name);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
@@ -433,7 +431,6 @@ public class RootbeerClassLoader {
         continue;
       }
 
-      //System.out.println("processForwardStringCallGraphQueue: "+bfs_entry);
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
@@ -442,12 +439,6 @@ public class RootbeerClassLoader {
         if(dontFollow(signature)){
           continue;
         }
-
-        if(m_cgVisitedMethods.contains(signature)){
-          continue;
-        }
-        m_cgVisitedMethods.add(signature);
-        //System.out.println("loadStringGraph adding virtual_method to queue: "+signature);
         m_cgMethodQueue.add(signature);
       }
 
@@ -458,23 +449,12 @@ public class RootbeerClassLoader {
       //add bfs methods to queue
       HierarchyValueSwitch value_switch = getValueSwitch(bfs_entry);
       m_newInvokes.addAll(value_switch.getNewInvokes());
-  
-      //System.out.println("new_invokes for: "+bfs_entry);
-      //for(String new_invoke : value_switch.getNewInvokes()){
-      //  System.out.println("  "+new_invoke);
-      //}
 
       for(String dest_sig : value_switch.getMethodRefs()){
         if(dontFollow(dest_sig)){
           continue;
         }
- 
-        if(m_cgVisitedMethods.contains(dest_sig)){
-          continue;
-        }
-        m_cgVisitedMethods.add(dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
-        //System.out.println("loadStringGraph addEdge: "+bfs_entry+"->"+dest_sig);
         m_cgMethodQueue.add(dest_sig);        
       }
 
@@ -483,8 +463,7 @@ public class RootbeerClassLoader {
       }
 
       //add <clinit> of class_refs
-      /*
-      Set<String> class_refs = value_switch.getClasses();
+      Set<String> class_refs = value_switch.getRefTypes();
       for(String class_ref : class_refs){
         HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
         if(clinit_class == null){
@@ -497,17 +476,18 @@ public class RootbeerClassLoader {
 
         String clinit_sig = clinit_method.getSignature();
 
-        if(m_dontDfsMethods.contains(clinit_sig)){
+        if(dontFollow(clinit_sig)){
           continue;
         }
-
-        if(m_cgVisitedMethods.contains(clinit_sig)){
-          continue;
-        }
-        m_cgVisitedMethods.add(clinit_sig);
         m_cgMethodQueue.add(clinit_sig);   
       }
-      */
+
+      //load ctors to main method
+      String subsignature = util.getSubSignature();
+      if(subsignature.equals("void main(java.lang.String[])")){
+        String ctor_sig = "<"+class_name+": void <init>()>";
+        m_cgVisitedMethods.add(ctor_sig);
+      }
 
       if(m_cgVisitedClasses.contains(class_name)){
         continue;
@@ -524,18 +504,13 @@ public class RootbeerClassLoader {
             continue;
           }
 
-          if(m_cgVisitedMethods.contains(method.getSignature())){
-            continue;
-          }
-          m_cgVisitedMethods.add(method.getSignature());
           m_cgMethodQueue.add(method.getSignature());          
         }
       }
     }
   }
 
-  private void reverseStringGraphVisit(String method_sig, Set<String> reachable){      
-    //System.out.println("reverseStringGraphVisit: "+method_sig);
+  private void reverseStringGraphVisit(String method_sig, Set<String> reachable){    
     MethodSignatureUtil util = new MethodSignatureUtil();
     HierarchyValueSwitch value_switch = getValueSwitch(method_sig);
     for(String dest_sig : value_switch.getMethodRefs()){
@@ -549,11 +524,7 @@ public class RootbeerClassLoader {
 
         //add to forward dfs
         if(dontFollow(method_sig) == false){
-          if(m_cgVisitedMethods.contains(method_sig) == false){
-            m_cgVisitedMethods.add(method_sig);
-            //System.out.println("loadStringGraph adding virtual_method to queue: "+method_sig);
-            m_cgMethodQueue.add(method_sig);
-          }
+          m_cgMethodQueue.add(method_sig);
         }
 
         //add virtual methods to queue
@@ -578,48 +549,16 @@ public class RootbeerClassLoader {
           if(dontFollow(method.getSignature())){
             continue;
           } 
-          if(m_cgVisitedMethods.contains(method.getSignature())){
-            continue;
-          }
-          m_cgVisitedMethods.add(method.getSignature());
-          //m_cgMethodQueue.add(method.getSignature());
 
           String name = method.getName();
-          if(name.equals("<clinit>") && false){
-            //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
-            reachable.add(method.getSignature());          
+          if(name.equals("<clinit>")){
+            m_cgMethodQueue.add(method.getSignature());   
+            reachable.add(method.getSignature());   
           }
         }
       } 
     }
 
-    //add <clinit> of class_refs
-    /*
-    Set<String> class_refs = value_switch.getClasses();
-    for(String class_ref : class_refs){
-      HierarchySootClass clinit_class = m_classHierarchy.getHierarchySootClass(class_ref);
-      if(clinit_class == null){
-        continue;
-      }
-
-      HierarchySootMethod clinit_method = clinit_class.findMethodBySubSignature("void <clinit>()");
-      if(clinit_method == null){
-        continue;
-      }
-
-      String clinit_sig = clinit_method.getSignature();
-
-      if(m_dontDfsMethods.contains(clinit_sig)){
-        continue;
-      }
-
-      if(m_cgVisitedMethods.contains(clinit_sig)){
-        continue;
-      }
-      m_cgVisitedMethods.add(clinit_sig);
-      m_cgMethodQueue.add(clinit_sig);   
-    } 
-    */
     processForwardStringCallGraphQueue();
   }
 
@@ -731,7 +670,6 @@ public class RootbeerClassLoader {
         continue;
       }
       if(visited_classes.contains(type_string)){
-        System.out.println("  visited_class: "+type_string);
         continue;
       }
       visited_classes.add(type_string);
@@ -1125,7 +1063,6 @@ public class RootbeerClassLoader {
   }
 
   private void doDfsForRootbeer(String signature, LinkedList<String> queue, Set<String> visited){
-    System.out.println("doDfsForRootbeer: "+signature);
     HierarchyValueSwitch value_switch = getValueSwitch(signature);
     StringToType converter = new StringToType();
     FieldSignatureUtil futil = new FieldSignatureUtil();
@@ -1182,13 +1119,10 @@ public class RootbeerClassLoader {
     List<SootMethod> ret = new ArrayList<SootMethod>();
     
     for(String entry : m_entryPoints){
+      System.out.println("getEntryPoints: "+entry);
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(entry);
-      
-      String method = util.getMethodName();
-      if(method.equals("gpuMethod")){
-        ret.add(util.getSootMethod());
-      }
+      ret.add(util.getSootMethod());
     }
     return ret;
   }

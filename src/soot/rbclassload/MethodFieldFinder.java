@@ -67,7 +67,7 @@ public class MethodFieldFinder {
     }
   }
 
-  public List<SootMethod> findMethod(String signature){      
+  public SootMethod findMethod(String signature){      
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
 
@@ -77,8 +77,6 @@ public class MethodFieldFinder {
     LinkedList<String> queue = new LinkedList<String>();
     queue.add(start_class);
 
-    List<SootMethod> ret = new ArrayList<SootMethod>();
-
     while(queue.isEmpty() == false){
       String class_name = queue.removeFirst();
 
@@ -86,17 +84,13 @@ public class MethodFieldFinder {
 
       if(soot_class.declaresMethod(subsig)){
         SootMethod soot_method = soot_class.getMethod(subsig);
-        ret.add(soot_method);
+        return soot_method;
       }
 
       addToQueue(soot_class, queue);
     }    
-
-    if(ret.isEmpty()){    
-      throw new RuntimeException("Cannot find method: "+signature+". Are you sure all depdendencies have been added to the input jar?");
-    } else {
-      return ret;
-    }
+    
+    throw new RuntimeException("Cannot find method: "+signature+". Are you sure all depdendencies have been added to the input jar?");
   }
 
   private void addToQueue(SootClass soot_class, List<String> queue){

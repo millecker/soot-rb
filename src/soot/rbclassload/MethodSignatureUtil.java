@@ -209,8 +209,7 @@ public class MethodSignatureUtil {
 
   public SootMethod getSootMethod(){
     MethodFieldFinder finder = new MethodFieldFinder();
-    List<SootMethod> methods = finder.findMethod(getSignature());
-    return methods.get(0);
+    return finder.findMethod(getSignature());
   }
 
   public String getSignature(){

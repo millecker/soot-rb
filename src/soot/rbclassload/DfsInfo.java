@@ -244,16 +244,26 @@ public class DfsInfo {
   /**
    *  Get List<NumberedTypes> that are super types of soot_class
    */
-  public List<NumberedType> getNumberedHierarchyDown(SootClass soot_class){
+  public List<NumberedType> getNumberedHierarchyUp(SootClass soot_class){
+    List<NumberedType> ret = new ArrayList<NumberedType>();
+
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
-    HierarchyGraph hgraph = class_hierarchy.getHierarchyGraph(soot_class);
-    Set<String> parents = hgraph.getParents(soot_class.getName());
-    System.out.println("DfsInfo.getNumberedHierarchyDown: "+soot_class.getName());
-    for(String parent : parents){
-      System.out.println("  "+parent);
+
+    LinkedList<String> queue = new LinkedList<String>();
+    queue.add(soot_class.getName());
+    
+    while(!queue.isEmpty()){
+      String curr_class = queue.removeFirst();
+      NumberedType ntype = class_hierarchy.getNumberedType(curr_class);
+      ret.add(ntype);
+
+      SootClass curr_soot_class = Scene.v().getSootClass(curr_class);
+      if(curr_soot_class.hasSuperclass()){
+        queue.add(curr_soot_class.getSuperclass().getName());
+      }
     }
-    System.exit(0);
-    return null;
+
+    return ret;
   }
 
 }
