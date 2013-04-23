@@ -125,15 +125,30 @@ public class ClassHierarchy {
           continue;
         }
 
-        if(hclass.hasSuperClass()){
-          String super_class = hclass.getSuperClass();
-          hgraph.addSuperClass(curr_class, super_class);
-          queue.add(super_class);
-        }
+        if(hclass.isInterface()){
+          if(hclass.getInterfaces().isEmpty()){
+            if(hclass.hasSuperClass()){
+              String super_class = hclass.getSuperClass();
+              hgraph.addSuperClass(curr_class, super_class);
+              queue.add(super_class);
+            }
+          } else {
+            for(String iface : hclass.getInterfaces()){
+              hgraph.addInterface(curr_class, iface);
+              queue.add(iface);
+            }
+          }
+        } else {
+          if(hclass.hasSuperClass()){
+            String super_class = hclass.getSuperClass();
+            hgraph.addSuperClass(curr_class, super_class);
+            queue.add(super_class);
+          }
 
-        for(String iface : hclass.getInterfaces()){
-          hgraph.addInterface(curr_class, iface);
-          queue.add(iface);
+          for(String iface : hclass.getInterfaces()){
+            hgraph.addInterface(curr_class, iface);
+            queue.add(iface);
+          }
         }
       }
     }
