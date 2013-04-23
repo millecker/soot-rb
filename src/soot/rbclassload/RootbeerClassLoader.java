@@ -1164,11 +1164,6 @@ public class RootbeerClassLoader {
               break;
             }
 
-            if(entry.getCompressedSize() == -1 && entry.getSize() == -1){
-              //System.out.println("ignoring: "+entry.getName());
-              continue;
-            } 
-
             String name = entry.getName();
             String package_name;
             if(name.endsWith(".class")){
@@ -1183,6 +1178,10 @@ public class RootbeerClassLoader {
                 m_appClasses.add(name);
               }
               HierarchySootClass hierarchy_class = hclassFactory.create(filename, jin);
+              if(hierarchy_class == null){
+                System.out.println("invalid class: "+filename);
+                continue;
+              }
               hierarchy_class.setApplicationClass(app_class);
               m_classHierarchy.put(name, hierarchy_class);
 

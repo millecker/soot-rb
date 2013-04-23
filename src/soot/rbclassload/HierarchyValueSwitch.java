@@ -125,6 +125,10 @@ public class HierarchyValueSwitch {
       }
   
       HierarchySootClass curr_hclass = class_hierarchy.getHierarchySootClass(class_name);
+      if(curr_hclass == null){
+        System.out.println("  curr_hclass == null: "+class_name);
+        continue;
+      }
       if(curr_hclass.hasSuperClass()){
         hierarchy_queue.add(curr_hclass.getSuperClass());
       }
