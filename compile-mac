@@ -1,8 +1,11 @@
 #!/bin/sh
 
 ant classesjar
-cp lib/sootclasses-trunk.jar ../rootbeer1/lib/sootclasses-rbclassload.jar
 
-mvn install:install-file -Dfile=lib/sootclasses-trunk.jar -DgroupId=soot \
+java -jar pack.jar -mainjar lib/sootclasses-trunk.jar -libjar libs/guava-14.0.1.jar -destjar lib/sootclasses-trunk-packed.jar
+
+cp lib/sootclasses-trunk-packed.jar ../rootbeer1/lib/sootclasses-rbclassload.jar
+
+mvn install:install-file -Dfile=lib/sootclasses-trunk-packed.jar -DgroupId=soot \
     -DartifactId=soot -Dversion=rb-1.0 -Dpackaging=jar 
 
