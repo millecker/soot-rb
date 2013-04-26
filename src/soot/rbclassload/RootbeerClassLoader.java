@@ -639,11 +639,9 @@ public class RootbeerClassLoader {
       }      
       if(string_to_type.isArrayType(type_string)){
         type_string = string_to_type.getBaseType(type_string);
-        // Search the base type in the numbered list
-        int index = Lists.find(numbered_types, 
-        		NumberedType.hasEqualType(type_string),
-        		i+1); // Search only after the current item
-    	    if (index != -1) //if the base type is found
+        // Search the base type in the numbered map
+        long number = m_classHierarchy.getNumberForType(type_string);
+    	    if (number != -1) //if the base type is found
           continue; //skip loading base type for keeping the right order
       }
       if(string_to_type.isRefType(type_string) == false){
