@@ -189,6 +189,13 @@ public class ClassHierarchy {
     }
   }
 
+  public long getNumberForType(String type){
+    if(m_numberedTypeMap.containsKey(type)){
+      return m_numberedTypeMap.get(type).getNumber();
+	}
+    return -1;
+  }
+  
   public NumberedType getNumberedType(String str){
     if(m_numberedTypeMap.containsKey(str)){
       return m_numberedTypeMap.get(str);
