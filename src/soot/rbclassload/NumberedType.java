@@ -23,7 +23,7 @@
 
 package soot.rbclassload;
 
-import soot.Type;
+import com.google.common.base.Predicate;
 
 public class NumberedType implements Comparable<NumberedType> {
 
@@ -51,5 +51,14 @@ public class NumberedType implements Comparable<NumberedType> {
   public String toString(){
     String ret = "NumberedType: ["+m_number+", "+m_type.toString()+"]";
     return ret;    
+  }
+  
+  public static Predicate<NumberedType> hasEqualType(final String type) {
+    return new Predicate<NumberedType>(){
+    	  @Override
+      public boolean apply(NumberedType item) {
+        return item.getType().equals(type); 
+      }
+	};
   }
 }

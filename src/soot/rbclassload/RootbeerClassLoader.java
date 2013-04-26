@@ -23,63 +23,38 @@
 
 package soot.rbclassload;
 
-import soot.G;
-import soot.Singletons;
-import soot.SourceLocator;
-import soot.SootMethod;
-import soot.SootMethodRef;
-import soot.SootField;
-import soot.SootFieldRef;
-import soot.SootClass;
-import soot.SootResolver;
-import soot.ClassSource;
-import soot.CoffiClassSource;
-import soot.Scene;
-import soot.Type;
-import soot.ArrayType;
-import soot.RefType;
-import soot.options.Options;
-import soot.jimple.Stmt;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.jimple.toolkits.callgraph.Edge;
-import soot.Pack;
-import soot.PackManager;
-import soot.Body;
-import soot.util.Chain;
-import soot.ValueBox;
-import soot.Value;
-import soot.Unit;
-import soot.jimple.NewExpr;
-import soot.jimple.NewArrayExpr;
-import soot.jimple.InstanceInvokeExpr;
-import soot.jimple.InvokeExpr;
-import soot.jimple.InvokeStmt;
-
-import java.util.List;
-import java.util.LinkedList;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Collection;
-import java.util.Iterator;
-
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-
-import soot.PointsToAnalysis;
-import soot.PointsToSet;
-import soot.PatchingChain;
-import soot.Local;
 
 import org.apache.commons.io.input.CountingInputStream;
+
+import soot.Body;
+import soot.ClassSource;
+import soot.CoffiClassSource;
+import soot.G;
+import soot.Scene;
+import soot.Singletons;
+import soot.SootClass;
+import soot.SootField;
+import soot.SootMethod;
+import soot.SourceLocator;
+import soot.Type;
 import soot.coffi.HierarchySootClassFactory;
+
+import com.google.common.collect.Iterables;
 
 public class RootbeerClassLoader {
 
@@ -665,6 +640,11 @@ public class RootbeerClassLoader {
       }      
       if(string_to_type.isArrayType(type_string)){
         type_string = string_to_type.getBaseType(type_string);
+        // Search the base type in the numbered list
+        int index = Iterables.indexOf(numbered_types, 
+        		NumberedType.hasEqualType(type_string));
+    	    if (index != -1) //if the base type is found
+          continue; //skip loading base type for keeping the right order
       }
       if(string_to_type.isRefType(type_string) == false){
         continue;
