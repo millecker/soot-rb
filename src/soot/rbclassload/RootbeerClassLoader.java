@@ -54,7 +54,6 @@ import soot.SourceLocator;
 import soot.Type;
 import soot.coffi.HierarchySootClassFactory;
 
-import com.google.common.collect.Iterables;
 
 public class RootbeerClassLoader {
 
@@ -633,16 +632,17 @@ public class RootbeerClassLoader {
     StringToType string_to_type = new StringToType();
     List<NumberedType> numbered_types = m_classHierarchy.getNumberedTypes();
     Set<String> visited_classes = new HashSet<String>();
-    for(NumberedType ntype : numbered_types){
-      String type_string = ntype.getType();
+    for(int i=0; i<numbered_types.size(); i++){
+      String type_string = numbered_types.get(i).getType();
       if(string_to_type.isRefType(type_string) == false){
         continue;
       }      
       if(string_to_type.isArrayType(type_string)){
         type_string = string_to_type.getBaseType(type_string);
         // Search the base type in the numbered list
-        int index = Iterables.indexOf(numbered_types, 
-        		NumberedType.hasEqualType(type_string));
+        int index = Lists.find(numbered_types, 
+        		NumberedType.hasEqualType(type_string),
+        		i+1); // Search only after the current item
     	    if (index != -1) //if the base type is found
           continue; //skip loading base type for keeping the right order
       }

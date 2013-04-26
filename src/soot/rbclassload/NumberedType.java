@@ -23,7 +23,8 @@
 
 package soot.rbclassload;
 
-import com.google.common.base.Predicate;
+import soot.rbclassload.Lists.Predicate;
+
 
 public class NumberedType implements Comparable<NumberedType> {
 
