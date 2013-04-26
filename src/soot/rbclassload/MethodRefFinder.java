@@ -38,7 +38,7 @@ public class MethodRefFinder {
   }
           
   public List<String> find(String curr_signature) {
-    List<SootMethod> methods = m_methodFieldFinder.findMethod(curr_signature);
+    List<SootMethod> methods = (List<SootMethod>) m_methodFieldFinder.findMethod(curr_signature);
     SootMethod curr = methods.get(0);
     List<String> ret = new ArrayList<String>();
     if(curr == null || curr.isConcrete() == false){
