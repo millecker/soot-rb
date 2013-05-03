@@ -25,24 +25,35 @@ package soot.coffi;
 
 public class ConstantPoolReader {
 
+  public String convertClass(String class_name){
+    if(class_name.startsWith("[")){
+      return parseDesc(class_name);
+    } else {
+      return class_name.replace('/','.');
+    }
+  }
+
   public String get(int index, cp_info[] constant_pool){
     cp_info entry = constant_pool[index];
     if(entry instanceof CONSTANT_Class_info){
       CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
       String class_name = get(class_info.name_index, constant_pool);
-      return class_name.replace('/','.');
+      return convertClass(class_name);
     } else if(entry instanceof CONSTANT_Methodref_info){
       CONSTANT_Methodref_info methodref_info = (CONSTANT_Methodref_info) entry;
       String class_name = get(methodref_info.class_index, constant_pool);
+      class_name = convertClass(class_name);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Utf8_info){
       CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) entry;
-      return utf8_info.convert();
+      String str = utf8_info.convert();
+      return str;
     } else if(entry instanceof CONSTANT_Fieldref_info){ 
       CONSTANT_Fieldref_info fieldref_info = (CONSTANT_Fieldref_info) entry;
-      String class_name = get(fieldref_info.class_index, constant_pool);
+      String class_name = get(fieldref_info.class_index, constant_pool);      
+      class_name = convertClass(class_name);
       String type = getNameAndTypeInfo(fieldref_info.name_and_type_index, 
         constant_pool, false);
       return "<"+class_name+": "+type+">";
@@ -51,10 +62,10 @@ public class ConstantPoolReader {
       return get(string_info.string_index, constant_pool);
     } else if(entry instanceof CONSTANT_InterfaceMethodref_info){
       CONSTANT_InterfaceMethodref_info methodref_info = (CONSTANT_InterfaceMethodref_info) entry;
-      String class_name = get(methodref_info.class_index, constant_pool);
+      String class_name = get(methodref_info.class_index, constant_pool);      
+      class_name = convertClass(class_name);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
-      class_name = parseDesc(class_name);
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Integer_info){
       CONSTANT_Integer_info integer_info = (CONSTANT_Integer_info) entry;
