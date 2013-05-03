@@ -30,20 +30,12 @@ public class ConstantPoolReader {
     if(entry instanceof CONSTANT_Class_info){
       CONSTANT_Class_info class_info = (CONSTANT_Class_info) entry;
       String class_name = get(class_info.name_index, constant_pool);
-      class_name = parseDesc(class_name);
-      if(class_name.startsWith("[")){
-        throw new RuntimeException("hello");
-      }
-      return class_name;
+      return class_name.replace('/','.');
     } else if(entry instanceof CONSTANT_Methodref_info){
       CONSTANT_Methodref_info methodref_info = (CONSTANT_Methodref_info) entry;
       String class_name = get(methodref_info.class_index, constant_pool);
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
-      class_name = parseDesc(class_name);
-      if(class_name.startsWith("[")){
-        throw new RuntimeException("hello");
-      }
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Utf8_info){
       CONSTANT_Utf8_info utf8_info = (CONSTANT_Utf8_info) entry;
@@ -53,10 +45,6 @@ public class ConstantPoolReader {
       String class_name = get(fieldref_info.class_index, constant_pool);
       String type = getNameAndTypeInfo(fieldref_info.name_and_type_index, 
         constant_pool, false);
-      class_name = parseDesc(class_name);
-      if(class_name.startsWith("[")){
-        throw new RuntimeException("hello");
-      }
       return "<"+class_name+": "+type+">";
     } else if(entry instanceof CONSTANT_String_info){
       CONSTANT_String_info string_info = (CONSTANT_String_info) entry;
@@ -67,9 +55,6 @@ public class ConstantPoolReader {
       String subsig = getNameAndTypeInfo(methodref_info.name_and_type_index, 
         constant_pool, true);
       class_name = parseDesc(class_name);
-      if(class_name.startsWith("[")){
-        throw new RuntimeException("hello");
-      }
       return "<"+class_name+": "+subsig+">";
     } else if(entry instanceof CONSTANT_Integer_info){
       CONSTANT_Integer_info integer_info = (CONSTANT_Integer_info) entry;
