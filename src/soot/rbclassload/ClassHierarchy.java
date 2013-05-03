@@ -125,15 +125,30 @@ public class ClassHierarchy {
           continue;
         }
 
-        if(hclass.hasSuperClass()){
-          String super_class = hclass.getSuperClass();
-          hgraph.addSuperClass(curr_class, super_class);
-          queue.add(super_class);
-        }
+        if(hclass.isInterface()){
+          if(hclass.getInterfaces().isEmpty()){
+            if(hclass.hasSuperClass()){
+              String super_class = hclass.getSuperClass();
+              hgraph.addSuperClass(curr_class, super_class);
+              queue.add(super_class);
+            }
+          } else {
+            for(String iface : hclass.getInterfaces()){
+              hgraph.addInterface(curr_class, iface);
+              queue.add(iface);
+            }
+          }
+        } else {
+          if(hclass.hasSuperClass()){
+            String super_class = hclass.getSuperClass();
+            hgraph.addSuperClass(curr_class, super_class);
+            queue.add(super_class);
+          }
 
-        for(String iface : hclass.getInterfaces()){
-          hgraph.addInterface(curr_class, iface);
-          queue.add(iface);
+          for(String iface : hclass.getInterfaces()){
+            hgraph.addInterface(curr_class, iface);
+            queue.add(iface);
+          }
         }
       }
     }
@@ -174,6 +189,13 @@ public class ClassHierarchy {
     }
   }
 
+  public long getNumberForType(String type){
+    if(m_numberedTypeMap.containsKey(type)){
+      return m_numberedTypeMap.get(type).getNumber();
+	}
+    return -1;
+  }
+  
   public NumberedType getNumberedType(String str){
     if(m_numberedTypeMap.containsKey(str)){
       return m_numberedTypeMap.get(str);

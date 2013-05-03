@@ -23,7 +23,6 @@
 
 package soot.rbclassload;
 
-import soot.Type;
 
 public class NumberedType implements Comparable<NumberedType> {
 
