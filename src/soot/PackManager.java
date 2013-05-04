@@ -331,8 +331,9 @@ public class PackManager {
     public void runPacks() {
     	if(Options.v().oaat())
     		runPacksForOneClassAtATime();
-    	else
+    	else {
     		runPacksNormally();
+    	}
     }
 
 	private void runPacksForOneClassAtATime() {
@@ -350,6 +351,9 @@ public class PackManager {
 				runBodyPacks(clazz);
 				//generate output
 				writeClass(clazz);
+            }
+            for (String cl : SourceLocator.v().getClassesUnder(path)) {            	
+                SootClass clazz = Scene.v().forceResolve(cl, SootClass.BODIES);
 				releaseBodies(clazz);
 				Scene.v().removeClass(clazz);
             }
