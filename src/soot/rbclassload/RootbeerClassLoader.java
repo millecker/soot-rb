@@ -312,6 +312,7 @@ public class RootbeerClassLoader {
     }
 
     Scene.v().loadDynamicClasses();
+
   }
  
   public void setLoaded(){
@@ -762,11 +763,13 @@ public class RootbeerClassLoader {
     }
 
     System.out.println("adding method bodies...");
+    Set<String> all_classes = new HashSet<String>(all_sigs.size()/3); //Don't allocate it too big
     //add method bodies
     for(String signature : all_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
+      all_classes.add(class_name);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
@@ -794,6 +797,7 @@ public class RootbeerClassLoader {
       body = fixer.fixup(body);
       soot_method.setActiveBody(body);
     }
+    G.v().out.println("Total loaded classes: " + all_classes.size());
   }
 
   private HierarchyValueSwitch getValueSwitch(String signature){
