@@ -123,6 +123,11 @@ public class HierarchyValueSwitch {
       if(m_stringToType.isRefType(class_name) == false){
         continue;
       }
+
+      Set<String> existing_news = RootbeerClassLoader.v().getNewInvokes();
+      if(existing_news.contains(class_name) == false){
+        continue;
+      }
   
       HierarchySootClass curr_hclass = class_hierarchy.getHierarchySootClass(class_name);
       if(curr_hclass == null){
