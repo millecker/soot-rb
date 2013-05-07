@@ -402,7 +402,22 @@ public class RootbeerClassLoader {
 
       HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
-        continue;
+    	    // Method seems to be virtual
+        // Check if concrete implementation is available
+    	    try {
+    	      String signature = util.getSootMethod().getSubSignature();
+    	      // Check if SootMethod signature does not match the missing virtual one
+    	      if (!signature.equals(bfs_entry)) {
+            if(dontFollow(signature)){
+              continue;
+            }
+            // Add concrete implementation of virtual method
+            m_cgMethodQueue.add(signature);
+          }
+    	    } catch (RuntimeException e){
+    	      // Concrete method not found, do nothing, continue anyway!
+    	    }
+         continue;
       }
 
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
@@ -645,6 +660,8 @@ public class RootbeerClassLoader {
       }
       visited_classes.add(type_string);
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(type_string);
+      if (hclass==null)
+    	    System.out.println("cannot find class: "+hclass);
       SootClass empty_class = new SootClass(type_string, hclass.getModifiers());
       Scene.v().addClass(empty_class);
       if(hclass.isApplicationClass()){
