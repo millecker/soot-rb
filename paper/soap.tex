@@ -3,8 +3,25 @@
 \usepackage{amsmath}
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
+\usepackage{tabularx}
 
 \begin{document}
+
+% From http://en.wikibooks.org/wiki/LaTeX/Source_Code_Listings
+\lstset{
+  basicstyle=\footnotesize\tt,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  language=Java,                 % the language of the code
+  keywordstyle=\bf,
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  tabsize=2                       % sets default tabsize to 2 spaces
+}
 
 \conferenceinfo{SOAP '13}{June 20th 2013, Seattle, Washington, USA } 
 \copyrightyear{2013} 
@@ -56,17 +73,75 @@ Algorithms, Performance, Design
 class loading; Soot; Java Bytecode
 
 \section{Introduction}
-\ref{sec:intro}
-Existing class loading in Soot \cite{soot-retro, soot-orig} can require lots of time and memory when using whole-program optimization. The current algorithm in Soot will load many classes that would never be needed in a program's execution. Loading all of these extra classes can make analysis impractical on some systems. In addition, many uses face problems finding all dependent classes reachable when using the existing class loader. This paper describes a new class loading algorithm and the required data structures to improve the existing design. The general strategy for the new class loading algorithm is to keep class names, field signatures and method signatures as pure strings for as long as possible. Then, once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy. The root Java Object class is numbered as one and subclasses and interfaces are numbered in ascending order. Once the types are numbered it is straightforward to load a minimal Scene. We will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section 3, we will discuss the new class loading algorithm in detail followed by the required API added to Soot in section 4. In section 5 we show the benefits of our approach as implemented in the Rootbeer GPU Compiler\cite{rootbeer} and notably that our whole-program analysis can be done in under four gigabytes of ram and within two minutes. Finally we will discuss future work, bring concluding remakes and thank the sponsors of our work.
+\label{sec:intro}
+Class loading in Soot \cite{soot-retro, soot-orig} can require significant time and memory when using whole-program optimization. 
+The current algorithm loads class bodies transitively from the entry point. Every class that is transitively referenced from the entry point will be loaded, irrespective of whether it belongs to a legitimate program execution or not. This results in a large memory footprint for analysing even small programs, making some analyses impossible on lower-end systems.
 
-\section{Soot Class Loading}
-\ref{sec:soot-cl}
-The original Soot class loading algorithm has three basic resolving levels: Hierarchy, Signatures and Bodies. As the level of a class progresses from Hierarchy to Bodies, more and more details are available. Table 1 shows the information added at each resolving level. The original class loading algorithm works well for hierarchy, but signatures and bodies can be improved. When loading to signatures all of the methods in the SootClass are raised to SootMethods and the types in the method signatures are resolved to Hierarchy. Often a whole-program analysis is only interested in the methods and classes reachable from an entry point. Loading all of these types to Hierarchy wastes a lot of time and space and the new class loader can help with this issue because it only loads reachable types. Loading to bodies has a similar problem because all of the types in the class constant pool are raised to Signatures causing unnecessary loads.
+To illustrate this issue, we introduce a running example in Listing \ref{lst:runningexample}.
+
+\begin{lstlisting}[caption={Running example},label={lst:runningexample},float=!ht]
+public class A {
+  public static void main(String[] args){
+    B b = new B();
+    b.foo();
+  }
+}
+public class B {
+  public void foo(){
+    C c = new C();
+    c.abc();
+  }
+  public void bar(){
+    D d = new D();
+    d.abc();
+  }
+}
+public class C {
+  public void abc(){
+    System.out.println("In class C");}
+}
+public class D {
+  public void abc(){
+    System.out.println("In class D");}
+}
+\end{lstlisting}
+
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \texttt{SootClass} objects and represents 53870 \texttt{SootMethod} objects. %Do we add more, like Body or Unit?
+
+This paper describes a new class loading algorithm and the required data structures to only load the set of classes that would be needed during program execution. Our strategy is to gather information from the Coffi bytecode representation without creating the Soot internal objects, while we build an over-approximate call graph. Once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy and we load a minimal Scene.
+
+We have implemented this scheme in the \textsc{Rootbeer} GPU Compiler \cite{rootbeer}. 
+
+The contents are organized as follows. In section \ref{sec:new-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \textsc{Rootbeer} in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
+
+%TODO merge some of  that in the introduction ?
+\section{Soot Whole-Program Class Loading}
+\label{sec:soot-cl}
+
+The original Soot class loading algorithm has three basic resolving levels: Hierarchy, Signatures and Bodies. As the level of a class progresses from Hierarchy to Bodies, additional details are loaded from the class files to memory. Table \ref{tbl:resolving_levels} shows the information added at each resolving level. 
+
+\begin{table}
+\begin{tabularx}{\columnwidth}{|l|X|}
+\hline
+\textbf{Resolving Level} & \textbf{Information Loaded / Objects Created} \\\hline
+Hierarchy & The class, its superclass and interfaces as {\tt SootClass} objects. \\\hline
+Signatures & {\tt SootMethod} objects, including method name as well as return, parameter and exception types. Types are loaded as {\tt SootClass} and {\tt Type} objects. \\\hline
+Bodies & Bytecode instructions that have been raised to Baf, Jimple or Shimple. This requires referenced types to be resolved. \\\hline
+\end{tabularx}
+\caption{Resolving levels in Soot}
+\label{tbl:resolving_levels}
+\end{table}
+
+
+%TODO describe the algorithm used in Soot with a bit more details while tracing what would happen on the running example.
+
+The original class loading algorithm works well for hierarchy, but signatures and bodies can be improved. When loading to signatures all of the methods in the SootClass are raised to SootMethods and the types in the method signatures are resolved to Hierarchy. 
+Often a whole-program analysis is only interested in the methods and classes reachable from an entry point. Loading all of these types to Hierarchy wastes a lot of time and space and the new class loader can help with this issue because it only loads reachable types. Loading to bodies has a similar problem because all of the types in the class constant pool are raised to Signatures causing unnecessary loads.
+
 
 \section{New Class Loading}
-\ref{sec:new-cl}
-\subsection{Overall Strategy}
-As discussed in the introduction, the new class loading strategy is to keep class names, method/field signatures and method bodies as strings for as long as possible and the SootClasses, SootMethods, SootFields and Bodies are created once the types are numbered. The entry point to our class loader is loadNecessaryClasses and is shown in Figure 1 below. Each step of the algorithm is discussed in its own section.
+\label{sec:new-cl}
+Our class loading strategy is to keep class names, method bodies as well as method and field signatures as strings for as long as possible. The {\tt SootClass}, {\tt SootMethod}, {\tt SootField} and {\tt Body} objects are only created once the types are numbered. The entry point to our class loader is {\tt loadNecessaryClasses} and is shown in Figure 1 below. Each step of the algorithm is discussed in its own section.
 
 \subsection{Load HierarchyClasses}
 The first step of the algorithm reads every class given to Soot from the command line using a HierarchyClassFactory. This class takes a coffi.ClassFile and converts the constant pool indices for the current class, super class and interfaces into a string representation. Then a HierarchyClass is made that holds these strings and the coffi.ClassFile. The HierarchyClasses are saved in the ClassHierarchy inside a Map<String, HierarchyClass>.
@@ -118,7 +193,7 @@ Next methods are created without bodies. This is because the SootClassess, SootF
 Finally each method body is created using CoffiMethodSource and added to its corresponding SootMethod and class loading is complete.
 
 \section{New API}
-\ref{sec:api}
+\label{sec:api}
 To create the Rootbeer class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the Rootbeer class loader.
 
 The RootbeerClassLoader is a singleton with the entry point to class loading (loadNecessaryClasses). You can configure the entry points by adding a MethodTester.
@@ -147,7 +222,7 @@ The StringCallGraph keeps a mapping of edges going out of a method signature and
 There are two remaining useful classes in the soot.rbclassload package. MethodSignatureUtil can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a SootMethod can be returned. FieldSignatureUtil can parse a field signature and return its parts. Also any part of a field signature can be modified and a SootField can be returned.
 
 \section{Evaluation}
-\ref{sec:eval}
+\label{sec:eval}
 To evaluate the class loader we loaded the Scene needed for the ArrayListTest in Rootbeer. ArrayListTest goes into the java.util.ArrayList and creates Java Bytecode that can (de)serialize its internal state to/from GPU memory.
 
 On a 4 core Intel Xeon Processor (E5405) running at 2.00GHz the class loading required 1.6 GB of RAM and required 1 minute and 24 seconds to run. 
@@ -155,13 +230,13 @@ On a 4 core Intel Xeon Processor (E5405) running at 2.00GHz the class loading re
 Work is on-going to fix small bugs in the class loader and a pull-request will be made from the feature/rbclassload branch on github when it is done.
 
 \section{Future Work}
-\ref{sec:future}
+\label{sec:future}
 There are two aspects of future work that the Rootbeer GPU Compiler is interested in working on. First, parallel cpu threads will be used to try and accelerate class loading. Second, a project named Jimple Web Cache may be created.
 
 The Jimple Web Cache project aims to host a server online that can serve string based Jimple Bodies and StringCallGraphs. It will take an rt.jar (Java Runtime Jar) from the client and if it does not have a jar with the same name and md5 sum, it will cache the entire call graph of the archive in a MongoDB database along with the string based Jimple bodies. A user will be able to query to retrieve a call graph or Jimple body from an entry point method signature.
 
 \section{Conclusion}
-\ref{sec:conclusion}
+\label{sec:conclusion}
 We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 2 minutes time when doing whole-program analysis from an entry point.
 
 \appendix
@@ -170,7 +245,6 @@ We have shown data structures and algorithms to efficiently load a Soot Scene in
 This is the text of the appendix, if you need one.
 
 \acks
-
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
 
 % We recommend abbrvnat bibliography style.
