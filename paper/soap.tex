@@ -118,26 +118,38 @@ The contents are organized as follows. In section \ref{sec:new-cl}, we will firs
 \section{Soot Whole-Program Class Loading}
 \label{sec:soot-cl}
 
-The original Soot class loading algorithm has three basic resolving levels: Hierarchy, Signatures and Bodies. As the level of a class progresses from Hierarchy to Bodies, additional details are loaded from the class files to memory. Table \ref{tbl:resolving_levels} shows the information added at each resolving level. 
+The original Soot class loading algorithm has three basic resolving levels: Hierarchy, Signatures and Bodies. As the level of a class progresses from Hierarchy to Bodies, additional details are loaded from the class files to memory. Table \ref{tbl:resolving_levels} summarizes the information added at each resolving level. 
 
 \begin{table}
 \begin{tabularx}{\columnwidth}{|l|X|}
 \hline
-\textbf{Resolving Level} & \textbf{Information Loaded / Objects Created} \\\hline
-Hierarchy & The class, its superclass and interfaces as {\tt SootClass} objects. \\\hline
-Signatures & {\tt SootMethod} objects, including method name as well as return, parameter and exception types. Types are loaded as {\tt SootClass} and {\tt Type} objects. \\\hline
-Bodies & Bytecode instructions that have been raised to Baf, Jimple or Shimple. This requires referenced types to be resolved. \\\hline
+\textbf{Resolving Level} & \textbf{Associated Information} \\\hline
+Dandling  & Nothing is known about the class, except its fully-qualified name.\\\hline
+Hierarchy & The class, its superclass and interfaces are loaded. \\\hline
+Signatures & Hierarchy information, as well as types declared in method signatures and fields. \\\hline
+Bodies & Signatures information, as well as the classes referenced in the method bodies. \\\hline
 \end{tabularx}
 \caption{Resolving levels in Soot}
 \label{tbl:resolving_levels}
 \end{table}
 
+We now describe the class loading algorithm with more details, without including information related to phantom reference support\footnote{Phantom references are classes that are not resolved, either because they are not found in the class path, or have been excluded.}.
+The Soot resolver will work incrementally in the Scene, by means of a worklist\footnote{There are four worklists, but their behavior is identical in whole-program mode, so we merge them as one for simplicity}, by loading each class and its dependencies, one at a time.
 
-%TODO describe the algorithm used in Soot with a bit more details while tracing what would happen on the running example.
+Note that the steps below are repeated for every class in the process path and every basic class. Please note also that every step has an early termination feature if the class is determined to be at the given level already.
 
-The original class loading algorithm works well for hierarchy, but signatures and bodies can be improved. When loading to signatures all of the methods in the SootClass are raised to SootMethods and the types in the method signatures are resolved to Hierarchy. 
-Often a whole-program analysis is only interested in the methods and classes reachable from an entry point. Loading all of these types to Hierarchy wastes a lot of time and space and the new class loader can help with this issue because it only loads reachable types. Loading to bodies has a similar problem because all of the types in the class constant pool are raised to Signatures causing unnecessary loads.
+The algorithm is initialized in the {\tt resolveClass} method with an empty {\tt SootClass} container object at the Dandling level. This empty container is then added to the desired resolving level.
 
+In the first phase, Soot loads the class to the hierarchy level. First, the class source (Coffi, Jimple, etc.) is loaded into the {\tt SootClass} object.
+The {\tt SootClass} objects of the outer class, the super class and the interfaces are added to the worklist. The corresponding {\tt Type} instances are created and stored for later use.
+
+In the second phase, Soot loads the class to the signature level. It does so by examining the hierarchy anew, the methods signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
+
+In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body. Soot uses the information stored as {\tt Type} in the first step and adds it all to the worklist.
+
+The weakness of this algorithm is its all-or-nothing nature. It loads all the classes that are reachable from the basic classes and the processable classes, irrespective of whether they would be used in the program or not.
+
+%TODO add what happens in our running example.
 
 \section{New Class Loading}
 \label{sec:new-cl}
