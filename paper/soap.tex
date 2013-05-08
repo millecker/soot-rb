@@ -4,6 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{listings}
 \usepackage{tabularx}
+\usepackage{url}
 
 \begin{document}
 
@@ -38,7 +39,7 @@
            {pcpratts@syr.edu}
 
 \authorinfo{Marc-André Laverdière}
-           {TCS Innovation Labs, Tata Consultancy Services\\\&\\
+           {TCS Innovation Labs,\\Tata Consultancy Services, Ltd.\\\&\\
 			École Polytechnique de Montréal\\
 			Montréal, Canada}
            {marc-andre.laverdiere-papineau@polymtl.ca}
@@ -235,11 +236,32 @@ There are two remaining useful classes in the soot.rbclassload package. MethodSi
 
 \section{Evaluation}
 \label{sec:eval}
-To evaluate the class loader we loaded the Scene needed for the ArrayListTest in Rootbeer. ArrayListTest goes into the java.util.ArrayList and creates Java Bytecode that can (de)serialize its internal state to/from GPU memory.
 
-On a 4 core Intel Xeon Processor (E5405) running at 2.00GHz the class loading required 1.6 GB of RAM and required 1 minute and 24 seconds to run. 
+We have implemented our algorithm inside the \textsc{Rootbeer}-specific fork of Soot. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
 
-Work is on-going to fix small bugs in the class loader and a pull-request will be made from the feature/rbclassload branch on github when it is done.
+We have evaluated our implementation with the Soot class loader in the development branch at the time of writing.
+
+%TODO put in the specs
+We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
+
+Our test cases include our running example, and parts of the \textsc{Rootbeer} test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded {\tt SootClass} objects.
+
+
+
+\begin{table*}[!h]
+\begin{tabularx}{\textwidth}{|l|l|X|X|l|}
+\hline
+\textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\texttt{SootClass} Memory (Mb)}& \textbf{Time (s)} \\\hline
+Running example (Soot) & &&  &  \\\hline
+Running example (RBC) &  &&  &  \\\hline
+\textsc{Rootbeer} tests (Soot) && & & \\\hline
+\textsc{Rootbeer} tests (RBC) && & & \\\hline
+\end{tabularx}
+\caption{Experimental results}
+\label{tbl:results}
+\end{table*}
+
+We report our results in Table \ref{tbl:results}. We 
 
 \section{Future Work}
 \label{sec:future}
