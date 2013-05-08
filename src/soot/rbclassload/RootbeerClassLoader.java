@@ -402,7 +402,22 @@ public class RootbeerClassLoader {
 
       HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
-        continue;
+    	    // Method seems to be virtual
+        // Check if concrete implementation is available
+    	    try {
+    	      String signature = util.getSootMethod().getSubSignature();
+    	      // Check if SootMethod signature does not match the missing virtual one
+    	      if (!signature.equals(bfs_entry)) {
+            if(dontFollow(signature)){
+              continue;
+            }
+            // Add concrete implementation of virtual method
+            m_cgMethodQueue.add(signature);
+          }
+    	    } catch (RuntimeException e){
+    	      // Concrete method not found, do nothing, continue anyway!
+    	    }
+         continue;
       }
 
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
@@ -764,14 +779,8 @@ public class RootbeerClassLoader {
     }
 
     System.out.println("adding method bodies...");
-    Set<String> loadedMethods = new HashSet<String>();
     //add method bodies
     for(String signature : all_sigs){
-    	  // Check if method was already loaded
-      if(loadedMethods.contains(signature)){
-        continue;
-      }
-     	      
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
@@ -783,41 +792,7 @@ public class RootbeerClassLoader {
 
       HierarchySootMethod method = hclass.findMethodBySubSignature(util.getSubSignature());
       if(method == null){
-    	    // Method seems to be virtual
-        // Check if concrete implementation is available
-  	    try {
-  	      String concreteSignature = util.getSootMethod().getSignature();
-  	      
-  	      // Check if SootMethod signature does not match the missing virtual one
-  	      // and was not loaded before
-  	      if ((concreteSignature.equals(util.getSignature())) || 
-  	    		  (loadedMethods.contains(concreteSignature)) ){
-  	    	    continue;
-  	      }
-
-  	      if(dontFollow(concreteSignature)){
-            continue;
-          }
-  	      // Try to load concrete method
-          // Replace virtual method with concrete method
-          signature = concreteSignature;
-          util.parse(signature);
-          class_name = util.getClassName();
-          
-          hclass = m_classHierarchy.getHierarchySootClass(class_name);
-          if(hclass == null){
-            continue;
-          } 
-          
-          method = hclass.findMethodBySubSignature(util.getSubSignature());
-          if(method == null){
-            continue;
-          }
-          
-  	    } catch (RuntimeException e){
-  	      // Concrete method not found
-  	    	  continue;
-  	    }
+        continue;
       }
       
       SootClass soot_class = Scene.v().getSootClass(class_name);
@@ -835,7 +810,6 @@ public class RootbeerClassLoader {
       SpecialInvokeFixup fixer = new SpecialInvokeFixup();
       body = fixer.fixup(body);
       soot_method.setActiveBody(body);
-      loadedMethods.add(signature);
     }
   }
 
