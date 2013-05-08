@@ -447,6 +447,10 @@ public class ClassHierarchy {
     return m_hierarchyGraphs.get(class_name);
   }
 
+  public void addVirtualMethod(String signature, List<String> path){
+	m_virtualMethodSignatures.put(signature, path);
+  }
+  
   public List<String> getVirtualMethods(String signature){
     MethodSignatureUtil util = new MethodSignatureUtil();
     util.parse(signature);
@@ -463,13 +467,13 @@ public class ClassHierarchy {
       return ret;
     }
 
-    Set<String> new_invokes = RootbeerClassLoader.v().getNewInvokes();  
     if(m_virtualMethodSignatures.containsKey(signature) == false){
       //todo: fix this
       //throw new RuntimeException("cannot find virtual signature: "+signature);
       return ret;
     }
 
+    Set<String> new_invokes = RootbeerClassLoader.v().getNewInvokes();  
     List<String> virt_sigs = m_virtualMethodSignatures.get(signature); 
     for(String virt_sig : virt_sigs){
       util.parse(virt_sig);

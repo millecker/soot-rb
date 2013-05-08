@@ -402,28 +402,44 @@ public class RootbeerClassLoader {
 
       HierarchySootMethod hmethod = hclass.findMethodBySubSignature(util.getSubSignature());            
       if(hmethod == null){
-    	    // Method seems to be virtual
-        // Check if concrete implementation is available
-    	    try {
-    	      String signature = util.getSootMethod().getSubSignature();
-    	      // Check if SootMethod signature does not match the missing virtual one
-    	      if (!signature.equals(bfs_entry)) {
-            if(dontFollow(signature)){
-              continue;
-            }
-            // Add concrete implementation of virtual method
-            m_cgMethodQueue.add(signature);
+        // Method seems to be virtual
+        // add it to the ClassHierarchy
+        String curr_sig = util.getSignature();
+        List<String> path = new ArrayList<String>();
+        path.add(curr_sig);
+        m_classHierarchy.addVirtualMethod(curr_sig, path);
+
+        // Get HierarchyGraph for virtual method
+        HierarchyGraph hgraph = m_classHierarchy.getHierarchyGraph(curr_sig);
+        LinkedList<String> parentClasses = new LinkedList<String>(hgraph.getParents(class_name));
+        while(parentClasses.isEmpty() == false){
+          String parentClass = parentClasses.removeFirst();
+          parentClasses.addAll(hgraph.getParents(parentClass));
+              
+          HierarchySootClass parentHClass = m_classHierarchy.getHierarchySootClass(parentClass);
+          if(parentHClass == null){
+            continue;
           }
-    	    } catch (RuntimeException e){
-    	      // Concrete method not found, do nothing, continue anyway!
-    	    }
-         continue;
+          
+          HierarchySootMethod parentHMethod = parentHClass.findMethodBySubSignature(util.getSubSignature());            
+          if(parentHMethod == null){
+            continue;
+          }
+          // Add parent signature of virtual method
+          String trace_sig = parentHMethod.getSignature();
+          m_cgMethodQueue.add(trace_sig);
+          
+          path.add(trace_sig);
+          m_classHierarchy.addVirtualMethod(curr_sig, path);
+        }
+    	  
+        continue;
       }
 
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
-      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);;
+      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
         if(dontFollow(signature)){
           continue;
