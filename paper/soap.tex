@@ -214,9 +214,13 @@ The first step in building a call graph is to determine the entry points. Our cl
 
 Our class loader submits all the methods found in the previous steps to the registered method testers. If any of the testers return true, then this method is considered as an entry point.
 
-We build a call graph using the previously built data structures and the Coffi representation. We perform a fixed-point forward and reverse walk from the entry point(s) to do so. 
-%Number of constructor invocations? Is the algorithm monotonic?
-The fixed point is over the number of constructor invocations found in the bodies of the call graph. This is because virtual methods are resolved in respect to m\_newInvokes. Each time a new constructor invocation is found, additional virtual methods are placed on the call graph and the search includes those new methods. The forward and reverse portions of the algorithm are described in the next two sections.
+We build a call graph using the previously built data structures and the Coffi representation. We perform a fixed-point forward and reverse walk from the entry point(s) to do so. Since our algorithm is monotonic and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of constructor invocations found for determining the fixed point, as this is more economical to use than graph comparison and simpler to implement than many of the options suggested by Lhoták \cite{lhot02}.
+
+%TODO double-check that description.
+During both the forward and backward traversals, we start at the entry point(s) and traverse the known call graph until we reach the leaves. In the leaves, we look for new constructor invocations. For each one found, additional virtual methods are placed on the call graph and the search includes those new methods. 
+%What does that last line actually mean?
+
+The forward and reverse portions of the algorithm are described in the next two sections.
 
 \subsubsection{Load Forward String Call Graph}
 To load the forward string call graph, a breadth first search is done starting at the entry point signature. At each signature the current valid virtual methods are included in the search. A HierarchyValueSwitch is used to load the constructor and method references found in the instructions of the method without loading to Jimple. Figure 6 shows the forward algorithm. 
@@ -240,6 +244,7 @@ Finally each method body is created using CoffiMethodSource and added to its cor
 To create the \rb class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the \rb class loader.
 
 The RootbeerClassLoader is a singleton with the entry point to class loading (loadNecessaryClasses). You can configure the entry points by adding a MethodTester.
+
 
 The ClassHierarchy is reachable from the RootbeerClassLoader singleton. It allows a developer to retrieve the virtual methods for a signature, get a HierarchyGraph for a class name, get a HierarchyClass and get the NumberedTypes.
 
@@ -315,19 +320,22 @@ Philip C. Pratt-Szeliga was supported by Syracuse University and National Scienc
 % We recommend abbrvnat bibliography style.
 
 \bibliographystyle{abbrvnat}
+\bibliography{bib}
 
 % The bibliography should be embedded for final submission.
+%TODO copy-paste the bib output in there
+%\begin{thebibliography}{}
+%\softraggedright
 
-\begin{thebibliography}{}
-\softraggedright
+%\bibitem[1]{soot-retro} Patrick Lam and Eric Bodden and Ondrej Lhotak and Laurie Hendren. The Soot framework for Java program analysis: a retrospective. In: Cetus Users and Compiler Infastructure Workshop (CETUS 2011).
+%\bibitem[2]{rootbeer} Philip C. Pratt-Szeliga, James W. Fawcett, Roy D. Welch. \rb: Seamlessly using GPUs from Java. HPCC-2012.
+%\bibitem[3]{soot-orig} Raja Vallee-Rai and Phong Co and Etienne Gagnon and Laurie Hendren and Patrick Lam and Vijay Sundaresan. Soot - a Java bytecode optimization framework. Proceedings of the 1999 conference of the Centre for Advanced Studies on Collaborative research. 1999. IBM Press.
+%\bibitem[4]{deanetal} Jeffrey Dean and David Grove and Craig Chambers. Optimization of Object-Oriented Programs
+%Using Static Class Hierarchy Analysis, UW CSE Technical Report 94-12-01, 1994
 
-\bibitem[1]{soot-retro} Patrick Lam and Eric Bodden and Ondrej Lhotak and Laurie Hendren. The Soot framework for Java program analysis: a retrospective. In: Cetus Users and Compiler Infastructure Workshop (CETUS 2011).
-\bibitem[2]{rootbeer} Philip C. Pratt-Szeliga, James W. Fawcett, Roy D. Welch. \rb: Seamlessly using GPUs from Java. HPCC-2012.
-\bibitem[3]{soot-orig} Raja Vallee-Rai and Phong Co and Etienne Gagnon and Laurie Hendren and Patrick Lam and Vijay Sundaresan. Soot - a Java bytecode optimization framework. Proceedings of the 1999 conference of the Centre for Advanced Studies on Collaborative research. 1999. IBM Press.
-\bibitem[4]{deanetal} Jeffrey Dean and David Grove and Craig Chambers. Optimization of Object-Oriented Programs
-Using Static Class Hierarchy Analysis, UW CSE Technical Report 94-12-01, 1994
-%% TODO add page numbers on those citations
 
-\end{thebibliography}
+%% TODO get the citatadd page numbers on those citations
+
+%\end{thebibliography}
 
 \end{document}
