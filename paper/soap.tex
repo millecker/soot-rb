@@ -5,10 +5,11 @@
 \usepackage{listings}
 \usepackage{tabularx}
 \usepackage{url}
+\usepackage{xspace} 
 
 \begin{document}
 
-\newcommand{\rb}{\textsc{Rootbeer} }
+\newcommand*{\rb}{\textsc{Rootbeer}\xspace}
 
 % From http://en.wikibooks.org/wiki/LaTeX/Source_Code_Listings
 \lstset{
@@ -194,19 +195,18 @@ The cache of virtual methods is built in two phases. The first phase is a traver
 
 The second phase of the algorithm creates a mapping from a method signature to a list of virtual method signatures. It works by doing a breadth first traversal up the class hierarchy starting at the class hierarchy roots (m\_roots). At each class along the way, it iterates each method and checks if the method signature has been visited. If it has not been visited this means that this is the root class for the specific method. At each root method, a List<String> is created to hold the path and the m\_virtMap is traced from the root HierarchyMethod to the top HierarchyMethod, each time adding the signature to the path and adding the (flyweight) path to the cache. Figure 3 shows this algorithm.
 
-\subsection{Load Follow Strings and ToSignature Strings}
+\subsection{\rb{}-Specific Overrides}
 \label{sec:followtosig}
-The \rb GPU Compiler needs two additional things to work properly. It needs additional roots of the call graph to be configured and needs specific classes or methods to be loaded to signatures. The additional roots are called follow strings and the classes or methods to signatures are called to\_signature strings.
 
-\rb needs follow methods to follow reflection entry points. Follow methods could also be used for Thread.run entry points.
- 
-\rb also does code generation and needs the \rb Runtime to be loaded to signatures so that the generated Jimple code can invoke the runtime methods. The to\_signature strings allow this. 
+The \rb GPU Compiler needs additional information in the loaded {\tt Scene} that would not be present in the classes loaded previously.
 
-The new API also allows for configuration of dont\_follow strings. These act as boundaries in the call graph creation. While such a truncated call graph is unsound, it is often useful in practice.
+Firstly, \rb needs additional classes to be loaded in the class hierarchy. We call these \emph{follow strings}, since they should be treated like the class hierarchy leaves identified previously.
 
-All of these things in this section are configured with MethodTesters and ClassTesters. The follow testers and to\_signature testers are evaluated once to save time. The dont\_follow testers are evaluated each time.
-%TODO merge all this with the other sections that are relevant
+Secondly, \rb needs a mechanism to handle entry points determined by reflection, which \rb uses. These are called \emph{follow methods}. Note that \emph{follow methods} could also be used for to model other non-explicit entry points, such as {\tt Thread.run} entry points.
 
+Thirdly, \rb also does code generation and needs the \rb Runtime to be loaded to signatures so that the generated Jimple code can invoke the runtime methods. The set of \emph{to-signature} method signatures.
+
+All of these things in this section are configured with {\tt MethodTester}s and {\tt ClassTester}s. The \emph{follow strings}, \emph{follow methods} and \emph{to-signature} testers are evaluated once to save time. The dont\_follow testers are evaluated each time. %WHY????
 
 \subsection{StringCallGraph Fixed Point}
 \label{sec:cg}
@@ -219,6 +219,8 @@ We build a call graph using the previously built data structures and the Coffi r
 %TODO double-check that description.
 During both the forward and backward traversals, we start at the entry point(s) and traverse the known call graph until we reach the leaves. In the leaves, we look for new constructor invocations. For each one found, additional virtual methods are placed on the call graph and the search includes those new methods. 
 %What does that last line actually mean?
+
+Note that this traversal can be bounded, resulting in a truncated call graph. While is unsound, it is often useful in practice. The mechanism for evaluating whether to visit a node is called the \emph{don't follow} set.
 
 The forward and reverse portions of the algorithm are described in the next two sections.
 
@@ -243,37 +245,187 @@ Finally each method body is created using CoffiMethodSource and added to its cor
 \label{sec:api}
 To create the \rb class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the \rb class loader.
 
-The RootbeerClassLoader is a singleton with the entry point to class loading (loadNecessaryClasses). You can configure the entry points by adding a MethodTester.
+The {\tt RootbeerClassLoader} is a singleton with the entry point to class loading ({\tt loadNecessaryClasses}). You can configure the entry points by adding a {\tt MethodTester}. Please refer to Figure \ref{fig:rbcl} for the details of the methods offered.
+
+\begin{figure*}
+
+\begin{tabularx}{\textwidth}{|XX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt void loadNecessaryClasses()} &  Load the Scene \\\hline
+{\tt ClassHierarchy getClassHierarchy()} & Get a the class hierarchy data structure\\\hline
+{\tt List<SootMethod> getEntryPoints()} & Get the SootMethod entry points that were specified using the MethodTesters\\\hline
+{\tt void addEntryMethodTester (MethodTester mt)} & Add a MethodTester that will be used to define entry points\\\hline
+{\tt void addFollowMethodTester (MethodTester mt)} & Add a MethodTester that will be used to include methods in the reachable walk\\\hline
+{\tt void addFollowClassTester (ClassTester ct)} & Add a ClassTester that will be used to include classes in the reachable walk\\\hline
+{\tt void addDontFollowMethodTester (MethodTeter mt)} & Add a MethodTester that will stop a reachable walk\\\hline
+{\tt void addDontFollowClassTester (ClassTester ct)} & Add a ClassTester that will stop a reachable walk\\\hline
+{\tt void addToSignaturesMethodTester (MethodTester mt)} & Add a MethodTester that will define methods to be raised to signatures\\\hline
+{\tt void addToSignaturesClassTester (ClassTester ct)} & Add a ClassTester that will define classes to be raised to signatures\\\hline
+\end{tabularx}
+\caption{{\tt RootbeerClassLoader} API}
+\label{fig:rbcl}
+\end{figure*}
 
 
-The ClassHierarchy is reachable from the RootbeerClassLoader singleton. It allows a developer to retrieve the virtual methods for a signature, get a HierarchyGraph for a class name, get a HierarchyClass and get the NumberedTypes.
+The {\tt ClassHierarchy} (see Figure \ref{fig:rbch}) is reachable from the {\tt RootbeerClassLoader} singleton. It allows a developer to retrieve the virtual methods for a signature, get a {\tt HierarchyGraph} for a class name, get a {\tt HierarchyClass} and get the {\tt NumberedTypes}.
 
-The MethodTester interface is designed to be implemented by classes that can tell if a HierarchyMethod meets a criteria.
+\begin{figure*}
+\begin{tabularx}{\textwidth}{|XX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt boolean containsClass(String name)} & Returns true if the 
+    class name is loaded \\\hline
+{\tt List<String> getAllVirtualMethods(String signature)} & 
+    Return the virtual method signatures with the same 
+    covariant subsignature for all classes where new has been 
+    invoked on the string call graph\\\hline
+{\tt HierarchyGraph getHierarchyGraph(String className)} & 
+    Gets a HierarchyGraph for a class name\\\hline
+{\tt HierarchyClass getHierarchyClass(String className)} & 
+    Gets a HierarchyClass for a class name\\\hline 
+{\tt List<NumberedType> getNumberedTypes()} & Get the 
+    numbered types in ascending order\\\hline
+{\tt Set<String> getAllClasses()} & Get all of the classes in the
+    class hierarchy\\\hline
+\end{tabularx}
+\caption{{\tt ClassHierarchy} API}
+\label{fig:rbch}
+\end{figure*}
 
-The ClassTester interface is similar to the MethodTester except it can be used to see if a HierarchyClass meets a class or package criteria. The RootbeerClassLoader calls the ClassTester once per class and the MethodTester once per method.
 
-The HierarchyClass keeps the class name, super class name and interfaces as strings. It can return all of the HierarchyMethods or find them by name or subsignature.
+The {\tt MethodTester} interface is designed to be implemented by classes that can tell if a {\tt HierarchyMethod} meets a criteria. It has a single method, {\tt boolean test(HierarchyMethod sm)}, which returns true if the criterion is met.
 
-The HierarchyMethod keeps the method name, return type, parameter types and exception types as strings. It can return the bytecode instructions of a method as HierarchyInstructions. The HierarchyInstructions are string based representations of the bytecode. The method signature and subsignature can be obtained.
+The {\tt ClassTester} interface is similar to {\tt MethodTester}, except that it can be used to see if a {\tt HierarchyClass} meets a class or package criterion. It has a single method, {\tt boolean test(Hierarchy\-Class sm)}. The {\tt RootbeerClassLoader} calls the {\tt ClassTester} once per class and the {\tt MethodTester} once per method.
+%Not true, because of the don't follow strings
 
-The HierarchyInstruction keeps track of the name of the instruction (like “new”) and the string based Operand.
+The {\tt HierarchyClass} keeps the class name, super class name and interfaces as strings. It can return all of the {\tt HierarchyMethods} or find them by name or sub-signature. Its methods are described in Figure \ref{fig:rbhc}.
 
-The Operand class keeps track of the instruction operand as converted to a string using the class constant pool. It keeps track of a string based type that allows easy searching for class\_refs, method\_refs and field\_refs.
+\begin{figure*}
+\begin{tabularx}{\textwidth}{|XX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt HierarchyMethod getMethodByName(String name)} &  Searches for a 
+    method by name\\\hline
+{\tt HierarchyMethod getMethodBySubSignature(String subSig)} & 
+    Searches for a method by subsignature\\\hline
+{\tt List<String> getInterfaces()} & Get the interfaces as a string \\\hline
+{\tt List<HierarchyMethod> getMethods()} & Get the methods\\\hline
+{\tt HierarchyMethod getMethodCovarient(String css)} & Get the
+    HierarchyMethod matching the input covariant subsignature\\\hline
+{\tt String getName()} & Get the name of the class\\\hline
+{\tt String getSuperClass()} & Get the super class\\\hline 
+{\tt boolean hasSuperClass()} & Returns true if the class has a 
+    super class\\\hline
+\end{tabularx}
+\caption{{\tt HierarchyClass} API}
+\label{fig:rbhc}
+\end{figure*}
 
-The HierarchyValueSwitch takes a method signature and processes each HierarchyInstruction. It records types, method and field references and new invokes.
+The {\tt HierarchyMethod} keeps the method name, return type, parameter types and exception types as strings. It can return the bytecode instructions of a method as {\tt HierarchyInstructions}. The {\tt HierarchyInstructions} are string based representations of the bytecode. The method signature and sub-signature can be obtained. The class is described in Figure \ref{fig:rbhm}.
 
-There is one HierarchyGraph instance per class name. It allows the developer to retrieve all classes in the hierarchy, the direct children of a parent class and the parents of a child class. 
+\begin{figure}
+\begin{tabularx}{\columnwidth}{|XX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt List<String> getExceptionTypes()} &  Returns the exceptions\\\hline 
+{\tt HierarchyClass getHierarchyClass()} & Get
+   the declaring HierarchyClass\\\hline 
+{\tt List<HierarchyInstruction> getInstructions()} & Get the 
+    Instructions of the method in a string based format\\\hline 
+{\tt String getName()} & Get the name of the method\\\hline 
+{\tt List<String> getParameterTypes()} & Get the types of the parameters\\\hline
+{\tt String getReturnType()} & Get the return type\\\hline
+{\tt String getSignature()} & Get the signature of the method\\\hline  
+{\tt String getSubSignature()} & Get the subsignature of the method\\\hline
+{\tt String getCovarientSignature()} & Get the covariant subsignature of the method\\\hline
+\end{tabularx}
+\caption{{\tt HierarchyMethod} API}
+\label{fig:rbhm}
+\end{figure}
 
+The {\tt HierarchyInstruction} has two methods. The first is {\tt String getName()}, which keeps track of the name of the instruction (like “new”). The second is {\tt List<Operand> getOperands()} the string-based {\tt Operand}.
 
-The StringCallGraph keeps a mapping of edges going out of a method signature and methods hitting a method signature. It also can return all signatures and tell if a signature is on the call graph.
+The {\tt Operand} class keeps track of the instruction operand as converted to a string using the class constant pool. It keeps track of a string-based type that allows easy searching for class\_refs, method\_refs and field\_refs. Its description is available in Figure \ref{fig:operand}. 
 
-There are two remaining useful classes in the soot.rbclassload package. MethodSignatureUtil can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a SootMethod can be returned. FieldSignatureUtil can parse a field signature and return its parts. Also any part of a field signature can be modified and a SootField can be returned.
+\begin{figure}
+\begin{tabularx}{\columnwidth}{|lX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt String getValue()} &  Returns, as a string, the operand parsed 
+    from the constant pool\\\hline 
+{\tt String getType()} & Returns a type of the value. Can be one
+    of the following:
+    \begin{description}
+      \item[basic types] byte, int, long, float, double, string
+      \item[descriptor types] class\_ref, method\_ref, field\_ref
+    \end{description}
+\\\hline 
+\end{tabularx}
+\caption{{\tt Operand} API}
+\label{fig:operand}
+\end{figure}
+
+The {\tt HierarchyValueSwitch} takes a method signature and processes each {\tt HierarchyInstruction}. It records types, method and field references and new invokes. It is described in Figure \ref{fig:hvsw}
+
+%TODO give the details of what those strings are going to be like?
+\begin{figure}
+\begin{tabularx}{\columnwidth}{|lX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt Set<String> getClasses()} &  Get reference types\\\hline
+{\tt Set<String> getTypes()} &  Get all types\\\hline
+{\tt Set<String> getArrayTypes()} &  Get array types\\\hline
+{\tt Set<String> getMethodRefs()} &  Get method refs\\\hline
+{\tt Set<String> getFieldRefs()} &  Get field refs\\\hline
+{\tt Set<String> getNewInvokes()} &  Get new invokes\\\hline
+\end{tabularx}
+\caption{{\tt HierarchyValueSwitch} API}
+\label{fig:hvsw}
+\end{figure}
+
+There is one {\tt HierarchyGraph} instance per class name. It allows the developer to retrieve all classes in the hierarchy, the direct children of a parent class and the parents of a child class. It is described in Figure \ref{fig:hg}.
+
+\begin{figure}
+\begin{tabularx}{\columnwidth}{|XX|}
+\hline
+{\bf Method} & {\bf Description }\\\hline
+{\tt List<String> getAllClasses()} &  Get all the classes in the 
+    hierarchy graph\\\hline
+{\tt List<String> getChildren (String parent)} &  Get the direct 
+    children of a parent class or interface\\\hline
+{\tt List<String> getParents (String child)} &  Get the direct
+    parents of a child class or interface\\\hline
+\end{tabularx}
+\caption{{\tt HierarchyGraph} API}
+\label{fig:hg}
+\end{figure}
+
+The {\tt StringCallGraph} (see Figure \ref{fig:scg}) keeps a mapping of edges going out of a method signature and methods hitting a method signature. It also can return all signatures and tell if a signature is on the call graph.
+
+\begin{figure}
+\begin{tabularx}{\columnwidth}{|XX|}
+\hline
+{\tt Set<String> getAllSignatures()} & Get all reachable method 
+    signatures in the call graph\\\hline 
+{\tt Set<String> getForwardEdges(String sourceSig)} & Get the
+    method signatures that the sourceSig method calls directly\\\hline  
+{\tt Set<String> getReverseEdges(String destSig)} & Get the
+    method signatures that call the destSig directly\\\hline
+{\tt boolean isReachable(String signature)} & Returns true if the
+    method signature is in the call graph\\\hline
+\end{tabularx}
+\caption{{\tt StringCallGraph} API}
+\label{fig:scg}
+\end{figure}
+
+There are two remaining useful classes in the soot.rbclassload package. {\tt MethodSignatureUtil} can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a {\tt SootMethod} can be returned. {\tt FieldSignatureUtil} can parse a field signature and return its parts. Also any part of a field signature can be modified and a {\tt SootField} can be returned.
 
 \section{Evaluation}
 \label{sec:eval}
 %TODO which options are we setting? Any dontfollow strings?
 
-We have implemented our algorithm inside the \rb -specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
+We have implemented our algorithm inside the \rb{}-specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
 
 %TODO put in the specs
 We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
