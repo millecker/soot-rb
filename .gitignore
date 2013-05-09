@@ -1,3 +1,6 @@
+*.aux
+*.pdf
+*.log
 /lib
 /classes
 libs/sootclasses-trunk.jar
