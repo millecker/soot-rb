@@ -277,6 +277,8 @@ public class C {
 \label{sec:api}
 To create the \rb class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the \rb class loader.
 
+Note that analyses in Soot will not need to refer to these APIs, as the class loader eventually brings the Coffi data to the familiar classes.
+
 The {\tt RootbeerClassLoader} is a singleton with the entry point to class loading ({\tt loadNecessaryClasses}). You can configure the entry points by adding a {\tt MethodTester}. Please refer to Figure \ref{fig:rbcl} for the details of the methods offered.
 
 \begin{figure*}[htbf]
