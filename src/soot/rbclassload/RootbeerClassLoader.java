@@ -408,7 +408,7 @@ public class RootbeerClassLoader {
         String curr_sig = util.getSignature();
         List<String> path = new ArrayList<String>();
         path.add(curr_sig);
-        m_classHierarchy.addVirtualMethod(curr_sig, path);
+        m_classHierarchy.setVirtualMethodPath(curr_sig, path);
 
         // Get HierarchyGraph for virtual method
         HierarchyGraph hgraph = m_classHierarchy.getHierarchyGraph(curr_sig);
@@ -431,7 +431,7 @@ public class RootbeerClassLoader {
           m_cgMethodQueue.add(trace_sig);
           
           path.add(trace_sig);
-          m_classHierarchy.addVirtualMethod(curr_sig, path);
+          m_classHierarchy.setVirtualMethodPath(curr_sig, path);
         }
     	  
         continue;
