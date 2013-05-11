@@ -76,6 +76,8 @@ public class MethodSignatureUtil {
         m_params.add(curr); 
       }
     }
+    
+    quoteStrings();
   }
 
   private void quoteStrings(){
@@ -135,7 +137,7 @@ public class MethodSignatureUtil {
   }
   
   public void setMethodName(String method_name){
-    m_methodName = method_name; 
+    m_methodName = Scene.v().quotedNameOf(method_name); 
   }
   
   public List<String> getParameterTypes(){
