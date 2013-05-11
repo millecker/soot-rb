@@ -33,7 +33,6 @@ import soot.coffi.ClassFile;
 import soot.coffi.method_info;
 import soot.coffi.HierarchySootMethodFactory;
 import soot.coffi.CoffiMethodSource;
-import soot.Scene;
 import soot.SootMethod;
 import soot.Body;
 
@@ -53,7 +52,7 @@ public class HierarchySootMethod {
     List<String> parameterTypes, List<String> exceptionTypes,
     int modifiers, ClassFile classFile, method_info methodInfo){
 
-    m_name = Scene.v().quotedNameOf(name);
+    m_name = name;
     m_returnType = returnType;
     m_parameterTypes = parameterTypes;
     m_exceptionTypes = exceptionTypes;
