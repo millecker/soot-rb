@@ -1076,6 +1076,12 @@ public class RootbeerClassLoader {
     MethodSignatureUtil mutil = new MethodSignatureUtil();
 
     mutil.parse(signature);
+    String class_name = mutil.getClassName();
+    if(class_name.contains("[]")){
+      class_name = class_name.substring(0,class_name.indexOf("[]"));
+      mutil.setClassName(class_name);
+      signature = mutil.getSignature();
+    }
     m_currDfsInfo.addType(mutil.getClassName());
     m_currDfsInfo.addType(mutil.getReturnType());
     m_currDfsInfo.addMethod(signature);
