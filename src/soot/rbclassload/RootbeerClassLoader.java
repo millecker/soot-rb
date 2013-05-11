@@ -1064,8 +1064,7 @@ public class RootbeerClassLoader {
     }
 
     while(queue.isEmpty() == false){
-      String curr = queue.get(0);
-      queue.removeFirst();
+      String curr = queue.removeFirst();
       doDfsForRootbeer(curr, queue, visited);
     }
   }
@@ -1092,7 +1091,8 @@ public class RootbeerClassLoader {
       }
       visited.add(virt_method);
       //System.out.println("doDfsForRootbeer adding virtual_method to queue: "+virt_method);
-      queue.add(virt_method);
+      if(virt_method.equals(signature) == false)
+    	    queue.add(virt_method);
     }
 
     for(String type_str : value_switch.getAllTypes()){
