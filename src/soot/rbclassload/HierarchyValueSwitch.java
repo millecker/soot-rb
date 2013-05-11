@@ -86,6 +86,18 @@ public class HierarchyValueSwitch {
     ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
     HierarchySootMethod method = class_hierarchy.getHierarchySootMethod(signature);
     if(method == null){
+    	  // Method seems to be virtual
+      // add reference to concrete Method
+    	  List<String> virt_methods = class_hierarchy.getVirtualMethodPath(signature);
+    	  if(virt_methods != null){
+    		int last = virt_methods.size() - 1; // base class index
+    	    if(last > 0){
+    	      HierarchySootMethod concreteMethod = class_hierarchy.getHierarchySootMethod(virt_methods.get(last));
+    	      if(concreteMethod != null){
+    	        m_methodRefs.add(concreteMethod.getSignature());
+    	      }
+    	    }
+    	  }
       return;
     }
 
