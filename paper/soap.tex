@@ -1,0 +1,333 @@
+\documentclass[preprint]{sigplanconf}
+
+\usepackage{amsmath}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{url}
+
+\begin{document}
+
+\newcommand{\rb}{\textsc{Rootbeer} }
+
+% From http://en.wikibooks.org/wiki/LaTeX/Source_Code_Listings
+\lstset{
+  basicstyle=\footnotesize\tt,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  language=Java,                 % the language of the code
+  keywordstyle=\bf,
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  tabsize=2                       % sets default tabsize to 2 spaces
+}
+
+\conferenceinfo{SOAP '13}{June 20th 2013, Seattle, Washington, USA } 
+\copyrightyear{2013} 
+\copyrightdata{[to be supplied]} 
+
+\titlebanner{banner above paper title}        % These are ignored unless
+\preprintfooter{short description of paper}   % 'preprint' option specified.
+
+\title{Soot Class Loading in the \rb GPU Compiler}
+%\subtitle{Subtitle Text, if any}
+
+\authorinfo{Philip C. Pratt-Szeliga}
+           {Syracuse University\\Syracuse, NY, USA}
+           {pcpratts@syr.edu}
+
+\authorinfo{Marc-André Laverdière}
+           {TCS Innovation Labs,\\Tata Consultancy Services, Ltd.\\\&\\
+			École Polytechnique de Montréal\\
+			Montréal, Canada}
+           {marc-andre.laverdiere-papineau@polymtl.ca}
+           
+\authorinfo{Ettore Merlo}
+           {École Polytechnique de Montréal\\
+			Montréal, Canada}
+           {ettore.merlo@polymtl.ca}           
+           
+\authorinfo{James W. Fawcett \and Roy D. Welch}
+           {Syracuse University\\Syracuse, NY, USA}
+           {jfawcett@twcny.rr.com rowelch@syr.edu}        
+                      
+           
+%\authorinfo{Name2\and Name3}
+%           {Affiliation2/3}
+%           {Email2/3}
+
+\maketitle
+
+\begin{abstract}
+
+This paper describes new algorithms and data structures to efficiently load Java Bytecode classes for whole program analysis in Soot. The new class loader can load Scenes that reach into the Java Runtime and uses less than four gigabytes of ram for our test cases. It requires the developer to specify entry points programmatically via the included API and it assumes developers will only request classes from the Scene that are reachable on a forward and reverse walk from the specified entry points.
+\end{abstract}
+
+\category{D.3.4}{Programming Languages}{Processors – code generation}[compilers]
+
+\terms
+Algorithms, Performance, Design
+
+\keywords
+class loading; Soot; Java Bytecode
+
+\section{Introduction}
+\label{sec:intro}
+Class loading in Soot \cite{soot-retro, soot-orig} can require significant time and memory when using whole-program optimization. 
+The current algorithm loads class bodies transitively from the entry point. Every class that is transitively referenced from the entry point will be loaded, irrespective of whether it belongs to a legitimate program execution or not. This results in a large memory footprint for analysing even small programs, making some analyses impossible on lower-end systems.
+
+To illustrate this issue, we introduce a running example in Listing \ref{lst:runningexample}.
+
+\begin{lstlisting}[caption={Running example},label={lst:runningexample},float=!ht]
+public class A {
+  public static void main(String[] args){
+    B b = new B();
+    b.foo();
+  }
+}
+public class B {
+  public void foo(){
+    C c = new C();
+    c.abc();
+  }
+  public void bar(){
+    D d = new D();
+    d.abc();
+  }
+}
+public class C {
+  public void abc(){
+    System.out.println("In class C");}
+}
+public class D {
+  public void abc(){
+    System.out.println("In class D");}
+}
+\end{lstlisting}
+
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \texttt{SootClass} objects and represents 53870 \texttt{SootMethod} objects. %Do we add more, like Body or Unit?
+
+This paper describes a new class loading algorithm and the required data structures to only load the set of classes that would be needed during program execution. Our strategy is to gather information from the Coffi bytecode representation without creating the Soot internal objects, while we build an over-approximate call graph. Once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy and we load a minimal Scene.
+
+We have implemented this scheme in the \rb GPU Compiler \cite{rootbeer}. 
+
+The contents are organized as follows. In section \ref{sec:new-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
+
+%TODO merge some of  that in the introduction ?
+\section{Soot Whole-Program Class Loading}
+\label{sec:soot-cl}
+
+The original Soot class loading algorithm has three basic resolving levels: Hierarchy, Signatures and Bodies. As the level of a class progresses from Hierarchy to Bodies, additional details are loaded from the class files to memory. Table \ref{tbl:resolving_levels} summarizes the information added at each resolving level. 
+
+\begin{table}
+\begin{tabularx}{\columnwidth}{|l|X|}
+\hline
+\textbf{Resolving Level} & \textbf{Associated Information} \\\hline
+Dandling  & Nothing is known about the class, except its fully-qualified name.\\\hline
+Hierarchy & The class, its superclass and interfaces are loaded. \\\hline
+Signatures & Hierarchy information, as well as types declared in method signatures and fields. \\\hline
+Bodies & Signatures information, as well as the classes referenced in the method bodies. \\\hline
+\end{tabularx}
+\caption{Resolving levels in Soot}
+\label{tbl:resolving_levels}
+\end{table}
+
+We now describe the class loading algorithm with more details, without including information related to phantom reference support\footnote{Phantom references are classes that are not resolved, either because they are not found in the class path, or have been excluded.}.
+The Soot resolver will work incrementally in the Scene, by means of a worklist\footnote{There are four worklists, but their behavior is identical in whole-program mode, so we merge them as one for simplicity}, by loading each class and its dependencies, one at a time.
+
+Note that the steps below are repeated for every class in the process path and every basic class. Please note also that every step has an early termination feature if the class is determined to be at the given level already.
+
+The algorithm is initialized in the {\tt resolveClass} method with an empty {\tt SootClass} container object at the Dandling level. This empty container is then added to the desired resolving level.
+
+In the first phase, Soot loads the class to the hierarchy level. First, the class source (Coffi, Jimple, etc.) is loaded into the {\tt SootClass} object.
+The {\tt SootClass} objects of the outer class, the super class and the interfaces are added to the worklist. The corresponding {\tt Type} instances are created and stored for later use.
+
+In the second phase, Soot loads the class to the signature level. It does so by examining the hierarchy anew, the methods signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
+
+In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body. Soot uses the information stored as {\tt Type} in the first step and adds it all to the worklist.
+
+The weakness of this algorithm is its all-or-nothing nature. It loads all the classes that are reachable from the basic classes and the processable classes, irrespective of whether they would be used in the program or not.
+
+%TODO add what happens in our running example.
+
+\section{New Class Loading}
+\label{sec:new-cl}
+Our class loading strategy is to keep class names, method bodies as well as method and field signatures as strings for as long as possible. The {\tt SootClass}, {\tt SootMethod}, {\tt SootField} and {\tt Body} objects are only created once the types are numbered. The entry point to our class loader is {\tt loadNecessaryClasses} and is shown in Figure 1 below.
+
+We explain the class loading in section \ref{sec:loading}, followed by the construction of data structures needed for virtual call resolution, namely the class hierarchy and the virtual method cache in sections \ref{sec:classhierarchy} and \ref{sec:methodcache}, respectively. Then, we explain how we detect the entry points in section \ref{sec:entrypoints} and a special feature of \rb , the follow strings and ToSignature in section \ref{sec:followtosig}. Afterwards, in section \ref{sec:cg}, we discuss how we build our call graph. We finally discuss the class numbering scheme in section \ref{sec:numbering} and the Scene loading in section \ref{sec:loadscene}.
+
+\subsection{Load and Wrap Classes}
+\label{sec:loading}
+The first step of our algorithm uses the list of classes in the process path and loads them in memory using Coffi. We convert the  converts the constant pool indices for the current class, super class and interfaces into a string representation. We put all this information into a wrapper class named {\tt HierarchySootClass} and store them in a map (with the class name as key) for fast lookups.
+
+\subsection{Building Class Hierarchy}
+\label{sec:classhierarchy}
+In a later stage of our algorithm, we will need to resolve virtual calls. To do so, we may need entire virtual method hierarchy for a given method signature. This resolution requires a class hierarchy \cite{deanetal}, which we create in this step.
+%TODO double-check that the reference is appropriate.
+
+%TODO I know that the text used to say 'roots', but the description and the code seems like giving leaves.
+The first step of the algorithm is to identify the leaves of the hierarchy. We do so by intializing a set with the name of all the classes found in the previous step. We then remove from this set every class that isn't in the list of superclasses and interfaces detected.
+
+%TODO I am not finding a better way to explain all this right now.
+%Once the leaves are 
+%detected, we populate a worklist with each leaf and proceed as follows. 
+
+%When visiting a node of the worklist, we
+
+The next stage of building the class hierarchy is illustrated in Figure 2. The algorithm traverses the roots of the hierarchy and create HierarchyGraphs for each root. The HierarchyGraph maintains associations between the class names and the name of their parents and children. They are placed as values in a Map<String, HierarchyGraph> with that class names as the key.
+
+From each root, every super class and interface is visited. At each visitation, the HierachyGraph is notified of super class and interfaces of the current class. The entire hierarchy can be summarized by merging the information held in the data structures.
+
+\subsection{Cache Virtual Methods}
+\label{sec:methodcache}
+Another step towards our objective of virtual method resolution is to cache the method signatures inside the hierarchy.
+
+%TODO Do we mention it later in the paper?
+Since the cache could be very large, and that some cases of virtual method resolutions could yield a disproportionate amount of possible targets (e.g. {\tt java.lang.Object.toString()}), 
+we prune all the methods that belong to classes that have not been instantiated. The information is gathered at the same time as the call graph is created (see section \ref{sec:cg} for more details of this process).
+
+The cache of virtual methods is built in two phases. The first phase is a traversal of the hierarchy and populating a Map<HierarchyMethod,HierarchyMethod> named m\_virtMap from each method to its nearest super method in the list of super classes. The determination whether a method is a super method is based only on the name and parameter types.
+
+The second phase of the algorithm creates a mapping from a method signature to a list of virtual method signatures. It works by doing a breadth first traversal up the class hierarchy starting at the class hierarchy roots (m\_roots). At each class along the way, it iterates each method and checks if the method signature has been visited. If it has not been visited this means that this is the root class for the specific method. At each root method, a List<String> is created to hold the path and the m\_virtMap is traced from the root HierarchyMethod to the top HierarchyMethod, each time adding the signature to the path and adding the (flyweight) path to the cache. Figure 3 shows this algorithm.
+
+\subsection{Load Follow Strings and ToSignature Strings}
+\label{sec:followtosig}
+The \rb GPU Compiler needs two additional things to work properly. It needs additional roots of the call graph to be configured and needs specific classes or methods to be loaded to signatures. The additional roots are called follow strings and the classes or methods to signatures are called to\_signature strings.
+
+\rb needs follow methods to follow reflection entry points. Follow methods could also be used for Thread.run entry points.
+ 
+\rb also does code generation and needs the \rb Runtime to be loaded to signatures so that the generated Jimple code can invoke the runtime methods. The to\_signature strings allow this. 
+
+The new API also allows for configuration of dont\_follow strings. These act as boundaries in the call graph creation. While such a truncated call graph is unsound, it is often useful in practice.
+
+All of these things in this section are configured with MethodTesters and ClassTesters. The follow testers and to\_signature testers are evaluated once to save time. The dont\_follow testers are evaluated each time.
+%TODO merge all this with the other sections that are relevant
+
+
+\subsection{StringCallGraph Fixed Point}
+\label{sec:cg}
+The first step in building a call graph is to determine the entry points. Our class loader provides a flexible entry point mechanism. Soot users who analyze software that does not have a {\tt main} method need not generate one for the sake of analysis, but simply need to create an appropriate {\tt MethodTester} class and register it with the {\tt RootbeerClassLoader.addEntryMethodTester} method. All the details of this API is provided in section \ref{sec:api}.
+
+Our class loader submits all the methods found in the previous steps to the registered method testers. If any of the testers return true, then this method is considered as an entry point.
+
+We build a call graph using the previously built data structures and the Coffi representation. We perform a fixed-point forward and reverse walk from the entry point(s) to do so. 
+%Number of constructor invocations? Is the algorithm monotonic?
+The fixed point is over the number of constructor invocations found in the bodies of the call graph. This is because virtual methods are resolved in respect to m\_newInvokes. Each time a new constructor invocation is found, additional virtual methods are placed on the call graph and the search includes those new methods. The forward and reverse portions of the algorithm are described in the next two sections.
+
+\subsubsection{Load Forward String Call Graph}
+To load the forward string call graph, a breadth first search is done starting at the entry point signature. At each signature the current valid virtual methods are included in the search. A HierarchyValueSwitch is used to load the constructor and method references found in the instructions of the method without loading to Jimple. Figure 6 shows the forward algorithm. 
+
+\subsubsection{Load Reverse String Call Graph}
+If an entry point is not a main function, all of the methods on a depth first search walk from a main to the entry point need to be loaded in order to accurately represent the runtime behaviour. This is handled by a reverse walk from the entry point. We keep a Set<String> of reachable method signatures with the entry point originally added. All of the method signatures found in the application classes are searched and if there are any references to something in the reachable set, it is loaded and added to the reachable set. This algorithm is listed below in Figure 7.
+
+\subsection{Load Numbered Types}
+\label{sec:numbering}
+After the string call graph is created, the types are numbered. The number starts at one for the root Java Object class and types are numbered in ascending order going down the class hierarchy. We use a HierarchyGraph to traverse the class hierarchy down in the breadth first search order.
+
+\subsection{Load Scene}
+\label{sec:loadscene}
+The final stage of the algorithm is to load the Scene. First, the numbered types are visited from smallest to largest and empty SootClasses with no methods or fields are created. As an example, on the first iteration, the SootClass of the root Java Object class is created and added to the Scene. Then on the next iteration, anything the new SootClass needs for a super class or interface is already in the Scene as a SootClass. Therefore it can simply call Scene.v().getSootClass() and use this to fill in the parents.
+After all of the empty SootClasses have been created, the fields are added to the SootClasses. Each reachable field reference is found from the loaded HierarchyValueSwitches and the FieldSignatureUtil is used to parse the field signatures and obtain the declaring class, type and name. This is then used to make a SootField and add it to the declaring SootClass. 
+Next methods are created without bodies. This is because the SootClassess, SootFields and SootMethods reachable from each body must exist before the body can be resolved. The MethodSignatureUtil is used to parse each string based method signature and obtain the declaring class, method name and types. A SootMethod is created and added to the declaring SootClass.
+Finally each method body is created using CoffiMethodSource and added to its corresponding SootMethod and class loading is complete.
+
+\section{New API}
+\label{sec:api}
+To create the \rb class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the \rb class loader.
+
+The RootbeerClassLoader is a singleton with the entry point to class loading (loadNecessaryClasses). You can configure the entry points by adding a MethodTester.
+
+The ClassHierarchy is reachable from the RootbeerClassLoader singleton. It allows a developer to retrieve the virtual methods for a signature, get a HierarchyGraph for a class name, get a HierarchyClass and get the NumberedTypes.
+
+The MethodTester interface is designed to be implemented by classes that can tell if a HierarchyMethod meets a criteria.
+
+The ClassTester interface is similar to the MethodTester except it can be used to see if a HierarchyClass meets a class or package criteria. The RootbeerClassLoader calls the ClassTester once per class and the MethodTester once per method.
+
+The HierarchyClass keeps the class name, super class name and interfaces as strings. It can return all of the HierarchyMethods or find them by name or subsignature.
+
+The HierarchyMethod keeps the method name, return type, parameter types and exception types as strings. It can return the bytecode instructions of a method as HierarchyInstructions. The HierarchyInstructions are string based representations of the bytecode. The method signature and subsignature can be obtained.
+
+The HierarchyInstruction keeps track of the name of the instruction (like “new”) and the string based Operand.
+
+The Operand class keeps track of the instruction operand as converted to a string using the class constant pool. It keeps track of a string based type that allows easy searching for class\_refs, method\_refs and field\_refs.
+
+The HierarchyValueSwitch takes a method signature and processes each HierarchyInstruction. It records types, method and field references and new invokes.
+
+There is one HierarchyGraph instance per class name. It allows the developer to retrieve all classes in the hierarchy, the direct children of a parent class and the parents of a child class. 
+
+
+The StringCallGraph keeps a mapping of edges going out of a method signature and methods hitting a method signature. It also can return all signatures and tell if a signature is on the call graph.
+
+There are two remaining useful classes in the soot.rbclassload package. MethodSignatureUtil can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a SootMethod can be returned. FieldSignatureUtil can parse a field signature and return its parts. Also any part of a field signature can be modified and a SootField can be returned.
+
+\section{Evaluation}
+\label{sec:eval}
+%TODO which options are we setting? Any dontfollow strings?
+
+We have implemented our algorithm inside the \rb -specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
+
+%TODO put in the specs
+We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
+
+Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded {\tt SootClass} objects.
+
+
+
+\begin{table*}[!h]
+\begin{tabularx}{\textwidth}{|l|l|X|X|l|}
+\hline
+\textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\texttt{SootClass} Memory (Mb)}& \textbf{Time (s)} \\\hline
+Running example (Soot) & &&  &  \\\hline
+Running example (RBC) &  &&  &  \\\hline
+\rb tests (Soot) && & & \\\hline
+\rb tests (RBC) && & & \\\hline
+\end{tabularx}
+\caption{Experimental results}
+\label{tbl:results}
+\end{table*}
+
+We compare our implementation against the Soot class loader by loading programs and taking measurements in the wjpp phase in Table \ref{tbl:results}.
+
+While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point.
+
+\section{Future Work}
+\label{sec:future}
+There are two aspects of future work that the \rb GPU Compiler is interested in working on. First, parallel cpu threads will be used to try and accelerate class loading. Second, a project named Jimple Web Cache may be created.
+
+The Jimple Web Cache project aims to host a server online that can serve string based Jimple Bodies and StringCallGraphs. It will take an rt.jar (Java Runtime Jar) from the client and if it does not have a jar with the same name and md5 sum, it will cache the entire call graph of the archive in a MongoDB database along with the string based Jimple bodies. A user will be able to query to retrieve a call graph or Jimple body from an entry point method signature.
+
+\section{Conclusion}
+\label{sec:conclusion}
+We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 2 minutes time when doing whole-program analysis from an entry point.
+
+\appendix
+\section{Appendix Title}
+
+This is the text of the appendix, if you need one.
+
+\acks
+Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
+
+% We recommend abbrvnat bibliography style.
+
+\bibliographystyle{abbrvnat}
+
+% The bibliography should be embedded for final submission.
+
+\begin{thebibliography}{}
+\softraggedright
+
+\bibitem[1]{soot-retro} Patrick Lam and Eric Bodden and Ondrej Lhotak and Laurie Hendren. The Soot framework for Java program analysis: a retrospective. In: Cetus Users and Compiler Infastructure Workshop (CETUS 2011).
+\bibitem[2]{rootbeer} Philip C. Pratt-Szeliga, James W. Fawcett, Roy D. Welch. \rb: Seamlessly using GPUs from Java. HPCC-2012.
+\bibitem[3]{soot-orig} Raja Vallee-Rai and Phong Co and Etienne Gagnon and Laurie Hendren and Patrick Lam and Vijay Sundaresan. Soot - a Java bytecode optimization framework. Proceedings of the 1999 conference of the Centre for Advanced Studies on Collaborative research. 1999. IBM Press.
+\bibitem[4]{deanetal} Jeffrey Dean and David Grove and Craig Chambers. Optimization of Object-Oriented Programs
+Using Static Class Hierarchy Analysis, UW CSE Technical Report 94-12-01, 1994
+%% TODO add page numbers on those citations
+
+\end{thebibliography}
+
+\end{document}
