@@ -447,8 +447,18 @@ public class ClassHierarchy {
     return m_hierarchyGraphs.get(class_name);
   }
 
-  public void addVirtualMethod(String signature, List<String> path){
+  public void setVirtualMethodPath(String signature, List<String> path){
 	m_virtualMethodSignatures.put(signature, path);
+	// TODO
+	// HierarchyGraph should also be updated
+	//HierarchyGraph hgraph = new HierarchyGraph();
+	//for (String super_class : path)
+	//	hgraph.addSuperClass(signature.getClassName(), super_class.getClassName());
+	//m_hierarchyGraphs.put(signature, hgraph);
+  }
+  
+  public List<String> getVirtualMethodPath(String signature){
+	return m_virtualMethodSignatures.get(signature);
   }
   
   public List<String> getVirtualMethods(String signature){
