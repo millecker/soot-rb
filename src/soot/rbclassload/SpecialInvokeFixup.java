@@ -38,6 +38,9 @@ public class SpecialInvokeFixup {
   private List<Unit> m_ToDelete;
   
   public Body fixup(Body body){
+    if(true){
+      return body;
+    }
     m_ToDelete = new ArrayList<Unit>();
     Iterator<Unit> iter = body.getUnits().iterator();
     while(iter.hasNext()){

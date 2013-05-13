@@ -40,10 +40,10 @@ import soot.Modifier;
 
 public class HierarchySootClass {
 
-  private String m_className;
+  private int m_className;
   private boolean m_hasSuperClass;
-  private String m_superClassName;
-  private List<String> m_interfaceNames;
+  private int m_superClassName;
+  private List<Integer> m_interfaceNames;
   private List<HierarchyField> m_fields;
   private List<HierarchySootMethod> m_methods;
   private Map<String, HierarchySootMethod> m_covarientMethods;
@@ -52,8 +52,8 @@ public class HierarchySootClass {
   private boolean m_isApplicationClass;
   private ConstantPoolReader m_constantReader;
 
-  public HierarchySootClass(String class_name, boolean has_super_class, 
-    String super_class_name, List<String> interfaces, List<HierarchyField> fields, 
+  public HierarchySootClass(int class_name, boolean has_super_class, 
+    int super_class_name, List<Integer> interfaces, List<HierarchyField> fields, 
     int modifiers, ClassFile class_file){
 
     m_className = class_name;
@@ -93,7 +93,7 @@ public class HierarchySootClass {
   }
 
   public String getName(){
-    return m_className;
+    return RootbeerClassLoader.v().getStringNumbers().getString(m_className);
   }
 
   public boolean hasSuperClass(){
@@ -101,11 +101,15 @@ public class HierarchySootClass {
   }
 
   public String getSuperClass(){
-    return m_superClassName;
+    return RootbeerClassLoader.v().getStringNumbers().getString(m_superClassName);
   }
 
   public List<String> getInterfaces(){
-    return m_interfaceNames;
+    List<String> ret = new ArrayList<String>();
+    for(Integer iface_num : m_interfaceNames){
+      ret.add(RootbeerClassLoader.v().getStringNumbers().getString(iface_num));
+    }
+    return ret;
   }
 
   public List<HierarchySootMethod> getMethods(){

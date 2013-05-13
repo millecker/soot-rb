@@ -31,6 +31,7 @@ import soot.coffi.ConstantPoolReader;
 import soot.rbclassload.HierarchySootClass;
 import soot.rbclassload.HierarchySootMethod;
 import soot.rbclassload.HierarchyField;
+import soot.rbclassload.RootbeerClassLoader;
 
 public class HierarchySootClassFactory {
 
@@ -83,8 +84,16 @@ public class HierarchySootClassFactory {
       fields.add(field);
     }
 
-    HierarchySootClass ret = new HierarchySootClass(className, hasSuperClass,
-      superClassName, interfaces, fields, modifiers, classFile);
+    int class_number = RootbeerClassLoader.v().getStringNumbers().addString(className);
+    int super_class_number = RootbeerClassLoader.v().getStringNumbers().addString(superClassName);
+    List<Integer> interface_numbers = new ArrayList<Integer>();
+    for(String iface : interfaces){
+      int iface_number = RootbeerClassLoader.v().getStringNumbers().addString(iface);
+      interface_numbers.add(iface_number);
+    }
+
+    HierarchySootClass ret = new HierarchySootClass(class_number, hasSuperClass,
+      super_class_number, interface_numbers, fields, modifiers, classFile);
 
     return ret;
   }
