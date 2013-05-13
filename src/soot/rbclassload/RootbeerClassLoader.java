@@ -99,6 +99,7 @@ public class RootbeerClassLoader {
   private Set<String> m_cgVisitedClasses;
   private Set<String> m_cgVisitedMethods;
   private LinkedList<String> m_cgMethodQueue;
+  private StringNumbers m_stringNumbers;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -140,6 +141,7 @@ public class RootbeerClassLoader {
     m_cgVisitedClasses = new HashSet<String>();
     m_cgVisitedMethods = new HashSet<String>();
     m_cgMethodQueue = new LinkedList<String>();
+    m_stringNumbers = new StringNumbers();
 
     m_loaded = false;
 
@@ -148,6 +150,10 @@ public class RootbeerClassLoader {
 
   public static RootbeerClassLoader v() { 
     return G.v().soot_rbclassload_RootbeerClassLoader(); 
+  }
+
+  public StringNumbers getStringNumbers(){
+    return m_stringNumbers;
   }
 
   public void addConditionalCudaEntry(ConditionalCudaEntry entry){

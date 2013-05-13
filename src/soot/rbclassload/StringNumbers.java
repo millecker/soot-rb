@@ -25,21 +25,17 @@ package soot.rbclassload;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 public class StringNumbers {
 
   private List<String> m_arrayList;
-  private Set<String> m_hashSet;
+  private Map<String, Integer> m_hashMap;
 
   public StringNumbers() {
     m_arrayList = new ArrayList<String>();
-    m_hashSet = new HashSet<String>();
-  }
-
-  public boolean contains(String str){
-    return m_hashSet.contains(str);
+    m_hashMap = new HashMap<String, Integer>();
   }
 
   public String getString(int index){
@@ -47,9 +43,13 @@ public class StringNumbers {
   }
 
   public int addString(String str){
-    int ret = m_arrayList.size();    
-    m_arrayList.add(str);
-    m_hashSet.add(str);
-    return ret;
+    if(m_hashMap.containsKey(str)){
+      return m_hashMap.get(str);
+    } else {
+      int ret = m_arrayList.size();    
+      m_arrayList.add(str);
+      m_hashMap.put(str, ret);
+      return ret;
+    }
   }
 }
