@@ -229,9 +229,13 @@ Thirdly, \rb also needs its runtime classes to be loaded to signatures (i.e. wit
 
 All the overrides mentioned are configured with {\tt MethodTester}s and {\tt ClassTester}s. The \emph{follow strings}, \emph{follow methods} and \emph{to-signature} testers are evaluated once to save time.
 
-\subsection{Load Numbered Types}
+\subsection{Numbering Types}
 \label{sec:numbering}
-After the call graph is created, the types are numbered. The number starts at one for the root Java Object class and types are numbered in ascending order using a breadth first search going down the class hierarchy. Note that the hierarchy is organized such that all interfaces are numbered before any class.
+The Soot framework requires a unique number on many kinds of objects, including \sootclass instances.
+
+After the call graph is created, the types are numbered as follows. The number starts at one for the root Java {\tt Object}. Afterwards, we number the interfaces in reverse topological order. Then, we number the remaining classes using a breadth-first traversal on the hierarchy.
+
+We use topological sorting for the interfaces because of the fact that all interfaces inherit from {\tt Object} in the strict sense, even though they may extend many other interfaces. A breadth-first numbering approach would yield broken dependencies in the next step, which this approach solves. 
 
 \subsection{Load Scene}
 \label{sec:loadscene}
