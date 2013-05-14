@@ -76,10 +76,35 @@ public class HierarchySootMethodFactory {
       }      
     }
 
+    List<String> code_attr_exceptions = getCodeAttrExceptions(methodInfo, 
+      constantPool);
+
+    Code_attribute code_attribute = methodInfo.locate_code_attribute();
     HierarchySootMethod ret = new HierarchySootMethod(name, returnType,
       parameterTypes, exceptionTypes, methodInfo.access_flags, classFile,
-      methodInfo);
+      methodInfo, code_attr_exceptions);
 
+    return ret;
+  }
+
+  private List<String> getCodeAttrExceptions(method_info methodInfo, 
+    cp_info[] constant_pool){
+
+    List<String> ret = new ArrayList<String>();
+    Code_attribute code_attr = methodInfo.locate_code_attribute(); 
+    if(code_attr == null){
+      return ret;
+    }
+
+    exception_table_entry[] ex_table = code_attr.exception_table;
+    for(int i = 0; i < ex_table.length; ++i){
+      int catch_type = ex_table[i].catch_type;
+      if(catch_type != 0){
+        ret.add(m_constantReader.get(catch_type, constant_pool));
+      } else {
+        ret.add("java.lang.Throwable");
+      }
+    }
     return ret;
   }
 

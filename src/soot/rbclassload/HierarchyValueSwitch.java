@@ -40,6 +40,7 @@ public class HierarchyValueSwitch {
   private MethodSignatureUtil m_methodUtil;
   private FieldSignatureUtil m_fieldUtil;
   private StringToType m_stringToType;
+  private HierarchySootMethod m_method;
 
   public HierarchyValueSwitch(){
     m_refTypes = new HashSet<String>();
@@ -88,6 +89,7 @@ public class HierarchyValueSwitch {
     if(method == null){
       return;
     }
+    m_method = method;
 
     HierarchySootClass hclass = method.getHierarchySootClass();
 
@@ -101,6 +103,11 @@ public class HierarchyValueSwitch {
     List<HierarchyInstruction> instructions = method.getInstructions();
     for(HierarchyInstruction inst : instructions){
       addInstruction(inst);
+    }
+    
+    List<String> ex_types = method.getCodeAttrExTypes();
+    for(String ex_type : ex_types){
+      addHierarchy(ex_type);
     }
   }
 

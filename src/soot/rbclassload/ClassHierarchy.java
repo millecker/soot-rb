@@ -179,6 +179,42 @@ public class ClassHierarchy {
     mergeGraphs();
   }
 
+  public HierarchySootMethod findMethod(String signature){
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    String class_name = util.getClassName();
+
+    StringToType string_to_type = new StringToType();
+    LinkedList<String> queue = new LinkedList<String>();
+    queue.add(class_name);
+    while(queue.isEmpty() == false){
+      String curr_name = queue.removeFirst();
+
+      String subsig = util.getSubSignature();      
+      HierarchySootClass hclass = getHierarchySootClass(curr_name);
+      if(hclass == null){
+        if(string_to_type.isArrayType(curr_name)){
+          queue.add("java.lang.Object");
+          continue;
+        } else {
+          return null;
+        }
+      }
+      HierarchySootMethod hmethod = hclass.findMethodBySubSignature(subsig);
+      if(hmethod == null){
+        if(hclass.hasSuperClass()){
+          queue.add(hclass.getSuperClass());
+        } 
+        for(String iface : hclass.getInterfaces()){
+          queue.add(iface);
+        }
+      } else {
+        return hmethod;
+      }
+    }
+    return null;
+  }
+
   private void mergeGraphs(){
     System.out.println("merging graphs...");
     m_hierarchyGraphs.clear();
