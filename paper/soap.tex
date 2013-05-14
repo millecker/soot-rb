@@ -35,9 +35,6 @@
 \copyrightyear{2013} 
 \copyrightdata{[to be supplied]} 
 
-\titlebanner{banner above paper title}        % These are ignored unless
-\preprintfooter{short description of paper}   % 'preprint' option specified.
-
 \title{Soot Class Loading in the \rb GPU Compiler}
 %\subtitle{Subtitle Text, if any}
 
@@ -74,9 +71,17 @@
 \maketitle
 
 \begin{abstract}
-One of the first activities of the Soot program analysis framework is to load the classes for analysis. The approach currently used loads a large number of classes, which then reduces the memory available for the analyses.
-This paper describes new algorithms and data structures to efficiently load Java Bytecode classes for whole program analysis in Soot. Our method uses a modified version of Rapid Type Analysis (RTA) to determine what classes, methods and fields would be reachable during program execution. This enables us to load significantly less information in memory to enable program analyses.
-We implemented our approach for loading Java bytecode in the Soot-based \rb compiler. The new class loader can load Scenes that reach into the Java Runtime and uses less than four gigabytes of ram for our test cases.
+One of the first activities of the Soot program analysis framework is to load 
+the classes for analysis. The approach currently used loads a large number of 
+classes, which then reduces the memory available for the analyses.
+This paper describes new algorithms and data structures to efficiently load Java
+Bytecode classes for whole program analysis in Soot. Our method uses a modified 
+version of Rapid Type Analysis (RTA) to determine what classes, methods and 
+fields would be reachable during program execution. This enables us to load 
+significantly less information in memory to enable program analyses.
+We implemented our approach for loading Java bytecode in the Soot-based \rb 
+compiler. The new class loader can load Scenes that make calls into the Java 
+Runtime and uses less than four gigabytes of ram for our test cases.
 \end{abstract}
 
 \category{D.3.4}{Programming Languages}{Processors – code generation}[compilers]
@@ -89,8 +94,14 @@ class loading; Soot; Java Bytecode
 
 \section{Introduction}
 \label{sec:intro}
-Class loading in Soot \cite{soot-retro, soot-orig} can require significant time and memory when using whole-program mode. 
-The current algorithm loads class bodies transitively from the entry point. Every class that is transitively referenced from the entry point will be loaded, irrespective of whether it belongs to a legitimate program execution or not. This results in a large memory footprint for analyzing even small programs, making some analyses impossible on lower-end systems.
+Class loading in Soot \cite{soot-retro, soot-orig} can require significant time 
+and memory when using whole-program mode. The current algorithm loads all 
+classes from the process path and any class transitively referenced from loaded 
+classes. All methods in a class are loaded whether or not they exist in any 
+possible program traces. The number of loaded types starts out small, but as 
+each class is loaded, more and more unnecessary types are added to the Scene. 
+This results in a large memory footprint for analyzing even small programs, 
+making some analyses impossible on lower-end systems.
 
 To illustrate this issue, we introduce a running example in Listing \ref{lst:runningexample}.
 
