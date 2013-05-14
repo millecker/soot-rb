@@ -1294,10 +1294,9 @@ public class RootbeerClassLoader {
   }
 
   private void loadMethodStrings(List<MethodTester> testers, Set<String> dest){
-    Set<String> classes = m_classHierarchy.getClasses();
+    Collection<HierarchySootClass> classes = m_classHierarchy.getHierarchyClasses();
     for(MethodTester tester : testers){
-      for(String class_name : classes){
-        HierarchySootClass hclass = getHierarchySootClass(class_name);
+      for(HierarchySootClass hclass : classes){
         List<HierarchySootMethod> methods = hclass.getMethods();
         for(HierarchySootMethod hmethod : methods){
           if(tester.test(hmethod)){
@@ -1309,12 +1308,11 @@ public class RootbeerClassLoader {
   }
 
   private void loadClassStrings(List<ClassTester> testers, Set<String> dest){
-    Set<String> classes = m_classHierarchy.getClasses();
+    Collection<HierarchySootClass> classes = m_classHierarchy.getHierarchyClasses();
     for(ClassTester tester : testers){
-      for(String class_name : classes){
-        HierarchySootClass hclass = getHierarchySootClass(class_name);
+      for(HierarchySootClass hclass : classes){
         if(tester.test(hclass)){
-          dest.add(class_name);
+          dest.add(hclass.getName());
         }
       }
     }
