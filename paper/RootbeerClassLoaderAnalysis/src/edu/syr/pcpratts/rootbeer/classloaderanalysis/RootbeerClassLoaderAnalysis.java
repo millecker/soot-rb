@@ -24,7 +24,11 @@ public class RootbeerClassLoaderAnalysis {
       "-pp",
       "-process-dir", "classes/soap2013_example.jar",
       "-rbcl",
-      "-w"
+      "-w",
+      "-p", "cg", "enabled:true",
+      "-p", "cg", "implicit-entry:false",
+      "-p", "cg.cha", "enabled:false",
+      "-p", "cg.spark", "enabled:true",
     };
     soot.Main.main(args);
           

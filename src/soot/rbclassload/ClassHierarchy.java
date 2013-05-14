@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Collection;
 
 import soot.SootMethod;
 import soot.SootClass;
