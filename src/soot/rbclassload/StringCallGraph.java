@@ -110,6 +110,37 @@ public class StringCallGraph {
     return m_allSignatures;
   }
 
+  public Set<String> getAllTypes(){
+    ClassHierarchy class_hierarchy = RootbeerClassLoader.v().getClassHierarchy();
+    Set<String> ret = new HashSet<String>();
+    for(String sig : getAllSignatures()){
+      MethodSignatureUtil util = new MethodSignatureUtil();
+      util.parse(sig);
+
+      String class_name = util.getClassName();
+      HierarchySootClass hclass = class_hierarchy.getHierarchySootClass(class_name);
+      if(hclass == null){
+        continue;
+      }
+
+      String ssig = util.getCovarientSubSignature();
+      HierarchySootMethod method = hclass.getMethodForCovarientSubSignature(ssig);
+      if(method == null){
+        continue;
+      }
+      
+      ret.add(class_name);
+      ret.add(method.getReturnType());
+      for(String param_type : method.getParameterTypes()){
+        ret.add(param_type);
+      }
+      for(String ex_type : method.getExceptionTypes()){
+        ret.add(ex_type);
+      }
+    }
+    return ret;
+  }
+
   public void addAllSignature(String signature){
     m_allSignatures.add(signature);
   }

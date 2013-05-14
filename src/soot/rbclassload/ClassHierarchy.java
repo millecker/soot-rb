@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import soot.SootMethod;
 import soot.SootClass;
@@ -52,6 +53,8 @@ public class ClassHierarchy {
   private Map<String, NumberedType> m_numberedTypeMap;
   private MethodSignatureUtil m_util;
   private Map<HierarchySootMethod, HierarchySootMethod> m_virtMap;
+  private int m_ifaceCount;
+  private Set<String> m_visited;
 
   public ClassHierarchy(){
     m_hierarchySootClasses = new HashMap<String, HierarchySootClass>();
@@ -220,10 +223,49 @@ public class ClassHierarchy {
     int number = 1;
     LinkedList<String> queue = new LinkedList<String>();
     Set<String> visited = new HashSet<String>();
-    queue.add("java.lang.Object");
     HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
     Set<String> children0 = hgraph.getChildren("java.lang.Object");
 
+    NumberedType numbered_type = new NumberedType("java.lang.Object", number);
+    m_numberedTypes.add(numbered_type);
+    m_numberedTypeMap.put("java.lang.Object", numbered_type);
+    number++;
+
+    //count interfaces
+    m_ifaceCount = 0;
+    queue.add("java.lang.Object");
+    while(queue.isEmpty() == false){
+      String curr_type = queue.removeFirst();
+      if(visited.contains(curr_type)){
+        continue;
+      }
+      visited.add(curr_type);
+
+      HierarchySootClass hclass = getHierarchySootClass(curr_type);
+      //the hclass can be null if curr_type is an array type. skip it since they
+      //are subclasses of java.lang.object
+      if(hclass == null){
+        continue;
+      }
+
+      Set<String> children = hgraph.getChildren(curr_type); 
+      for(String child : children){
+        queue.add(child);
+      }
+
+      if(hclass.isInterface()){
+        ++m_ifaceCount;
+      }
+    }
+
+    //topo sort numbering of ifaces
+    number += m_ifaceCount + 1;
+    m_visited = new HashSet<String>();
+    topoVisit("java.lang.Object");
+
+    //then load concrete classes
+    queue.add("java.lang.Object");
+    visited.clear();
     while(queue.isEmpty() == false){
       String curr_type = queue.removeFirst();
 
@@ -242,37 +284,19 @@ public class ClassHierarchy {
       if(hclass == null){
         //if the current type is an array, number it and continue    
         if(curr_type.contains("[]")){
-          
-          NumberedType numbered_type = new NumberedType(curr_type, number);
+          numbered_type = new NumberedType(curr_type, number);
           m_numberedTypes.add(numbered_type);
           m_numberedTypeMap.put(curr_type, numbered_type);
-      
           number++;
         } 
         continue;
       } 
 
       if(hclass.isInterface()){
-        Set<String> children = hgraph.getChildren(curr_type); 
-        for(String child : children){
-          HierarchySootClass child_hclass = getHierarchySootClass(child);
-          if(child_hclass.isInterface()){
-            queue.add(child);
-          }
-        }
+        continue;
       } else {
         Set<String> children = hgraph.getChildren(curr_type);
-        //Now we add interfaces to the queue first
-        for(String child : children){
-          HierarchySootClass child_hclass = getHierarchySootClass(child);
-          if(child_hclass == null){
-            continue;
-          }
-          if(child_hclass.isInterface()){
-            queue.add(child);
-          }
-        }
-        //And then concrete classes. In this way interfaces that derive from
+        //Add concrete classes. In this way interfaces that derive from
         //Object are visited before concrete classes that derive from Object.
         for(String child : children){
           HierarchySootClass child_hclass = getHierarchySootClass(child);
@@ -289,11 +313,40 @@ public class ClassHierarchy {
         }
       }
 
-      NumberedType numbered_type = new NumberedType(curr_type, number);
+      if(curr_type.equals("java.lang.Object") == false){
+        numbered_type = new NumberedType(curr_type, number);
+        m_numberedTypes.add(numbered_type);
+        m_numberedTypeMap.put(curr_type, numbered_type);
+        number++;
+      }
+    }
+
+    Collections.sort(m_numberedTypes, new NumberedTypeSorter());
+  }
+
+  private void topoVisit(String iface_class){
+    if(m_visited.contains(iface_class)){
+      return;
+    }
+    m_visited.add(iface_class);
+
+    HierarchyGraph hgraph = m_hierarchyGraphs.get("java.lang.Object");
+    Set<String> children = hgraph.getChildren(iface_class); 
+    for(String child : children){
+      HierarchySootClass hclass = getHierarchySootClass(child);
+      if(hclass == null){
+        continue;
+      }
+      if(hclass.isInterface()){
+        topoVisit(child);
+      }
+    }
+
+    if(iface_class.equals("java.lang.Object") == false){
+      NumberedType numbered_type = new NumberedType(iface_class, m_ifaceCount);
       m_numberedTypes.add(numbered_type);
-      m_numberedTypeMap.put(curr_type, numbered_type);
-      
-      number++;
+      m_numberedTypeMap.put(iface_class, numbered_type);
+      --m_ifaceCount;
     }
   }
 

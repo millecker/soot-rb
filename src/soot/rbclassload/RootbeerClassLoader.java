@@ -144,8 +144,6 @@ public class RootbeerClassLoader {
     m_stringNumbers = new StringNumbers();
 
     m_loaded = false;
-
-    addBuiltIns();
   }
 
   public static RootbeerClassLoader v() { 
@@ -210,65 +208,6 @@ public class RootbeerClassLoader {
 
   public void setUserJar(String filename){
     m_userJar = filename;
-  }
-
-  private void addBuiltIns(){
-    //taken from soot.Scene:1094
-    addSignaturesClass("java.lang.Object");
-	  addSignaturesClass("java.lang.Class");
-
-	  addSignaturesClass("java.lang.Void");
-	  addSignaturesClass("java.lang.Boolean");
-	  addSignaturesClass("java.lang.Byte");
-	  addSignaturesClass("java.lang.Character");
-	  addSignaturesClass("java.lang.Short");
-	  addSignaturesClass("java.lang.Integer");
-	  addSignaturesClass("java.lang.Long");
-	  addSignaturesClass("java.lang.Float");
-	  addSignaturesClass("java.lang.Double");
-
-	  addSignaturesClass("java.lang.String");
-	  addSignaturesClass("java.lang.StringBuffer");
-
-	  addSignaturesClass("java.lang.Error");
-	  addSignaturesClass("java.lang.AssertionError");
-	  addSignaturesClass("java.lang.Throwable");
-	  addSignaturesClass("java.lang.NoClassDefFoundError");
-	  addSignaturesClass("java.lang.ExceptionInInitializerError");
-	  addSignaturesClass("java.lang.RuntimeException");
-	  addSignaturesClass("java.lang.ClassNotFoundException");
-	  addSignaturesClass("java.lang.ArithmeticException");
-	  addSignaturesClass("java.lang.ArrayStoreException");
-	  addSignaturesClass("java.lang.ClassCastException");
-	  addSignaturesClass("java.lang.IllegalMonitorStateException");
-	  addSignaturesClass("java.lang.IndexOutOfBoundsException");
-	  addSignaturesClass("java.lang.ArrayIndexOutOfBoundsException");
-	  addSignaturesClass("java.lang.NegativeArraySizeException");
-	  addSignaturesClass("java.lang.NullPointerException");
-	  addSignaturesClass("java.lang.InstantiationError");
-	  addSignaturesClass("java.lang.InternalError");
-	  addSignaturesClass("java.lang.OutOfMemoryError");
-	  addSignaturesClass("java.lang.StackOverflowError");
-	  addSignaturesClass("java.lang.UnknownError");
-	  addSignaturesClass("java.lang.ThreadDeath");
-	  addSignaturesClass("java.lang.ClassCircularityError");
-	  addSignaturesClass("java.lang.ClassFormatError");
-	  addSignaturesClass("java.lang.IllegalAccessError");
-	  addSignaturesClass("java.lang.IncompatibleClassChangeError");
-	  addSignaturesClass("java.lang.LinkageError");
-	  addSignaturesClass("java.lang.VerifyError");
-	  addSignaturesClass("java.lang.NoSuchFieldError");
-	  addSignaturesClass("java.lang.AbstractMethodError");
-	  addSignaturesClass("java.lang.NoSuchMethodError");
-	  addSignaturesClass("java.lang.UnsatisfiedLinkError");
-
-	  addSignaturesClass("java.lang.Thread");
-	  addSignaturesClass("java.lang.Runnable");
-	  addSignaturesClass("java.lang.Cloneable");
-
-	  addSignaturesClass("java.io.Serializable");	
-
-	  addSignaturesClass("java.lang.ref.Finalizer");
   }
 
   public void loadNecessaryClasses(){
@@ -399,6 +338,7 @@ public class RootbeerClassLoader {
       m_cgVisitedMethods.add(bfs_entry);
       
       util.parse(bfs_entry);
+      System.out.println("  bfs_entry: "+bfs_entry);
 
       String class_name = util.getClassName();
 
@@ -415,12 +355,13 @@ public class RootbeerClassLoader {
       m_currDfsInfo.getStringCallGraph().addSignature(bfs_entry);
 
       //add virtual methods to queue
-      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);;
+      List<String> virt_methods = m_classHierarchy.getVirtualMethods(bfs_entry);
       for(String signature : virt_methods){
         if(dontFollow(signature)){
           continue;
         }
         m_cgMethodQueue.add(signature);
+        System.out.println("  virt_method: "+signature);
       }
 
       if(hmethod.isConcrete() == false){
@@ -435,6 +376,7 @@ public class RootbeerClassLoader {
         if(dontFollow(dest_sig)){
           continue;
         }
+        System.out.println("addEdge: "+bfs_entry+" -> "+dest_sig);
         m_currDfsInfo.getStringCallGraph().addEdge(bfs_entry, dest_sig);
         m_cgMethodQueue.add(dest_sig);        
       }
@@ -634,12 +576,47 @@ public class RootbeerClassLoader {
   private void loadScene(){
     System.out.println("loading scene...");
 
+    System.out.println("finding hierarchy classes reachable from dfs walk...");
+
+    Set<String> all_types = new HashSet<String>();
+    for(DfsInfo dfs_info : m_dfsInfos.values()){
+      all_types.addAll(dfs_info.getStringCallGraph().getAllTypes());
+    }
+
+    Set<String> all_classes = new HashSet<String>();
+    Set<String> visited_classes = new HashSet<String>();
+    for(String type : all_types){   
+      LinkedList<String> queue = new LinkedList<String>();
+      queue.add(type);
+      while(queue.isEmpty() == false){
+        String curr_type = queue.removeFirst();
+        if(visited_classes.contains(curr_type)){
+          continue;
+        }
+        visited_classes.add(curr_type);
+        all_classes.add(curr_type);
+      
+        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(curr_type);
+        if(hclass == null){
+          continue;
+        }
+
+        if(hclass.hasSuperClass()){
+          queue.add(hclass.getSuperClass());
+        }
+
+        for(String iface : hclass.getInterfaces()){
+          queue.add(iface);
+        }
+      }
+    }
+
     System.out.println("creating empty classes according to type number...");
     //create all empty classes from lowest number to highest
     StringToType string_to_type = new StringToType();
     List<NumberedType> numbered_types = m_classHierarchy.getNumberedTypes();
-    Set<String> visited_classes = new HashSet<String>();
-    for(int i=0; i<numbered_types.size(); i++){
+    visited_classes.clear();
+    for(int i = 0; i < numbered_types.size(); i++){
       String type_string = numbered_types.get(i).getType();
       if(string_to_type.isRefType(type_string) == false){
         continue;
@@ -648,6 +625,9 @@ public class RootbeerClassLoader {
         continue;
       }
       if(visited_classes.contains(type_string)){
+        continue;
+      }
+      if(all_classes.contains(type_string) == false){
         continue;
       }
       visited_classes.add(type_string);
@@ -665,6 +645,7 @@ public class RootbeerClassLoader {
         empty_class.setSuperclass(superClass);
       }
       for(String iface : hclass.getInterfaces()){
+        System.out.println("curr_class: "+type_string+" iface: "+iface);
         SootClass ifaceClass = Scene.v().getSootClass(iface);
         empty_class.addInterface(ifaceClass);
       }
@@ -739,6 +720,7 @@ public class RootbeerClassLoader {
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
+      System.out.println("sig: "+signature);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
@@ -769,13 +751,11 @@ public class RootbeerClassLoader {
     }
 
     System.out.println("adding method bodies...");
-    Set<String> all_classes = new HashSet<String>(all_sigs.size()/3); //Don't allocate it too big
     //add method bodies
     for(String signature : all_sigs){
       MethodSignatureUtil util = new MethodSignatureUtil();
       util.parse(signature);
       String class_name = util.getClassName();
-      all_classes.add(class_name);
 
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       if(hclass == null){
@@ -803,7 +783,8 @@ public class RootbeerClassLoader {
       body = fixer.fixup(body);
       soot_method.setActiveBody(body);
     }
-    G.v().out.println("Total loaded classes: " + all_classes.size());
+    System.out.println("Total loaded classes: " + all_classes.size());
+    System.out.println("Total loaded methods: " + all_sigs.size());
   }
 
   private HierarchyValueSwitch getValueSwitch(String signature){
@@ -1260,6 +1241,7 @@ public class RootbeerClassLoader {
   private void findEntryPoints(){
     System.out.println("finding entry points...");
     m_entryPoints = new ArrayList<String>();
+    System.out.println("app_classes: "+m_appClasses);
     for(String app_class : m_appClasses){
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(app_class);
       List<HierarchySootMethod> methods = hclass.getMethods();
