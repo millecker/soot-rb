@@ -1155,7 +1155,8 @@ public class RootbeerClassLoader {
     m_currDfsInfo.addType(mutil.getClassName());
     m_currDfsInfo.addType(mutil.getReturnType());
     m_currDfsInfo.addMethod(signature);
-
+    System.out.println("doDfsForRootbeer: "+signature);
+    
     List<String> virt_methods = m_classHierarchy.getVirtualMethods(signature);
     for(String virt_method : virt_methods){
       if(dontFollow(virt_method)){
@@ -1182,22 +1183,22 @@ public class RootbeerClassLoader {
       }
     
       // Check if method is overwritten by instanced subclass
-      MethodSignatureUtil curr_mutil = new MethodSignatureUtil();
-      curr_mutil.parse(method_sig);
-      
-      for(String newInvoke : m_newInvokes){
-        HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(newInvoke);
+      MethodSignatureUtil m_util = new MethodSignatureUtil();
+      m_util.parse(method_sig);
+      HierarchyGraph hg = m_classHierarchy.getHierarchyGraph(method_sig);
+      for(String childClass : hg.getChildren(m_util.getClassName())){
+    	    if(dontFollowClass(childClass)){
+    	      continue;
+      	}
+    	    	HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
         if(curr_hclass == null){
           continue;
         }
-        if(curr_hclass.getSuperClass().equals(curr_mutil.getClassName())) {
-          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(curr_mutil.getSubSignature());
-          if(curr_hmethod == null){
-            continue;
-          }
-          method_sig = curr_hmethod.getSignature();
-          break;
+        HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(m_util.getSubSignature());
+        if(curr_hmethod == null){
+          continue;
         }
+        method_sig = curr_hmethod.getSignature();
       }
       
       if(visited.contains(method_sig) == false){
