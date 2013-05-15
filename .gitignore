@@ -1,7 +1,13 @@
 *.aux
 *.pdf
 *.log
+*.blg
+*.bbl
+*.iml
 /lib
 /classes
 libs/sootclasses-trunk.jar
 soot-rb.jar
+/paper/RootbeerClassLoaderAnalysis/nbproject/private/
+/paper/RootbeerClassLoaderAnalysis/build/
+/paper/RootbeerClassLoaderAnalysis/dist/

@@ -48,6 +48,9 @@ public class HierarchyInstruction {
     StringBuilder ret = new StringBuilder();
     ret.append(m_name);
     ret.append(" ");
+    if(m_name.equals("ldc1")){
+      return ret.toString();
+    }
     for(int i = 0; i < m_operands.size(); ++i){
       ret.append(m_operands.get(i).getValue());
       if(i < m_operands.size() - 1){
