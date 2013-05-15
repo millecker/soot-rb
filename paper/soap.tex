@@ -1,7 +1,11 @@
 \documentclass[preprint]{sigplanconf}
 
+\usepackage{ifxetex}
 \usepackage{amsmath}
-\usepackage[utf8]{inputenc}
+\ifxetex
+\else
+  \usepackage[utf8]{inputenc}
+\fi
 \usepackage{listings}
 \usepackage{tabularx}
 \usepackage{url}
@@ -133,7 +137,8 @@ public class D {
 }
 \end{lstlisting}
 
-When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. %Do we add more, like Body or Unit?
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. Our method decreases this to 654 \sootclass objects and 2661 \sootmethod objects.
+%Do we add more, like Body or Unit?
 
 This paper describes a new class loading algorithm and the required data structures to only load the set of classes that would be needed during program execution. Our strategy is to gather information from the Coffi bytecode representation without creating the Soot internal objects, while we build an over-approximate call graph. Once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy and we load a minimal Scene.
 
