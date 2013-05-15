@@ -14,5 +14,6 @@
 	<classpathentry kind="lib" path="libs/jasminclasses-2.5.0.jar"/>
 	<classpathentry kind="lib" path="libs/java_cup.jar"/>
 	<classpathentry kind="lib" path="libs/sootclasses-trunk.jar"/>
+	<classpathentry kind="lib" path="libs/classmexer.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
