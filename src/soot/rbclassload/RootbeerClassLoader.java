@@ -320,12 +320,12 @@ public class RootbeerClassLoader {
     m_classHierarchy.numberTypes();
     loadScene();
 
-    //for(String entry : m_entryPoints){
-    //  m_currDfsInfo = m_dfsInfos.get(entry);
-    //  dfsForRootbeer();
-    //  m_currDfsInfo.expandArrayTypes();
-    //  m_currDfsInfo.finalizeTypes();
-    //}
+    for(String entry : m_entryPoints){
+      m_currDfsInfo = m_dfsInfos.get(entry);
+      dfsForRootbeer();
+      m_currDfsInfo.expandArrayTypes();
+      m_currDfsInfo.finalizeTypes();
+    }
 
     Scene.v().loadDynamicClasses();
   }
@@ -1181,6 +1181,25 @@ public class RootbeerClassLoader {
         continue;
       }
     
+      // Check if method is overwritten by instanced subclass
+      MethodSignatureUtil curr_mutil = new MethodSignatureUtil();
+      curr_mutil.parse(method_sig);
+      
+      for(String newInvoke : m_newInvokes){
+        HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(newInvoke);
+        if(curr_hclass == null){
+          continue;
+        }
+        if(curr_hclass.getSuperClass().equals(curr_mutil.getClassName())) {
+          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(curr_mutil.getSubSignature());
+          if(curr_hmethod == null){
+            continue;
+          }
+          method_sig = curr_hmethod.getSignature();
+          break;
+        }
+      }
+      
       if(visited.contains(method_sig) == false){
         queue.add(method_sig);
         visited.add(method_sig);
