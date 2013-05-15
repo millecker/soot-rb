@@ -328,8 +328,6 @@ public class RootbeerClassLoader {
     //}
 
     Scene.v().loadDynamicClasses();
-
-    m_classHierarchy = null;
   }
  
   public void setLoaded(){
