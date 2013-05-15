@@ -415,37 +415,6 @@ public class RootbeerClassLoader {
 
       HierarchySootMethod hmethod = m_classHierarchy.findMethod(util.getSignature());
       if(hmethod == null){
-        // Method seems to be virtual
-        // add it to the ClassHierarchy
-        String curr_sig = util.getSignature();
-        List<String> path = new ArrayList<String>();
-        path.add(curr_sig);
-        m_classHierarchy.setVirtualMethodPath(curr_sig, path);
-
-        // Get HierarchyGraph for virtual method
-        HierarchyGraph hgraph = m_classHierarchy.getHierarchyGraph(curr_sig);
-        LinkedList<String> parentClasses = new LinkedList<String>(hgraph.getParents(class_name));
-        while(parentClasses.isEmpty() == false){
-          String parentClass = parentClasses.removeFirst();
-          parentClasses.addAll(hgraph.getParents(parentClass));
-              
-          HierarchySootClass parentHClass = m_classHierarchy.getHierarchySootClass(parentClass);
-          if(parentHClass == null){
-            continue;
-          }
-          
-          HierarchySootMethod parentHMethod = parentHClass.findMethodBySubSignature(util.getSubSignature());            
-          if(parentHMethod == null){
-            continue;
-          }
-          // Add parent signature of virtual method
-          String trace_sig = parentHMethod.getSignature();
-          m_cgMethodQueue.add(trace_sig);
-          
-          path.add(trace_sig);
-          m_classHierarchy.setVirtualMethodPath(curr_sig, path);
-        }
-    	  
         continue;
       }
 
