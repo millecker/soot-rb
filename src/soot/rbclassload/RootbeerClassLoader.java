@@ -856,6 +856,15 @@ public class RootbeerClassLoader {
       SootClass soot_class = Scene.v().getSootClass(class_name);
       soot_class.addMethod(soot_method);
     }
+    
+    // Load method bodies for MainClass
+    if(Scene.v().hasMainClass()){
+    	  SootClass main_class = Scene.v().getMainClass();
+    	  for(SootMethod method : main_class.getMethods()){
+    	    all_sigs.add(method.getSignature());
+    	    System.out.println("add method body of MainClass: "+method.getSignature());
+    	  }
+    }
 
     System.out.println("adding method bodies...");
     //add method bodies
@@ -1190,6 +1199,10 @@ public class RootbeerClassLoader {
     	    if(dontFollowClass(childClass)){
     	      continue;
       	}
+        if((Scene.v().hasMainClass()) && 
+        	  (!childClass.equals(Scene.v().getMainClass().getName()))){
+      	  continue;
+        }
     	    	HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
         if(curr_hclass == null){
           continue;
