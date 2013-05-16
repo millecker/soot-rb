@@ -891,6 +891,8 @@ public class RootbeerClassLoader {
         continue;
       }
 
+      System.out.println("  loading method: "+soot_method.getSignature());
+
       Body body = method.getBody(soot_method, "jb");
       SpecialInvokeFixup fixer = new SpecialInvokeFixup();
       body = fixer.fixup(body);

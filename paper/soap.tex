@@ -365,7 +365,7 @@ The {\tt HierarchyClass} keeps the class name, super class name and interfaces a
 {\tt HierarchyMethod getMethodCovarient(String css)} & Get the
     HierarchyMethod matching the input covariant subsignature\\\hline
 {\tt String getName()} & Get the name of the class\\\hline
-{\tt String getSuperClass()} & Get the super class\\\hline 
+{\tt String getSuperClass()} & Get the name of the super class\\\hline 
 {\tt boolean hasSuperClass()} & Returns true if the class has a 
     super class\\\hline
 \end{tabularx}
@@ -382,7 +382,9 @@ The {\tt HierarchyMethod} keeps the method name, return type, parameter types an
 {\tt List<String> getExceptionTypes()} &  Returns the exceptions\\\hline 
 {\tt HierarchyClass getHierarchyClass()} & Get
    the declaring HierarchyClass\\\hline 
-{\tt List<HierarchyInstruction> getInstructions()} & Get the 
+{\tt List
+    <HierarchyInstruction>
+    getInstructions()} & Get the 
     Instructions of the method in a string based format\\\hline 
 {\tt String getName()} & Get the name of the method\\\hline 
 {\tt List<String> getParameterTypes()} & Get the types of the parameters\\\hline
@@ -424,7 +426,7 @@ The {\tt HierarchyValueSwitch} takes a method signature and processes each {\tt 
 \begin{tabularx}{\columnwidth}{|lX|}
 \hline
 {\bf Method} & {\bf Description }\\\hline
-{\tt Set<String> getClasses()} &  Get reference types\\\hline
+{\tt Set<String> getRefTypes()} &  Get reference types\\\hline
 {\tt Set<String> getTypes()} &  Get all types\\\hline
 {\tt Set<String> getArrayTypes()} &  Get array types\\\hline
 {\tt Set<String> getMethodRefs()} &  Get method refs\\\hline
@@ -479,7 +481,7 @@ There are two remaining useful classes in the {\tt soot.\-rbclassload} package. 
 We have implemented our algorithm inside the \rb{}-specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
 
 %TODO put in the specs
-We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
+We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Linux 2.6.32-5-amd64 and JDK 1.6.0\_45 64-bit. 
 
 Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects.
 
@@ -489,10 +491,10 @@ Our test cases include our running example, and parts of the \rb test suite. We 
 \begin{tabularx}{\textwidth}{|l|l|X|X|l|}
 \hline
 \textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\sootclass Memory (Mb)}& \textbf{Time (s)} \\\hline
-Running example (Soot) & &&  &  \\\hline
-Running example (RBC) &  &&  &  \\\hline
+Running example (Soot) & 2031 & 885 & 139 & 91 \\\hline
+Running example (RBC)  & 712  & 1357 & 25 & 105 \\\hline
 \rb tests (Soot) && & & \\\hline
-\rb tests (RBC) && & & \\\hline
+\rb tests (RBC) & 1308 & 2586 & 35 & 225 \\\hline
 \end{tabularx}
 \caption{Experimental results}
 \label{tbl:results}
@@ -511,11 +513,6 @@ The Jimple Web Cache project aims to host a server online that can serve string 
 \section{Conclusion}
 \label{sec:conclusion}
 We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 2 minutes time when doing whole-program analysis from an entry point.
-
-\appendix
-\section{Appendix Title}
-
-This is the text of the appendix, if you need one.
 
 \acks
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
