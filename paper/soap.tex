@@ -11,6 +11,7 @@
 \usepackage{url}
 \usepackage{xspace} 
    
+\usepackage{graphicx} 
 
 \begin{document}
 
@@ -140,6 +141,15 @@ public class D {
 When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. Our method decreases this to 654 \sootclass objects and 2661 \sootmethod objects.
 %Do we add more, like Body or Unit?
 
+We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. While significantly truncated, and slightly unreadable, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
+
+\begin{figure}
+
+\includegraphics[scale=0.08,angle=-90]{class-dependency-small.pdf} 
+
+\caption{Subset of Class Dependencies for Listing \ref{lst:runningexample}}
+\label{fig:deps}
+\end{figure}
 This paper describes a new class loading algorithm and the required data structures to only load the set of classes that would be needed during program execution. Our strategy is to gather information from the Coffi bytecode representation without creating the Soot internal objects, while we build an over-approximate call graph. Once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy and we load a minimal Scene.
 
 We have implemented this scheme in the \rb GPU Compiler \cite{rootbeer}. 
@@ -198,7 +208,7 @@ The first step of our algorithm uses the list of classes in the process path and
 
 \subsection{Building a Call Graph}
 \label{sec:cg}
-In order to know which classes are reacheable in a normal program execution, we build a call graph of the program using a bi-directional variation of the optimistic Rapid Type Analysis (RTA) algorithm \cite{BaconRTA}.
+In order to know which classes are reacheable in a normal program execution, we build a call graph of the program using a bi-directional variation of the optimistic Rapid Type Analysis (RTA) algorithm \cite{BaconRTA, Sundaresan:2000:PVM:354222.353189}.
 
 We chose RTA as our base because it is a very fast algorithm that doesn't require us to perform any flow analyses, making it suited for the low-information phase we are in.
 
@@ -482,11 +492,16 @@ There are two remaining useful classes in the {\tt soot.\-rbclassload} package. 
 We have implemented our algorithm inside the \rb{}-specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
 
 %TODO put in the specs
-We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
+We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Debian Linux 6 and OpenJDK 1.6.0\_18 64-bit. 
 
 Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects.
 
-
+%On my system, with soot loader
+% Dandling: 0 Hierarchy: 0 Signatures: 0 Bodies: 2226. Num SootMethod: 21280
+% Memory used in wjpp phase: 97.92635 Mb	Memory used for SootClass objects: 29.016594 Mb Scene size: 29.614433 Mb
+% Memory used in wjtp phase: 299.9101 Mb	Memory used for SootClass objects: 96.312614 Mb Scene size: 130.69418 Mb
+%       Resolving classfiles: 00.0s (00.0%)
+% Bytecode -> jimple (naive): 06.5s (08.7%)
 
 \begin{table*}[htbf]
 \begin{tabularx}{\textwidth}{|l|l|X|X|l|}
