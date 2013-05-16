@@ -1,8 +1,12 @@
 import com.javamex.classmexer.MemoryUtil;
 import org.apache.commons.io.FileUtils;
 import soot.*;
+import soot.jimple.Stmt;
 
-import java.util.Map;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
 
 public class StatsMain {
 
@@ -45,13 +49,85 @@ public class StatsMain {
       }
   }
 
+    private static class DependencyTransformer extends SceneTransformer {
+
+        @Override
+        protected void internalTransform(String phaseName, Map options) {
+            final int MAX_DEPTH = 20;
+            try{
+                File output = new File("classdeps-"+MAX_DEPTH+".dot");
+                FileWriter fw = new FileWriter(output);
+                fw.write("digraph dep{\n");
+                //fw.write("rankdir=LR;\n");
+                fw.write("landscape=true;\n");
+                Queue<SootClass> worklist = new LinkedList<SootClass>();
+                worklist.add(Scene.v().getSootClass("A"));
+                Set<Integer> visited = new HashSet<Integer>(MAX_DEPTH);
+
+                SootClass objectClass = Scene.v().getSootClass("java.lang.Object");
+
+                while (worklist.size() > 0){
+                    SootClass next = worklist.poll();
+                    if (!visited.contains(next.getNumber())){
+                        fw.write(next.getNumber() + " [label="+next.getShortName().replace('$','_')+"];\n");
+                        visited.add(next.getNumber());
+
+                        if (visited.size() < MAX_DEPTH){
+                            Set<SootClass> localWorklist = new HashSet<SootClass>(); //to avoid duplicate edges
+
+                            if (next.hasSuperclass())
+                                localWorklist.add(next.getSuperclass());
+                            if (next.getInterfaceCount() > 0)
+                                localWorklist.addAll(next.getInterfaces());
+
+                           for (SootField sf : next.getFields()){
+                               localWorklist.add(sf.getDeclaringClass());
+                           }
+
+                            for (SootMethod sm : next.getMethods()){
+                                if (sm.isConcrete()){
+                                    for (Unit u : sm.retrieveActiveBody().getUnits()){
+                                        if (((Stmt)u).containsInvokeExpr()){
+                                            SootClass target = ((Stmt) u).getInvokeExpr().getMethod().getDeclaringClass();
+                                            localWorklist.add(target);
+
+                                        } else if (((Stmt) u).containsFieldRef()){
+                                            SootClass target = ((Stmt) u).getFieldRef().getField().getDeclaringClass();
+                                            localWorklist.add(target);
+                                        }
+                                    }
+                                }
+                            }
+                            for (SootClass target : localWorklist){
+                                if (target != objectClass && target != next){
+                                    fw.write(next.getNumber() + " -> "+target.getNumber() + ";\n");
+                                    worklist.add(target);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                fw.write("}");
+                fw.close();
+            } catch (IOException e){
+
+            }
+
+        }
+    }
+
+
   public static void main(String[] args){
 
     PackManager.v().getPack("wjpp").add(new Transform("wjpp.stats", new StatsTransformer("wjpp")));
     PackManager.v().getPack("wjtp").add(new Transform("wjtp.stats", new StatsTransformer("wjtp")));
+    PackManager.v().getPack("wjpp").add(new Transform("wjpp.graph", new DependencyTransformer()));
 
     soot.Main.main(new String[]{
-           "-time", "-w","-prepend-classpath", "-output-format", "none", "-soot-classpath", args[0], "-main-class", "A", "A"
+           "-time",
+          //  "-rbcl",
+            "-w","-prepend-classpath", "-output-format", "none", "-soot-classpath", args[0], "-main-class", "A", "A"
     });
   }
 }
