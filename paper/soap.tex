@@ -77,9 +77,10 @@
 
 \begin{abstract}
 One of the first activities of the Soot program analysis framework is to load 
-the classes for analysis. The approach currently used loads a large number of 
-classes, which then reduces the memory available for the analyses.
-This paper describes new algorithms and data structures to efficiently load Java
+the classes for analysis. With the current class loader, more classes are loaded
+than necessary. These extra classes can consume too much memory during whole program
+analayis making analysis infeasible on systems with four gigabytes of ram. This paper 
+describes new algorithms and data structures to efficiently load Java
 Bytecode classes for whole program analysis in Soot. Our method uses a modified 
 version of Rapid Type Analysis (RTA) to determine what classes, methods and 
 fields would be reachable during program execution. This enables us to load 
@@ -138,7 +139,8 @@ public class D {
 }
 \end{lstlisting}
 
-When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. Our method decreases this to 654 \sootclass objects and 2661 \sootmethod objects.
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. With the \rb class loader it loads 712 \sootclass objects and 2431 \sootmethod objects.
+
 %Do we add more, like Body or Unit?
 
 We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. While significantly truncated, and slightly unreadable, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
@@ -196,7 +198,7 @@ For our running example (c.f. Listing \ref{lst:runningexample}), this algorithm 
 \section{Class Loading using RTA}
 \label{sec:new-cl}
 Our class loading strategy is to keep class names, method bodies as well as method and field signatures as strings for as long as possible.
-The \sootclass, \sootmethod, \sootfield and {\tt Body} objects are only created once the types are numbered. Another important part of our strategy is that we load classes that are reachable from the entry points.
+The \sootclass, \sootmethod, \sootfield and {\tt Body} objects are only created once the types are numbered. Another important part of our strategy is that we load classes that are found on a depth first search walk from the entry points.
 
 For our running example (c.f. Listing \ref{lst:runningexample}), this algorithm loads the classes A,B and C, as well as a restricted set of JDK classes. %TODO details here
 
@@ -204,7 +206,7 @@ We explain the initial class loading step in section \ref{sec:loading}, followed
 
 \subsection{Load and Wrap Classes}
 \label{sec:loading}
-The first step of our algorithm uses the list of classes in the process path and loads them in memory using Coffi. We convert the  converts the constant pool indices for the current class, super class and interfaces into a string representation. We put all this information into a wrapper class named {\tt HierarchySootClass} and store them in a map (with the class name as key) for fast lookups.
+The first step of our algorithm uses the list of classes in the process path and loads them in memory using Coffi. We convert the constant pool indices for the current class, super class and interfaces into a string representation. We put all this information into a wrapper class named {\tt HierarchySootClass} and store them in a map (with the class name as key) for fast lookups.
 
 \subsection{Building a Call Graph}
 \label{sec:cg}
@@ -212,7 +214,7 @@ In order to know which classes are reacheable in a normal program execution, we 
 
 We chose RTA as our base because it is a very fast algorithm that doesn't require us to perform any flow analyses, making it suited for the low-information phase we are in.
 
-The original optimistic RTA algorithm uses Class Hierarchy Analysis (CHA) \cite{deanetal} to bootstrap a traversal of the program from the entry point. While the program is traversed, the class instantiations detected are recorded, and only the call targets that correspond to the found classes are preserved. This algorithm executes iteratively, meaning until a fixed point is reached.
+The original optimistic RTA algorithm uses Class Hierarchy Analysis (CHA) \cite{deanetal} to bootstrap a traversal of the program from the entry point. While the program is traversed, the class instantiations detected are recorded, and only the call targets that correspond to the found classes are preserved. This algorithm executes as a fixed point over the number of new class invocations.
 
 However, this algorithm needs to be modified to fit our needs. First, RTA presumes a single entry point at the root of the program execution. In our case, however, we allow multiple entry points, which may not be at the start of the program execution. %We need to justify why that is important.
 
@@ -247,13 +249,11 @@ Since our algorithm is monotonic (only new virtual call targets are added) and t
 
 The \rb GPU Compiler needs additional information in the loaded {\tt Scene} that would not be present in the classes loaded previously.
 
-Firstly, \rb needs additional classes to be loaded in the class hierarchy. We call these \emph{follow strings}, since they should be treated like the class hierarchy leaves identified previously.
+Firstly, \rb needs a mechanism to handle entry points determined by reflection, which \rb uses. These are called \emph{follow methods} and \emph{follow classes}. Note that \emph{follow methods} could also be used to model other non-explicit entry points, such as {\tt Thread.run} entry points. These are added to the set of entry points when the call graph is constructed.
 
-Secondly, \rb needs a mechanism to handle entry points determined by reflection, which \rb uses. These are called \emph{follow methods}. Note that \emph{follow methods} could also be used for to model other non-explicit entry points, such as {\tt Thread.run} entry points. These are added to the set of entry points when the call graph is constructed.
+Secondly, \rb also needs its runtime classes to be loaded to signatures (i.e. with no method bodies) so that the generated Jimple code can refer to the runtime methods. The set of \emph{to-signature classes} and \emph{methods} allows this.
 
-Thirdly, \rb also needs its runtime classes to be loaded to signatures (i.e. with no method bodies) so that the generated Jimple code can refer to the runtime methods. The set of \emph{to-signature} classes and methods allows this.
-
-All the overrides mentioned are configured with {\tt MethodTester}s and {\tt ClassTester}s. The \emph{follow strings}, \emph{follow methods} and \emph{to-signature} testers are evaluated once to save time.
+All the overrides mentioned are configured with {\tt MethodTester}s and {\tt ClassTester}s. The \emph{follow testers} and \emph{to-signature testers} are evaluated once to save time.
 
 \subsection{Numbering Types}
 \label{sec:numbering}
@@ -267,15 +267,16 @@ We use topological sorting for the interfaces because of the fact that all inter
 \label{sec:loadscene}
 The final stage of the algorithm is to load the Scene. 
 
-The loading happens in four steps: loading of the hierarchy, loading of the reachable fields, loading of the reacheable methods, and finally the method bodies are loaded from Coffi.
+The loading happens in four steps: loading the hierarchy, loading reachable fields, loading reachable methods, and finally the method bodies are loaded from Coffi.
 
 These steps are necessary because the \sootclass, \sootfield and \sootmethod instances reachable from the bodies must exist before the body can be resolved.
 
 As the last two steps are self-explanatory, we only explain the loading of the hierarchy and of the reachable fields.
 
-In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects (i.e. with no methods or fields) are created. These objects are populated with the super class and interface \sootclass objects. Because of the ordering we established, these objects are already present in the {\tt Scene}, so there are no broken dependencies.
+In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guarenteed to already exist in the {\tt Scene}.
 
-In the second step, we traverse the program to find all the field references. We parse the String-based information with {\tt FieldSignatureUtil} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
+In the second step, we traverse the program to find all the field references. We parse the string-based information with \\*
+{\tt FieldSignatureUtil} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
 %TODO do we really parse the whole program for this.
 
 %TODO are we loading only the methods that are reacheable???
@@ -317,7 +318,7 @@ The {\tt RootbeerClassLoader} is a singleton with the entry point to class loadi
 \hline
 {\bf Method} & {\bf Description }\\\hline
 {\tt void loadNecessaryClasses()} &  Load the Scene \\\hline
-{\tt ClassHierarchy getClassHierarchy()} & Get a the class hierarchy data structure\\\hline
+{\tt ClassHierarchy getClassHierarchy()} & Get the class hierarchy data structure\\\hline
 {\tt List<SootMethod> getEntryPoints()} & Get the \sootmethod entry points that were specified using the MethodTesters\\\hline
 {\tt void addEntryMethodTester (MethodTester mt)} & Add a MethodTester that will be used to define entry points\\\hline
 {\tt void addFollowMethodTester (MethodTester mt)} & Add a MethodTester that will be used to include methods in the reachable walk\\\hline
@@ -408,7 +409,7 @@ The {\tt HierarchyMethod} keeps the method name, return type, parameter types an
 \label{fig:rbhm}
 \end{figure}
 
-The {\tt HierarchyInstruction} has two methods. The first is {\tt String getName()}, which keeps track of the name of the instruction (like “new”). The second is {\tt List<Operand> getOperands()} the string-based {\tt Operand}.
+The {\tt HierarchyInstruction} has two methods. The first is {\tt String getName()}, which keeps track of the name of the instruction (like “new”). The second is {\tt List<Operand> getOperands()}, representing the string-based {\tt Operand}.
 
 The {\tt Operand} class keeps track of the instruction operand as converted to a string using the class constant pool. It keeps track of a string-based type that allows easy searching for class\_refs, method\_refs and field\_refs. Its description is available in Figure \ref{fig:operand}. 
 
@@ -492,7 +493,7 @@ There are two remaining useful classes in the {\tt soot.\-rbclassload} package. 
 We have implemented our algorithm inside the \rb{}-specific fork of Soot. We currently only load from Java bytecode. The code is available online\footnote{\url{https://github.com/pcpratts/soot-rb}} and we hope to integrate it in Soot in the near future.
 
 %TODO put in the specs
-We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Debian Linux 6 and OpenJDK 1.6.0\_18 64-bit. 
+We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with XYZ Gb of RAM, running Linux ABC and JDK 1.6.0\_45 64-bit. 
 
 Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects.
 
