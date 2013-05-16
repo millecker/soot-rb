@@ -320,12 +320,12 @@ public class RootbeerClassLoader {
     m_classHierarchy.numberTypes();
     loadScene();
 
-    //for(String entry : m_entryPoints){
-    //  m_currDfsInfo = m_dfsInfos.get(entry);
-    //  dfsForRootbeer();
-    //  m_currDfsInfo.expandArrayTypes();
-    //  m_currDfsInfo.finalizeTypes();
-    //}
+    for(String entry : m_entryPoints){
+      m_currDfsInfo = m_dfsInfos.get(entry);
+      dfsForRootbeer();
+      m_currDfsInfo.expandArrayTypes();
+      m_currDfsInfo.finalizeTypes();
+    }
 
     Scene.v().loadDynamicClasses();
   }
