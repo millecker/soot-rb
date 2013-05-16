@@ -783,35 +783,7 @@ public class RootbeerClassLoader {
     fields_to_load.addAll(m_loadFields);
 
     for(String field_ref : fields_to_load){
-      FieldSignatureUtil util = new FieldSignatureUtil();
-      util.parse(field_ref);
-
-      String class_name = util.getDeclaringClass();
-      String field_name = util.getName();
-
-      while(true){
-        HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
-        if(hclass.hasField(field_name) == false){
-          if(hclass.hasSuperClass() == false){
-            System.out.println("cannot find field: "+field_ref);
-            break;
-          }
-          class_name = hclass.getSuperClass();
-          continue;
-        }
-
-        SootClass declaring_class = Scene.v().getSootClass(class_name);
-        if(declaring_class.declaresFieldByName(field_name)){
-          break;
-        }
-
-        int field_modifiers = hclass.getFieldModifiers(field_name);
-        Type field_type = string_to_type.convert(util.getType());
-        SootField new_field = new SootField(field_name, field_type, field_modifiers);
-        declaring_class.addField(new_field);
-
-        break;
-      }
+      loadFieldToScene(field_ref);
     }
 
     //add empty methods
@@ -836,34 +808,52 @@ public class RootbeerClassLoader {
       }
       visited.add(method.getSignature());
 
-      List<Type> parameterTypes = new ArrayList<Type>();
-      for(String paramType : method.getParameterTypes()){
-        parameterTypes.add(string_to_type.convert(paramType));
-      }
-      Type returnType = string_to_type.convert(method.getReturnType());
-      int modifiers = method.getModifiers();
-      List<SootClass> thrownExceptions = new ArrayList<SootClass>();
-      for(String exception : method.getExceptionTypes()){
-        SootClass ex_class = Scene.v().getSootClass(exception);
-        thrownExceptions.add(ex_class);
-      }
-      SootMethod soot_method = new SootMethod(method.getName(), parameterTypes,
-        returnType, modifiers, thrownExceptions);
-
-      util.parse(method.getSignature());
-      class_name = util.getClassName();
-
-      SootClass soot_class = Scene.v().getSootClass(class_name);
-      soot_class.addMethod(soot_method);
+      loadMethodToScene(method);
     }
     
-    // Load method bodies for MainClass
+    // Reload methods of MainClass if in entryPoint hierarchy
     if(Scene.v().hasMainClass()){
-    	  SootClass main_class = Scene.v().getMainClass();
-    	  for(SootMethod method : main_class.getMethods()){
-    	    all_sigs.add(method.getSignature());
-    	    System.out.println("add method body of MainClass: "+method.getSignature());
-    	  }
+      Set<String> visited_methods = new HashSet<String>();
+      LinkedList<String> method_queue = new LinkedList<String>();
+      SootClass main_class = Scene.v().getMainClass();
+      for(SootMethod method : main_class.getMethods()){
+        System.out.println("Check method of MainClass: "+method.getSignature());
+        // Always reload constructor
+        if(method.getSubSignature().equals("void <init>()")){
+          // Add method to all_sigs for loading method body
+          all_sigs.add(method.getSignature());
+          continue;
+        }
+        //Check for every main method, if its overwritting a method in the entryPoint hierarchy
+        for(String entryPoint : m_entryPoints){
+          LinkedList<String> subentry_queue = new LinkedList<String>();
+          HierarchyValueSwitch value_switch = getValueSwitch(entryPoint);
+          subentry_queue.addAll(value_switch.getMethodRefs());
+          
+          while(subentry_queue.isEmpty() == false){
+            String method_sig = subentry_queue.removeFirst();
+            subentry_queue.addAll(getValueSwitch(method_sig).getMethodRefs());
+            MethodSignatureUtil util = new MethodSignatureUtil();
+            util.parse(method_sig);
+            if((util.getClassName().equals(main_class.getSuperclass().getName())) &&
+              (util.getSubSignature().equals(method.getSubSignature()))){
+              System.out.println("Found overwritting method: "+method_sig);
+              // Add method to queue, to load its fields
+              method_queue.add(method.getSignature());
+              // Add method to all_sigs for loading method body
+              all_sigs.add(method.getSignature());
+            }
+          }
+        }
+      }
+      // Reload missing fields
+      while(method_queue.isEmpty() == false){
+        String curr = method_queue.removeFirst();
+        reloadMissingMethods(curr, method_queue, visited_methods);
+  	  }
+      // Add method to all_sigs for loading method body
+      //System.out.println("Setup methods for loading body: "+visited_methods.toString());
+      all_sigs.addAll(visited_methods);
     }
 
     System.out.println("adding method bodies...");
@@ -910,6 +900,121 @@ public class RootbeerClassLoader {
     }
     System.out.println("Total loaded classes: " + all_classes.size());
     System.out.println("Total loaded methods: " + all_sigs.size());
+  }
+  
+  private void loadFieldToScene(String field_ref){
+    FieldSignatureUtil util = new FieldSignatureUtil();
+    util.parse(field_ref);
+
+    String class_name = util.getDeclaringClass();
+    String field_name = util.getName();
+
+    while(true){
+      HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+      if(hclass.hasField(field_name) == false){
+        if(hclass.hasSuperClass() == false){
+          System.out.println("cannot find field: "+field_ref);
+          break;
+        }
+        class_name = hclass.getSuperClass();
+        continue;
+      }
+
+      SootClass declaring_class = Scene.v().getSootClass(class_name);
+      if(declaring_class.declaresFieldByName(field_name)){
+        break;
+      }
+
+      int field_modifiers = hclass.getFieldModifiers(field_name);
+      StringToType string_to_type = new StringToType();
+      Type field_type = string_to_type.convert(util.getType());
+      SootField new_field = new SootField(field_name, field_type, field_modifiers);
+      
+      boolean found = false;
+      for(SootField curr_field : declaring_class.getFields()){
+        if(curr_field.getName().equals(new_field.getName())){
+      	    found = true;
+        }
+      }
+      if(!found){
+        declaring_class.addField(new_field);
+      }
+
+      break;
+    }
+  }
+  
+  private void loadMethodToScene(HierarchySootMethod method){
+    List<Type> parameterTypes = new ArrayList<Type>();
+    StringToType string_to_type = new StringToType();
+    for(String paramType : method.getParameterTypes()){
+      parameterTypes.add(string_to_type.convert(paramType));
+    }
+    Type returnType = string_to_type.convert(method.getReturnType());
+    int modifiers = method.getModifiers();
+    List<SootClass> thrownExceptions = new ArrayList<SootClass>();
+    for(String exception : method.getExceptionTypes()){
+      SootClass ex_class = Scene.v().getSootClass(exception);
+      thrownExceptions.add(ex_class);
+    }
+    SootMethod new_method = new SootMethod(method.getName(), parameterTypes,
+        returnType, modifiers, thrownExceptions);
+    
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(method.getSignature());
+    String class_name = util.getClassName();
+
+    SootClass soot_class = Scene.v().getSootClass(class_name);
+    boolean found = false;
+    for(SootMethod curr_method : soot_class.getMethods()){
+      if((curr_method.getName().equals(new_method.getName())) &&
+        (curr_method.getReturnType().equals(new_method.getReturnType())) &&
+        (curr_method.getParameterTypes().equals(new_method.getParameterTypes())) &&
+        (curr_method.getModifiers() == (new_method.getModifiers()))
+        // TODO Missing thrown Exceptions check
+        ){
+    	    found = true;
+      }
+    }
+    if(!found){
+      soot_class.addMethod(new_method);
+    }
+  }
+  
+  private void reloadMissingMethods(String signature, LinkedList<String> queue, Set<String> visited){
+    HierarchyValueSwitch value_switch = getValueSwitch(signature);
+	System.out.println("reloadMissingMethods: "+signature);
+	
+    MethodSignatureUtil util = new MethodSignatureUtil();
+    util.parse(signature);
+    String class_name = util.getClassName();
+
+    StringToType string_to_type = new StringToType();
+    if(string_to_type.isArrayType(class_name)){
+      return;
+    }
+
+    HierarchySootMethod method = m_classHierarchy.findMethod(util.getSignature());
+    if(method == null){
+      return;
+    }
+    
+	loadMethodToScene(method);
+	
+	for(String method_sig : value_switch.getMethodRefs()){
+      if(dontFollow(method_sig)){
+        continue;
+      }
+      if(visited.contains(method_sig) == false){
+        queue.add(method_sig);
+        visited.add(method_sig);
+	  }
+	}
+
+    for(String field_ref : value_switch.getFieldRefs()){
+      loadFieldToScene(field_ref);
+	  System.out.println("reloadMissingMethods Field: "+field_ref);      
+    }
   }
 
   private HierarchyValueSwitch getValueSwitch(String signature){
@@ -1132,7 +1237,7 @@ public class RootbeerClassLoader {
     String signature = m_currDfsInfo.getRootMethodSignature();
     
     Set<String> visited = new HashSet<String>();
-    System.out.println("doing rootbeer dfs: "+signature);
+    //System.out.println("doing rootbeer dfs: "+signature);
     LinkedList<String> queue = new LinkedList<String>();
     queue.add(signature);
 
@@ -1394,7 +1499,7 @@ public class RootbeerClassLoader {
   private void findEntryPoints(){
     System.out.println("finding entry points...");
     m_entryPoints = new ArrayList<String>();
-    System.out.println("app_classes: "+m_appClasses);
+    //System.out.println("app_classes: "+m_appClasses);
     for(String app_class : m_appClasses){
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(app_class);
       List<HierarchySootMethod> methods = hclass.getMethods();
