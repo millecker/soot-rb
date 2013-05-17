@@ -79,15 +79,14 @@
 One of the first activities of the Soot program analysis framework is to load 
 the classes for analysis. With the current class loader, more classes are loaded
 than necessary. These extra classes can consume too much memory during whole program
-analayis making analysis infeasible on systems with four gigabytes of ram. This paper 
+analysis making analysis infeasible on systems with four gigabytes of ram. This paper 
 describes new algorithms and data structures to efficiently load Java
 Bytecode classes for whole program analysis in Soot. Our method uses a modified 
 version of Rapid Type Analysis (RTA) to determine what classes, methods and 
 fields would be reachable during program execution. This enables us to load 
 significantly less information in memory to enable program analyses.
 We implemented our approach for loading Java bytecode in the Soot-based \rb 
-compiler. The new class loader can load Scenes that make calls into the Java 
-Runtime and uses less than four gigabytes of ram for our test cases.
+compiler. The new class loader can load Scenes that are 64.94\% smaller and uses less than four gigabytes of ram for our test cases.
 \end{abstract}
 
 \category{D.3.4}{Programming Languages}{Processors – code generation}[compilers]
@@ -139,7 +138,7 @@ public class D {
 }
 \end{lstlisting}
 
-When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 5660 \sootclass objects and represents 53870 \sootmethod objects. With the \rb class loader it loads 712 \sootclass objects and 2431 \sootmethod objects.
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 2031 \sootclass objects. With the \rb class loader it loads 712 \sootclass objects, representing an approximate reduction of 114 Mb in memory usage.
 
 %Do we add more, like Body or Unit?
 
@@ -273,7 +272,7 @@ These steps are necessary because the \sootclass, \sootfield and \sootmethod ins
 
 As the last two steps are self-explanatory, we only explain the loading of the hierarchy and of the reachable fields.
 
-In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guarenteed to already exist in the {\tt Scene}.
+In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guaranteed to already exist in the {\tt Scene}.
 
 In the second step, we traverse the program to find all the field references. We parse the string-based information with \\*
 {\tt FieldSignatureUtil} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
@@ -283,7 +282,7 @@ In the second step, we traverse the program to find all the field references. We
 
 Note that this approach results in a subset of the classes loaded, and a subset of the class details being converted to Jimple. Since our call graph is sound, no information is missing that would be required during program execution.
 
-In the case of our running example, we would have a lighter scene loaded, as illustrated in Listing \ref{lst:loadscenerunningexample}.
+In the case of our running example, we would have a lighter scene loaded, as illustrated in Listing \ref{lst:loadscenerunningexample}. Please note that JDK library classes were not added in. We notice that the class {\tt B} does not have the {\tt bar()} method, nor is the class {\tt D} loaded.
 
 \begin{lstlisting}[caption={Loaded Scene for Running example},label={lst:loadscenerunningexample},float=!ht]
 public class A {
@@ -497,7 +496,7 @@ We have implemented our algorithm inside the \rb{}-specific fork of Soot. We cur
 %TODO put in the specs
 We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Linux 2.6.32-5-amd64 and JDK 1.6.0\_45 64-bit. 
 
-Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects.
+Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature.
 
 %On my system, with soot loader
 % Dandling: 0 Hierarchy: 0 Signatures: 0 Bodies: 2226. Num SootMethod: 21280
@@ -506,8 +505,8 @@ Our test cases include our running example, and parts of the \rb test suite. We 
 %       Resolving classfiles: 00.0s (00.0%)
 % Bytecode -> jimple (naive): 06.5s (08.7%)
 
-\begin{table*}[htbf]
-\begin{tabularx}{\textwidth}{|l|l|X|X|l|}
+\begin{table}[htbf]
+\begin{tabularx}{\columnwidth}{|p{1.5cm}|p{1cm}|X|X|l|}
 \hline
 \textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\sootclass Memory (Mb)}& \textbf{Time (s)} \\\hline
 Running example (Soot) & 2031 & 885 & 139 & 91 \\\hline
@@ -517,11 +516,13 @@ Running example (RBC)  & 712  & 1357 & 25 & 105 \\\hline
 \end{tabularx}
 \caption{Experimental results}
 \label{tbl:results}
-\end{table*}
+\end{table}
 
 We compare our implementation against the Soot class loader by loading programs and taking measurements in the wjpp phase in Table \ref{tbl:results}.
 
-While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point.
+While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separately.
+
+We notice a significant decrease in the number of classes loaded, which a minimal increase in processing time. It appears that the overhead of traversing the program in memory is only slightly greater than that of loading many files in memory. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to break even in terms of loading time.
 
 \section{Future Work}
 \label{sec:future}
@@ -531,7 +532,7 @@ The Jimple Web Cache project aims to host a server online that can serve string 
 
 \section{Conclusion}
 \label{sec:conclusion}
-We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 2 minutes time when doing whole-program analysis from an entry point.
+We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 5 minutes time when doing whole-program analysis from an entry point. The Scene is about 26\% smaller and the memory savings are of about 82\%.
 
 \acks
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
