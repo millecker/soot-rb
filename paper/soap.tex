@@ -79,7 +79,7 @@
 One of the first activities of the Soot program analysis framework is to load 
 the classes for analysis. With the current class loader, more classes are loaded
 than necessary. These extra classes can consume too much memory during whole program
-analayis making analysis infeasible on systems with four gigabytes of ram. This paper 
+analysis making analysis infeasible on systems with four gigabytes of ram. This paper 
 describes new algorithms and data structures to efficiently load Java
 Bytecode classes for whole program analysis in Soot. Our method uses a modified 
 version of Rapid Type Analysis (RTA) to determine what classes, methods and 
@@ -138,7 +138,7 @@ public class D {
 }
 \end{lstlisting}
 
-When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 2031 \sootclass objects. With the \rb class loader it loads 712 \sootclass objects, representing an approximative reduction of 114 Mb in memory usage.
+When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 2031 \sootclass objects. With the \rb class loader it loads 712 \sootclass objects, representing an approximate reduction of 114 Mb in memory usage.
 
 %Do we add more, like Body or Unit?
 
@@ -272,7 +272,7 @@ These steps are necessary because the \sootclass, \sootfield and \sootmethod ins
 
 As the last two steps are self-explanatory, we only explain the loading of the hierarchy and of the reachable fields.
 
-In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guarenteed to already exist in the {\tt Scene}.
+In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guaranteed to already exist in the {\tt Scene}.
 
 In the second step, we traverse the program to find all the field references. We parse the string-based information with \\*
 {\tt FieldSignatureUtil} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
@@ -282,7 +282,7 @@ In the second step, we traverse the program to find all the field references. We
 
 Note that this approach results in a subset of the classes loaded, and a subset of the class details being converted to Jimple. Since our call graph is sound, no information is missing that would be required during program execution.
 
-In the case of our running example, we would have a lighter scene loaded, as illustrated in Listing \ref{lst:loadscenerunningexample}.
+In the case of our running example, we would have a lighter scene loaded, as illustrated in Listing \ref{lst:loadscenerunningexample}. Please note that JDK library classes were not added in. We notice that the class {\tt B} does not have the {\tt bar()} method, nor is the class {\tt D} loaded.
 
 \begin{lstlisting}[caption={Loaded Scene for Running example},label={lst:loadscenerunningexample},float=!ht]
 public class A {
@@ -520,7 +520,9 @@ Running example (RBC)  & 712  & 1357 & 25 & 105 \\\hline
 
 We compare our implementation against the Soot class loader by loading programs and taking measurements in the wjpp phase in Table \ref{tbl:results}.
 
-While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separarately.
+While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separately.
+
+We notice a significant decrease in the number of classes loaded, which a minimal increase in processing time. It appears that the overhead of traversing the program in memory is only slightly greater than that of loading many files in memory. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to break even in terms of loading time.
 
 \section{Future Work}
 \label{sec:future}
