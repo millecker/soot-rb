@@ -27,13 +27,13 @@ public class RootbeerClassLoaderAnalysis {
       "-process-dir", "classes/soap2013_example.jar",
       "-rbcl",
       "-w",
-      //"-p", "cg", "enabled:true",
-      //"-p", "cg", "implicit-entry:false",
-      //"-p", "cg.cha", "enabled:false",
-      //"-p", "cg.spark", "enabled:true",
+      "-p", "cg", "enabled:true",
+      "-p", "cg", "implicit-entry:false",
+      "-p", "cg.cha", "enabled:false",
+      "-p", "cg.spark", "enabled:true",
     };
-    //soot.Main.main(args);
-    RootbeerClassLoader.v().loadNecessaryClasses();
+    soot.Main.main(args);
+    //RootbeerClassLoader.v().loadNecessaryClasses();
           
     long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     long memoryUsedClasses = MemoryUtil.deepMemoryUsageOfAll(Scene.v().getClasses(), MemoryUtil.VisibilityFilter.ALL);
@@ -52,16 +52,3 @@ public class RootbeerClassLoaderAnalysis {
     analysis.run("classes/");
   }
 }
-
-/*
-     List<String> proc_dir = new ArrayList<String>();
-    proc_dir.add(RootbeerPaths.v().getJarContentsFolder());
-    
-    Options.v().set_allow_phantom_refs(true);
-    Options.v().set_rbclassload(true);
-    Options.v().set_prepend_classpath(true);
-    Options.v().set_process_dir(proc_dir);
-    Options.v().set_soot_classpath(rootbeer_jar);
-    RootbeerClassLoader.v().addEntryMethodTester(m_entryDetector);
-    RootbeerClassLoader.v().loadNecessaryClasses();
- */

@@ -86,7 +86,8 @@ version of Rapid Type Analysis (RTA) to determine what classes, methods and
 fields would be reachable during program execution. This enables us to load 
 significantly less information in memory to enable program analyses.
 We implemented our approach for loading Java bytecode in the Soot-based \rb 
-compiler. The new class loader can load Scenes that are 64.94\% smaller and uses less than four gigabytes of ram for our test cases.
+compiler. The new class loader loaded a Scene that was 64.94\% smaller with
+our test case.
 \end{abstract}
 
 \category{D.3.4}{Programming Languages}{Processors – code generation}[compilers]
@@ -146,7 +147,7 @@ We include an illustration of a subset of the dependencies loaded with the curre
 
 \begin{figure}
 
-\includegraphics[scale=0.08,angle=-90]{class-dependency-small.pdf} 
+\includegraphics[scale=0.17,angle=0]{together-trim.pdf} 
 
 \caption{Subset of Class Dependencies for Listing \ref{lst:runningexample}}
 \label{fig:deps}
@@ -534,7 +535,7 @@ The Jimple Web Cache project aims to host a server online that can serve string 
 
 \section{Conclusion}
 \label{sec:conclusion}
-We have shown data structures and algorithms to efficiently load a Soot Scene in under 4 gigabytes of memory and 5 minutes time when doing whole-program analysis from an entry point. The Scene is about 26\% smaller and the memory savings are of about 82\%.
+We have shown data structures and algorithms to efficiently load a Soot Scene. In the small test case, the Scene is about 35\% smaller and the memory savings is about 18\%.
 
 \acks
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
