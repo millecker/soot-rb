@@ -10,9 +10,9 @@
 \usepackage{tabularx}
 \usepackage{url}
 \usepackage{xspace} 
-   
+%\usepackage{float}   
 \usepackage{graphicx} 
-
+\usepackage{placeins}
 \begin{document}
 
 \newcommand*{\rb}{\textsc{Rootbeer}\xspace}
@@ -78,15 +78,14 @@
 \begin{abstract}
 One of the first activities of the Soot program analysis framework is to load 
 the classes for analysis. With the current class loader, more classes are loaded
-than necessary. These extra classes can consume too much memory during whole program
-analysis making analysis infeasible on systems with four gigabytes of ram. This paper 
+than necessary. The overhead in memory of these classes can make whole-program analysis of large binaries infeasible on systems with limited memory. This paper 
 describes new algorithms and data structures to efficiently load Java
 Bytecode classes for whole program analysis in Soot. Our method uses a modified 
 version of Rapid Type Analysis (RTA) to determine what classes, methods and 
 fields would be reachable during program execution. This enables us to load 
 significantly less information in memory to enable program analyses.
 We implemented our approach for loading Java bytecode in the Soot-based \rb 
-compiler. The new class loader loaded a Scene that was 64.94\% smaller with
+compiler. The new class loader loaded a Scene that was 35\% smaller with
 our test case.
 \end{abstract}
 
@@ -105,7 +104,7 @@ and memory when using whole-program mode. The current algorithm loads all
 classes from the process path and any class transitively referenced from loaded 
 classes. All methods in a class are loaded whether or not they exist in any 
 possible program traces. The number of loaded types starts out small, but as 
-each class is loaded, more and more unnecessary types are added to the Scene. 
+each class is loaded, more and more unnecessary types are added to the {\tt Scene}. 
 This results in a large memory footprint for analyzing even small programs, 
 making some analyses impossible on lower-end systems.
 
@@ -141,22 +140,11 @@ public class D {
 
 When loading this program in Soot in whole-program mode, without exclusions, the class loader fully loads 2031 \sootclass objects. With the \rb class loader it loads 712 \sootclass objects, representing an approximate reduction of 114 Mb in memory usage.
 
-%Do we add more, like Body or Unit?
-
-We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. While significantly truncated, and slightly unreadable, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
-
-\begin{figure}
-
-\includegraphics[scale=0.17,angle=0]{together-trim.pdf} 
-
-\caption{Subset of Class Dependencies for Listing \ref{lst:runningexample}}
-\label{fig:deps}
-\end{figure}
 This paper describes a new class loading algorithm and the required data structures to only load the set of classes that would be needed during program execution. Our strategy is to gather information from the Coffi bytecode representation without creating the Soot internal objects, while we build an over-approximate call graph. Once all of the reachable classes have been discovered, the types are numbered according to the class hierarchy and we load a minimal Scene.
 
 We have implemented this scheme in the \rb GPU Compiler \cite{rootbeer}. 
 
-The contents are organized as follows. In section \ref{sec:new-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
+The contents are organized as follows. In section \ref{sec:soot-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
 
 %TODO merge some of  that in the introduction ?
 \section{Soot Whole-Program Class Loading}
@@ -189,7 +177,7 @@ The \sootclass objects of the outer class, the super class and the interfaces ar
 
 In the second phase, Soot loads the class to the signature level. It does so by examining the hierarchy anew, the methods signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
 
-In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body. Soot uses the information stored as {\tt Type} in the first step and adds it all to the worklist.
+In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body.
 
 The weakness of this algorithm is its all-or-nothing nature. It loads all the classes that are reachable from the basic classes and the processable classes, irrespective of whether they would be used in the program or not.
 
@@ -218,9 +206,9 @@ The original optimistic RTA algorithm uses Class Hierarchy Analysis (CHA) \cite{
 
 However, this algorithm needs to be modified to fit our needs. First, RTA presumes a single entry point at the root of the program execution. In our case, however, we allow multiple entry points, which may not be at the start of the program execution. %We need to justify why that is important.
 
-Our variation of RTA is also bootstrapped by CHA. As such, we will not go in the details of the construction of the class hierarchy and the virtual method resolution cache.
+%Our variation of RTA is also bootstrapped by CHA. As such, we will not go in the details of the construction of the class hierarchy and the virtual method resolution cache.
 
-Note that this traversal can be bounded, resulting in a truncated call graph. While is unsound, it is often useful in practice. The mechanism for evaluating whether to visit a node is called the \emph{don't follow} set.
+Note that this traversal can be bounded, resulting in a truncated call graph. While is unsound, it is often useful in practice. The mechanism for evaluating whether to visit a node is called the \emph{don't follow} set, which is described in section \ref{sec:api}.
 
 \subsubsection{Entry Points}
 The first step in building a call graph is to determine the entry points. Our class loader provides a flexible entry point mechanism. Soot users who analyze software that does not have a {\tt main} method need not generate one for the sake of analysis, but simply need to create an appropriate {\tt MethodTester} class and register it with the {\tt RootbeerClassLoader.addEntryMethodTester} method. All the details of this API is provided in section \ref{sec:api}.
@@ -242,7 +230,7 @@ If an entry point is not a main function, all of the methods on a depth first se
 This is handled by a backward traversal from the entry points. When traversing the methods, we examine, using the \emph{reachable set}, if it contains any method call to any methods in the call graph. If so, the edge is added to the call graph.
 
 \subsubsection{Convergence}
-Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of constructor invocations found for determining the fixed point, as this is more economical to use than graph comparison and simpler to implement than many of the options suggested by Lhoták \cite{lhot02}.
+Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of classes created with {\tt new} we find for determining the fixed point.
 
 \subsection{\rb{}-Specific Overrides}
 \label{sec:followtosig}
@@ -275,8 +263,8 @@ As the last two steps are self-explanatory, we only explain the loading of the h
 
 In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guaranteed to already exist in the {\tt Scene}.
 
-In the second step, we traverse the program to find all the field references. We parse the string-based information with \\*
-{\tt FieldSignatureUtil} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
+In the second step, we traverse the program to find all the field references. We parse the string-based information with
+{\tt Field\-Signature\-Util} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
 %TODO do we really parse the whole program for this.
 
 %TODO are we loading only the methods that are reacheable???
@@ -486,7 +474,7 @@ The {\tt StringCallGraph} (see Figure \ref{fig:scg}) keeps a mapping of edges go
 \label{fig:scg}
 \end{figure}
 
-There are two remaining useful classes in the {\tt soot.\-rbclassload} package. {\tt MethodSignatureUtil} can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a \sootmethod can be returned. {\tt FieldSignatureUtil} can parse a field signature and return its parts. Also any part of a field signature can be modified and a \sootfield can be returned.
+There are two remaining useful classes in the {\tt soot.\-rb\-class\-load} package. {\tt MethodSignatureUtil} can parse a method signature and return its name and types as strings. Any part of a method signature can be modified and a \sootmethod can be returned. {\tt FieldSignatureUtil} can parse a field signature and return its parts. Also any part of a field signature can be modified and a \sootfield can be returned.
 
 \section{Evaluation}
 \label{sec:eval}
@@ -508,7 +496,7 @@ Note that we configured our program to run the {\sc Spark} \cite{lhot02} points-
 %       Resolving classfiles: 00.0s (00.0%)
 % Bytecode -> jimple (naive): 06.5s (08.7%)
 
-\begin{table}[htbf]
+\begin{table}[!htbp]
 \begin{tabularx}{\columnwidth}{|p{1.5cm}|p{1cm}|X|X|l|}
 \hline
 \textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\sootclass Memory (Mb)}& \textbf{Time (s)} \\\hline
@@ -521,11 +509,23 @@ Running example (RBC)  & 712  & 1357 & 25 & 105 \\\hline
 \label{tbl:results}
 \end{table}
 
+\begin{figure*}[!htbp]
+
+\includegraphics[scale=0.3,angle=0]{together-trim.pdf} 
+
+\caption{Subset of Class Dependencies for Listing \ref{lst:runningexample}}
+\label{fig:deps}
+\end{figure*}
+
 We compare our implementation against the Soot class loader by loading programs and taking measurements in the wjpp phase in Table \ref{tbl:results}.
 
 While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separately.
 
 We notice a significant decrease in the number of classes loaded, which a minimal increase in processing time. It appears that the overhead of traversing the program in memory is only slightly greater than that of loading many files in memory. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to break even in terms of loading time.
+
+We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. We show additional classes that would be loaded at the Signatures level by Soot's class loader with dashed edges. While significantly truncated, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
+
+\FloatBarrier
 
 \section{Future Work}
 \label{sec:future}
