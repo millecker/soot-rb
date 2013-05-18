@@ -10,10 +10,8 @@ digraph dep{
 "java.io.BufferedWriter" -> "java.io.Writer";
 "java.io.File" -> "java.io.FileSystem";
 "java.io.File" -> "java.lang.Class";
-"java.io.File" -> "java.lang.StringBuilder";
 "java.io.FileSystem" -> "java.lang.String";
 "java.io.FileSystem" -> "java.lang.System";
-"java.io.FilterInputStream" -> "java.io.InputStream";
 "java.io.PrintStream" -> "java.io.BufferedWriter";
 "java.io.PrintStream" -> "java.io.OutputStream";
 "java.io.PrintStream" -> "java.io.OutputStreamWriter";
@@ -26,7 +24,6 @@ digraph dep{
 "java.lang.AbstractStringBuilder" -> "java.lang.StringBuilder";
 "java.lang.AbstractStringBuilder" -> "java.lang.System";
 "java.lang.AssertionError" -> "java.lang.Error";
-"java.lang.AssertionError" -> "java.lang.StringBuilder";
 "java.lang.Character" -> "java.lang.AssertionError";
 "java.lang.Character" -> "java.lang.CharSequence";
 "java.lang.Character" -> "java.lang.Class";
@@ -62,12 +59,7 @@ digraph dep{
 "java.lang.StringBuffer" -> "java.lang.String";
 "java.lang.StringBuilder" -> "java.lang.AbstractStringBuilder";
 "java.lang.StringBuilder" -> "java.lang.String";
-"java.lang.StringCoding" -> "java.lang.Class";
-"java.lang.StringCoding" -> "java.lang.Error";
-"java.lang.StringCoding" -> "java.lang.String";
-"java.lang.StringCoding" -> "java.lang.System";
 "java.lang.String" -> "java.lang.Character";
-"java.lang.String" -> "java.lang.StringCoding";
 "java.lang.String" -> "java.lang.System";
 "java.lang.String" -> "java.util.Locale";
 "java.lang.System" -> "java.lang.Class";
@@ -81,7 +73,6 @@ digraph dep{
 "java.lang.Void" -> "java.lang.Class";
 "java.util.AbstractList" -> "java.util.AbstractCollection";
 "java.util.AbstractSet" -> "java.util.AbstractCollection";
-"java.util.HashMap" -> "java.lang.StringBuilder";
 "java.util.HashMap" -> "java.util.Iterator";
 "java.util.HashMap" -> "java.util.Map";
 "java.util.HashMap" -> "java.util.Set";
@@ -89,15 +80,12 @@ digraph dep{
 "java.util.HashSet" -> "java.util.HashMap";
 "java.util.HashSet" -> "java.util.LinkedHashMap";
 "java.util.HashSet" -> "java.util.Set";
-"java.util.Hashtable" -> "java.lang.StringBuilder";
 "java.util.LinkedHashMap" -> "java.util.HashMap";
 "java.util.Locale" -> "java.lang.Character";
 "java.util.Locale" -> "java.lang.String";
-"java.util.Locale" -> "java.lang.StringBuilder";
 "java.util.Properties" -> "java.lang.String";
 "java.util.Properties" -> "java.util.Hashtable";
 "java.util.Stack" -> "java.util.Vector";
-"java.util.Vector" -> "java.lang.StringBuilder";
 "java.util.Vector" -> "java.lang.System";
 "java.util.Vector" -> "java.util.AbstractList";
 "java.io.FileFilter" -> "java.io.File" [style=dashed];
