@@ -53,13 +53,17 @@ public class StatsMain {
 
         @Override
         protected void internalTransform(String phaseName, Map options) {
-            final int MAX_DEPTH = 50;
+            final int MAX_DEPTH = 500;
             final int MAX_LEVEL = SootClass.SIGNATURES ;
             try{
                 File output = new File("classdeps-"+MAX_DEPTH+"-level-"+MAX_LEVEL+".dot");
                 FileWriter fw = new FileWriter(output);
                 fw.write("digraph dep{\n");
                 fw.write("rankdir=LR;\n");
+                fw.write("compound=true;\n");
+                fw.write("concentrate=true;\n");
+                fw.write("splines=compound;\n");
+
                 //fw.write("landscape=true;\n");
                 Queue<SootClass> worklist = new LinkedList<SootClass>();
                 worklist.add(Scene.v().getSootClass("A"));
@@ -70,7 +74,7 @@ public class StatsMain {
                 while (worklist.size() > 0){
                     SootClass next = worklist.poll();
                     if (!visited.contains(next.getNumber())){
-                        fw.write(next.getNumber() + " [label="+next.getShortName().replace('$','_')+"];\n");
+                        fw.write(next.getNumber() + " [weight=1.2,label="+next.getShortName().replace('$','_')+"];\n");
                         visited.add(next.getNumber());
 
                         if (visited.size() < MAX_DEPTH){

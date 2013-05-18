@@ -303,11 +303,11 @@ public class C {
 }
 \end{lstlisting}
 
-\section{New API}
+\section{Implementation} %TODO we can add the virtual function cache here then.
 \label{sec:api}
-To create the \rb class loader, a new API was needed that supported string data structures. This section gives a summary of each method included with the \rb class loader.
+To create the \rb class loader, new classes and data structures were needed that supported keeping the information as strings. This section gives a summary of the classes included with the \rb class loader.
 
-Note that analyses in Soot will not need to refer to these APIs, as the class loader eventually brings the Coffi data to the familiar classes.
+Note that analyses in Soot will not need to refer to these APIs, as the class loader eventually brings the Coffi data to the familiar classes, and that the {\tt jb} or {\tt sb} phases will load the bodies in Jimple \cite{jimpletr} or Shimple \cite{shimple}, respectively.
 
 The {\tt RootbeerClassLoader} is a singleton with the entry point to class loading ({\tt loadNecessaryClasses}). You can configure the entry points by adding a {\tt MethodTester}. Please refer to Figure \ref{fig:rbcl} for the details of the methods offered.
 
@@ -497,6 +497,8 @@ We have implemented our algorithm inside the \rb{}-specific fork of Soot. We cur
 We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Linux 2.6.32-5-amd64 and JDK 1.6.0\_45 64-bit. 
 
 Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature.
+
+Note that we configured our program to run the {\sc Spark} \cite{lhot02} points-to-analysis engine with default settings afterwards, in order to validate that our method did not remove any necessary dependency for analysis.
 
 %On my system, with soot loader
 % Dandling: 0 Hierarchy: 0 Signatures: 0 Bodies: 2226. Num SootMethod: 21280
