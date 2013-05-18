@@ -78,8 +78,8 @@
 \begin{abstract}
 One of the first activities of the Soot program analysis framework is to load 
 the classes for analysis. With the current class loader, more classes are loaded
-than necessary. These extra classes can consume too much memory during whole program
-analysis making analysis infeasible on systems with four gigabytes of ram. This paper 
+than necessary. The overhead in memory of these classes can make whole-program 
+analysis of large binaries infeasible on systems with limited memory. This paper 
 describes new algorithms and data structures to efficiently load Java
 Bytecode classes for whole program analysis in Soot. Our method uses a modified 
 version of Rapid Type Analysis (RTA) to determine what classes, methods and 
@@ -189,7 +189,7 @@ The \sootclass objects of the outer class, the super class and the interfaces ar
 
 In the second phase, Soot loads the class to the signature level. It does so by examining the method signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
 
-In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body. Soot uses the information stored as {\tt Type} in the first step and adds it all to the worklist.
+In the third phase, Soot resolves the class at the bodies level. All types found in every method from all soot classes are loaded.
 
 The weakness of this algorithm is its all-or-nothing nature. It loads all the classes that are reachable from the basic classes and the processable classes, irrespective of whether they would be used in the program or not.
 
@@ -218,9 +218,7 @@ The original optimistic RTA algorithm uses Class Hierarchy Analysis (CHA) \cite{
 
 However, this algorithm needs to be modified to fit our needs. First, RTA presumes a single entry point at the root of the program execution. In our case, however, we allow multiple entry points, which may not be at the start of the program execution. %We need to justify why that is important.
 
-Our variation of RTA is also bootstrapped by CHA. As such, we will not go in the details of the construction of the class hierarchy and the virtual method resolution cache.
-
-Note that this traversal can be bounded, resulting in a truncated call graph. While is unsound, it is often useful in practice. The mechanism for evaluating whether to visit a node is called the \emph{don't follow} set.
+Note that this traversal can be bounded, resulting in a truncated call graph. While it is unsound, it is often useful in practice. The mechanism for evaluating whether to visit a node is called the \emph{don't follow} set, which is described in section \ref{sec:api}.
 
 \subsubsection{Entry Points}
 The first step in building a call graph is to determine the entry points. Our class loader provides a flexible entry point mechanism. Soot users who analyze software that does not have a {\tt main} method need not generate one for the sake of analysis, but simply need to create an appropriate {\tt MethodTester} class and register it with the {\tt RootbeerClassLoader.addEntryMethodTester} method. All the details of this API is provided in section \ref{sec:api}.
@@ -242,7 +240,7 @@ If an entry point is not a main function, all of the methods on a depth first se
 This is handled by a backward traversal from the entry points. When traversing the methods, we examine, using the \emph{reachable set}, if it contains any method call to any methods in the call graph. If so, the edge is added to the call graph.
 
 \subsubsection{Convergence}
-Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of constructor invocations found for determining the fixed point, as this is more economical to use than graph comparison and simpler to implement than many of the options suggested by Lhoták \cite{lhot02}.
+Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of class created with {\tt new} we find for determining the fixed point.
 
 \subsection{\rb{}-Specific Overrides}
 \label{sec:followtosig}
