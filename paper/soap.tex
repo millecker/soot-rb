@@ -156,7 +156,7 @@ This paper describes a new class loading algorithm and the required data structu
 
 We have implemented this scheme in the \rb GPU Compiler \cite{rootbeer}. 
 
-The contents are organized as follows. In section \ref{sec:new-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
+The contents are organized as follows. In section \ref{sec:soot-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
 
 %TODO merge some of  that in the introduction ?
 \section{Soot Whole-Program Class Loading}
@@ -187,7 +187,7 @@ The algorithm is initialized in the {\tt resolveClass} method with an empty \soo
 In the first phase, Soot loads the class to the hierarchy level. First, the class source (Coffi, Jimple, etc.) is loaded into the \sootclass object.
 The \sootclass objects of the outer class, the super class and the interfaces are added to the worklist. The corresponding {\tt Type} instances are created and stored for later use.
 
-In the second phase, Soot loads the class to the signature level. It does so by examining the hierarchy anew, the methods signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
+In the second phase, Soot loads the class to the signature level. It does so by examining the method signatures and the fields. All classes identified in the fields and signatures (including the return type, the arguments and the declared exceptions) are added to the worklist.
 
 In the third phase, Soot resolves the class at the bodies level. Note that all initialization statements in Java code are automatically moved to the appropriate initializer, so that every executable statement is in a method body. Soot uses the information stored as {\tt Type} in the first step and adds it all to the worklist.
 
