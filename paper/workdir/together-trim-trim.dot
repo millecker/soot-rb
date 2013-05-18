@@ -7,11 +7,11 @@ digraph dep{
 "B" -> "C";
 "C" -> "java.io.PrintStream";
 "A" -> "java.lang.Object" [style=dashed];
+"B" -> "java.lang.Object";
 "java.io.BufferedWriter" -> "java.io.Writer";
 "java.io.PrintStream" -> "java.io.BufferedWriter";
 "java.io.PrintStream" -> "java.io.OutputStream";
 "java.io.PrintStream" -> "java.io.OutputStreamWriter";
-"java.io.PrintStream" -> "java.lang.Object";
 "java.lang.AbstractStringBuilder" -> "java.lang.System";
 "java.lang.Class" -> "java.lang.StringBuilder";
 "java.lang.Object" -> "java.lang.Class";
@@ -21,7 +21,6 @@ digraph dep{
 "java.lang.System" -> "java.lang.String";
 "java.lang.System" -> "java.util.Properties";
 "java.util.Properties" -> "java.util.Hashtable";
-"java.io.InputStream" -> "java.io.Closeable" [style=dashed];
 "java.io.OutputStream" -> "java.io.Closeable" [style=dashed];
 "java.io.OutputStream" -> "java.io.Flushable" [style=dashed,weight=1.2];
 "java.io.OutputStreamWriter" -> "java.io.OutputStream" [style=dashed];
