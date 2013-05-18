@@ -44,7 +44,6 @@ digraph dep{
 "java.lang.Character" -> "java.lang.AssertionError";
 "java.lang.Character" -> "java.lang.CharSequence";
 "java.lang.Character" -> "java.lang.Class";
-"java.lang.ClassCastException" -> "java.lang.RuntimeException";
 "java.lang.Class" -> "java.lang.ClassLoader";
 "java.lang.Class" -> "java.lang.IllegalAccessException";
 "java.lang.Class" -> "java.lang.InstantiationException";
@@ -78,8 +77,6 @@ digraph dep{
 "java.lang.Error" -> "java.lang.Throwable";
 "java.lang.Exception" -> "java.lang.Throwable";
 "java.lang.IllegalAccessException" -> "java.lang.Exception";
-"java.lang.IllegalStateException" -> "java.lang.RuntimeException";
-"java.lang.IndexOutOfBoundsException" -> "java.lang.RuntimeException";
 "java.lang.InstantiationException" -> "java.lang.Exception";
 "java.lang.InternalError" -> "java.lang.VirtualMachineError";
 "java.lang.Long" -> "java.lang.Character";
@@ -87,10 +84,8 @@ digraph dep{
 "java.lang.Long" -> "java.lang.NumberFormatException";
 "java.lang.Long" -> "java.lang.String";
 "java.lang.Long" -> "java.lang.StringBuilder";
-"java.lang.NegativeArraySizeException" -> "java.lang.RuntimeException";
 "java.lang.NoSuchFieldException" -> "java.lang.Exception";
 "java.lang.NoSuchMethodException" -> "java.lang.Exception";
-"java.lang.NullPointerException" -> "java.lang.RuntimeException";
 "java.lang.NumberFormatException" -> "java.lang.StringBuilder";
 "java.lang.Object" -> "java.lang.Class";
 "java.lang.Object" -> "java.lang.StringBuilder";
@@ -102,7 +97,6 @@ digraph dep{
 "java.lang.RuntimeException" -> "java.lang.Exception";
 "java.lang.Runtime" -> "java.lang.Shutdown";
 "java.lang.Runtime" -> "java.lang.System";
-"java.lang.SecurityException" -> "java.lang.RuntimeException";
 "java.lang.Shutdown" -> "java.util.ArrayList";
 "java.lang.Shutdown" -> "java.util.Iterator";
 "java.lang.StackTraceElement" -> "java.lang.String";
@@ -136,7 +130,6 @@ digraph dep{
 "java.lang.Throwable" -> "java.lang.IllegalStateException";
 "java.lang.Throwable" -> "java.lang.StackTraceElement";
 "java.lang.Throwable" -> "java.lang.StringBuilder";
-"java.lang.UnsupportedOperationException" -> "java.lang.RuntimeException";
 "java.lang.VirtualMachineError" -> "java.lang.Error";
 "java.lang.Void" -> "java.lang.Class";
 "java.util.AbstractList" -> "java.util.AbstractCollection";
@@ -145,7 +138,6 @@ digraph dep{
 "java.util.ArrayList" -> "java.lang.StringBuilder";
 "java.util.ArrayList" -> "java.lang.System";
 "java.util.ArrayList" -> "java.util.AbstractList";
-"java.util.EmptyStackException" -> "java.lang.RuntimeException";
 "java.util.HashMap" -> "java.lang.StringBuilder";
 "java.util.HashMap" -> "java.util.Iterator";
 "java.util.HashMap" -> "java.util.Map";
@@ -156,15 +148,11 @@ digraph dep{
 "java.util.HashSet" -> "java.util.Set";
 "java.util.Hashtable" -> "java.lang.NullPointerException";
 "java.util.Hashtable" -> "java.lang.StringBuilder";
-"java.util.Hashtable" -> "java.util.Collections";
-"java.util.Hashtable" -> "java.util.Dictionary";
 "java.util.LinkedHashMap" -> "java.util.HashMap";
 "java.util.Locale" -> "java.lang.Character";
 "java.util.Locale" -> "java.lang.NullPointerException";
 "java.util.Locale" -> "java.lang.String";
 "java.util.Locale" -> "java.lang.StringBuilder";
-"java.util.MissingResourceException" -> "java.lang.RuntimeException";
-"java.util.NoSuchElementException" -> "java.lang.RuntimeException";
 "java.util.Properties" -> "java.lang.String";
 "java.util.Properties" -> "java.util.Hashtable";
 "java.util.Stack" -> "java.util.EmptyStackException";
@@ -174,9 +162,6 @@ digraph dep{
 "java.util.Vector" -> "java.lang.System";
 "java.util.Vector" -> "java.util.AbstractList";
 "java.io.Closeable" -> "java.io.IOException" [style=dashed];
-"java.io.Externalizable" -> "java.io.IOException" [style=dashed];
-"java.io.Externalizable" -> "java.io.Serializable" [style=dashed];
-"java.io.Externalizable" -> "java.lang.ClassNotFoundException" [style=dashed];
 "java.io.FileFilter" -> "java.io.File" [style=dashed];
 "java.io.File" -> "java.io.FileFilter" [style=dashed];
 "java.io.File" -> "java.io.FilenameFilter" [style=dashed];
