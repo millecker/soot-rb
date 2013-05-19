@@ -846,6 +846,7 @@ public class RootbeerClassLoader {
           }
         }
       }
+
       // Reload missing fields
       while(method_queue.isEmpty() == false){
         String curr = method_queue.removeFirst();

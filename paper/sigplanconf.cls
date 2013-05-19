@@ -580,8 +580,8 @@
     \parbox[b]{20pc}{%
       \scriptsize
       \if \@preprint
-        [Copyright notice will appear here
-         once 'preprint' option is removed.]\par
+        [SOAP'13, June 20, 2013, Seattle, Washington, USA
+Copyright c 2013 ACM ISBN 978-1-4503-2201-0/13/06]\par
       \else
         \@toappear
       \fi

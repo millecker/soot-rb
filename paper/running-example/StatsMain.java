@@ -53,13 +53,18 @@ public class StatsMain {
 
         @Override
         protected void internalTransform(String phaseName, Map options) {
-            final int MAX_DEPTH = 20;
+            final int MAX_DEPTH = 500;
+            final int MAX_LEVEL = SootClass.SIGNATURES ;
             try{
-                File output = new File("classdeps-"+MAX_DEPTH+".dot");
+                File output = new File("classdeps-"+MAX_DEPTH+"-level-"+MAX_LEVEL+".dot");
                 FileWriter fw = new FileWriter(output);
                 fw.write("digraph dep{\n");
-                //fw.write("rankdir=LR;\n");
-                fw.write("landscape=true;\n");
+                fw.write("rankdir=LR;\n");
+                fw.write("compound=true;\n");
+                fw.write("concentrate=true;\n");
+                fw.write("splines=compound;\n");
+
+                //fw.write("landscape=true;\n");
                 Queue<SootClass> worklist = new LinkedList<SootClass>();
                 worklist.add(Scene.v().getSootClass("A"));
                 Set<Integer> visited = new HashSet<Integer>(MAX_DEPTH);
@@ -69,37 +74,60 @@ public class StatsMain {
                 while (worklist.size() > 0){
                     SootClass next = worklist.poll();
                     if (!visited.contains(next.getNumber())){
-                        fw.write(next.getNumber() + " [label="+next.getShortName().replace('$','_')+"];\n");
+                        fw.write(next.getNumber() + " [weight=1.2,label="+next.getShortName().replace('$','_')+"];\n");
                         visited.add(next.getNumber());
 
                         if (visited.size() < MAX_DEPTH){
                             Set<SootClass> localWorklist = new HashSet<SootClass>(); //to avoid duplicate edges
 
-                            if (next.hasSuperclass())
-                                localWorklist.add(next.getSuperclass());
-                            if (next.getInterfaceCount() > 0)
-                                localWorklist.addAll(next.getInterfaces());
+                            if (MAX_LEVEL >= SootClass.HIERARCHY){
+                            //Simulates the HIERARCHY class loading level
+                                if (next.hasSuperclass())
+                                    localWorklist.add(next.getSuperclass());
+                                if (next.getInterfaceCount() > 0)
+                                    localWorklist.addAll(next.getInterfaces());
+                                if (next.hasOuterClass())
+                                    localWorklist.add(next.getOuterClass());
+                            }
 
-                           for (SootField sf : next.getFields()){
-                               localWorklist.add(sf.getDeclaringClass());
-                           }
+                            if (MAX_LEVEL >= SootClass.SIGNATURES){
+                            //Simulates the SIGNATURES class loading level
+                                for (SootField sf : next.getFields()){
+                                   localWorklist.add(sf.getDeclaringClass());
+                                }
 
-                            for (SootMethod sm : next.getMethods()){
-                                if (sm.isConcrete()){
-                                    for (Unit u : sm.retrieveActiveBody().getUnits()){
-                                        if (((Stmt)u).containsInvokeExpr()){
-                                            SootClass target = ((Stmt) u).getInvokeExpr().getMethod().getDeclaringClass();
-                                            localWorklist.add(target);
+                                for (SootMethod sm : next.getMethods()){
+                                    Type returnType = sm.getReturnType();
+                                    if (returnType instanceof RefType)
+                                        localWorklist.add(((RefType) returnType).getSootClass());
+                                    localWorklist.addAll(sm.getExceptions());
+                                    for (Type typ : sm.getParameterTypes()){
+                                        if (typ instanceof RefType){
+                                            localWorklist.add(((RefType) typ).getSootClass());
+                                        }
+                                    }
+                                }
+                            }
 
-                                        } else if (((Stmt) u).containsFieldRef()){
-                                            SootClass target = ((Stmt) u).getFieldRef().getField().getDeclaringClass();
-                                            localWorklist.add(target);
+                            if (MAX_LEVEL >= SootClass.BODIES){
+                            //Simulates the BODIES class loading level
+                                for (SootMethod sm : next.getMethods()){
+                                    if (sm.isConcrete()){
+                                        for (Unit u : sm.retrieveActiveBody().getUnits()){
+                                            if (((Stmt)u).containsInvokeExpr()){
+                                                SootClass target = ((Stmt) u).getInvokeExpr().getMethod().getDeclaringClass();
+                                                localWorklist.add(target);
+
+                                            } else if (((Stmt) u).containsFieldRef()){
+                                                SootClass target = ((Stmt) u).getFieldRef().getField().getDeclaringClass();
+                                                localWorklist.add(target);
+                                            }
                                         }
                                     }
                                 }
                             }
                             for (SootClass target : localWorklist){
-                                if (target != objectClass && target != next){
+                                if (target != next){
                                     fw.write(next.getNumber() + " -> "+target.getNumber() + ";\n");
                                     worklist.add(target);
                                 }

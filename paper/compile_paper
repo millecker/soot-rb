@@ -1,3 +1,5 @@
 #!/bin/sh
 
 pdflatex soap.tex
+bibtex soap.tex
+pdflatex soap.tex

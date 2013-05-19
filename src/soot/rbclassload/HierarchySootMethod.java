@@ -48,11 +48,12 @@ public class HierarchySootMethod {
   private ClassFile m_classFile;
   private method_info m_methodInfo;
   private List<String> m_codeAttrExTypes;
+  private CoffiMethodSource m_methodSource;
 
   public HierarchySootMethod(String name, String returnType,
     List<String> parameterTypes, List<String> exceptionTypes,
     int modifiers, ClassFile classFile, method_info methodInfo, 
-    List<String> code_attr_ex_types){
+    List<String> code_attr_ex_types, CoffiMethodSource method_source){
 
     m_name = name;
     m_returnType = returnType;
@@ -62,6 +63,7 @@ public class HierarchySootMethod {
     m_classFile = classFile;
     m_methodInfo = methodInfo;
     m_codeAttrExTypes = code_attr_ex_types;
+    m_methodSource = method_source;
   }
 
   public String getName(){
@@ -78,6 +80,10 @@ public class HierarchySootMethod {
 
   public List<String> getExceptionTypes(){
     return m_exceptionTypes;
+  }
+
+  public CoffiMethodSource getMethodSource(){
+    return m_methodSource;
   }
 
   public List<HierarchyInstruction> getInstructions(){

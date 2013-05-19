@@ -7,6 +7,7 @@ import soot.Scene;
 import soot.SootClass;
 import soot.SootResolver;
 import soot.Transform;
+import soot.options.Options;
 import soot.rbclassload.RootbeerClassLoader;
 
 public class RootbeerClassLoaderAnalysis {
@@ -19,21 +20,23 @@ public class RootbeerClassLoaderAnalysis {
     PackManager.v().getPack("wjpp").add(new Transform("wjpp.stats", new StatsTransformer("wjpp")));
     PackManager.v().getPack("wjtp").add(new Transform("wjtp.stats", new StatsTransformer("wjtp")));
     
-    RootbeerClassLoader.v().setUserJar("classes/soap2013_example.jar");
+    RootbeerClassLoader.v().setUserJar("test_case/test_case.jar");
     RootbeerClassLoader.v().addEntryMethodTester(new EntryPointDetector());
     
+    Options.v().set_allow_phantom_refs(true);
+            
     String[] args = {
       "-pp",
-      "-process-dir", "classes/soap2013_example.jar",
+      "-process-dir", "test_case/test_case.jar",
       "-rbcl",
       "-w",
-      //"-p", "cg", "enabled:true",
-      //"-p", "cg", "implicit-entry:false",
-      //"-p", "cg.cha", "enabled:false",
-      //"-p", "cg.spark", "enabled:true",
+      "-p", "cg", "enabled:true",
+      "-p", "cg", "implicit-entry:false",
+      "-p", "cg.cha", "enabled:false",
+      "-p", "cg.spark", "enabled:true",
     };
-    //soot.Main.main(args);
-    RootbeerClassLoader.v().loadNecessaryClasses();
+    soot.Main.main(args);
+    //RootbeerClassLoader.v().loadNecessaryClasses();
           
     long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
     long memoryUsedClasses = MemoryUtil.deepMemoryUsageOfAll(Scene.v().getClasses(), MemoryUtil.VisibilityFilter.ALL);
@@ -52,16 +55,3 @@ public class RootbeerClassLoaderAnalysis {
     analysis.run("classes/");
   }
 }
-
-/*
-     List<String> proc_dir = new ArrayList<String>();
-    proc_dir.add(RootbeerPaths.v().getJarContentsFolder());
-    
-    Options.v().set_allow_phantom_refs(true);
-    Options.v().set_rbclassload(true);
-    Options.v().set_prepend_classpath(true);
-    Options.v().set_process_dir(proc_dir);
-    Options.v().set_soot_classpath(rootbeer_jar);
-    RootbeerClassLoader.v().addEntryMethodTester(m_entryDetector);
-    RootbeerClassLoader.v().loadNecessaryClasses();
- */
