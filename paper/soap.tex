@@ -487,7 +487,7 @@ We have implemented our algorithm inside the \rb{}-specific fork of Soot. We cur
 %TODO put in the specs
 We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Linux 2.6.32-5-amd64 and JDK 1.6.0\_45 64-bit. 
 
-Our test cases include our running example, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature. The \rb tests (Soot) are marked NA because the original soot class loader crashed with a segmentation fault while loading.
+Our test cases include our running example, and the test harness part of the DaCapo \cite{DaCapo:paper} test bench, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature. The \rb tests (Soot) are marked NA because the original soot class loader crashed with a segmentation fault while loading.
 
 Note that we configured our program to run the {\sc Spark} \cite{lhot02} points-to-analysis engine with default settings afterwards, in order to validate that our method did not remove any necessary dependency for analysis.
 
@@ -547,7 +547,7 @@ Philip C. Pratt-Szeliga was supported by Syracuse University and National Scienc
 %\bibliography{bib}
 
 % The bibliography should be embedded for final submission.
-\begin{thebibliography}{9}
+\begin{thebibliography}{10}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -561,6 +561,20 @@ D.~F. Bacon and P.~F. Sweeney.
   Object-oriented programming, systems, languages, and applications}, OOPSLA
   '96, pages 324--341. ACM, 1996.
 \newblock ISBN 0-89791-788-X.
+
+\bibitem[Blackburn et~al.(2006)Blackburn, Garner, Hoffman, Khan, McKinley,
+  Bentzur, Diwan, Feinberg, Frampton, Guyer, Hirzel, Hosking, Jump, Lee, Moss,
+  Phansalkar, Stefanovi\'{c}, {VanDrunen}, von Dincklage, and
+  Wiedermann]{DaCapo:paper}
+S.~M. Blackburn, R.~Garner, C.~Hoffman, A.~M. Khan, K.~S. McKinley, R.~Bentzur,
+  A.~Diwan, D.~Feinberg, D.~Frampton, S.~Z. Guyer, M.~Hirzel, A.~Hosking,
+  M.~Jump, H.~Lee, J.~E.~B. Moss, A.~Phansalkar, D.~Stefanovi\'{c},
+  T.~{VanDrunen}, D.~von Dincklage, and B.~Wiedermann.
+\newblock The {DaCapo} benchmarks: {J}ava benchmarking development and
+  analysis.
+\newblock In \emph{OOPSLA '06: Proceedings of the 21st annual ACM SIGPLAN
+  conference on Object-Oriented Programing, Systems, Languages, and
+  Applications}, pages 169--190. ACM Press, Oct. 2006.
 
 \bibitem[Dean et~al.(1995)Dean, Grove, and Chambers]{deanetal}
 J.~Dean, D.~Grove, and C.~Chambers.
@@ -614,5 +628,6 @@ R.~Vall{\'e}e-Rai, P.~Co, E.~Gagnon, L.~Hendren, P.~Lam, and V.~Sundaresan.
   Press, 1999.
 
 \end{thebibliography}
+
 
 \end{document}
