@@ -854,7 +854,7 @@ public class RootbeerClassLoader {
   	  }
       // Add method to all_sigs for loading method body
       //System.out.println("Setup methods for loading body: "+visited_methods.toString());
-      all_sigs.addAll(visited_methods);
+      //all_sigs.addAll(visited_methods);
     }
 
     System.out.println("adding method bodies...");
