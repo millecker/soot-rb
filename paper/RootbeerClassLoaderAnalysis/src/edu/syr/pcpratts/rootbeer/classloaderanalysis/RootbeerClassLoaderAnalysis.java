@@ -7,6 +7,7 @@ import soot.Scene;
 import soot.SootClass;
 import soot.SootResolver;
 import soot.Transform;
+import soot.options.Options;
 import soot.rbclassload.RootbeerClassLoader;
 
 public class RootbeerClassLoaderAnalysis {
@@ -19,12 +20,14 @@ public class RootbeerClassLoaderAnalysis {
     PackManager.v().getPack("wjpp").add(new Transform("wjpp.stats", new StatsTransformer("wjpp")));
     PackManager.v().getPack("wjtp").add(new Transform("wjtp.stats", new StatsTransformer("wjtp")));
     
-    RootbeerClassLoader.v().setUserJar("classes/soap2013_example.jar");
+    RootbeerClassLoader.v().setUserJar("test_case/test_case.jar");
     RootbeerClassLoader.v().addEntryMethodTester(new EntryPointDetector());
     
+    Options.v().set_allow_phantom_refs(true);
+            
     String[] args = {
       "-pp",
-      "-process-dir", "classes/soap2013_example.jar",
+      "-process-dir", "test_case/test_case.jar",
       "-rbcl",
       "-w",
       "-p", "cg", "enabled:true",

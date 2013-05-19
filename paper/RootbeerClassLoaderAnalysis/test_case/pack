@@ -1,0 +1,3 @@
+#!/bin/sh
+
+java -jar pack.jar -mainjar SPECjvm2008_1_01_setup.jar -libjar MRJToolkitStubs-1.0.jar -destjar test_case.jar
