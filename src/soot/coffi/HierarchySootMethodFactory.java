@@ -79,10 +79,13 @@ public class HierarchySootMethodFactory {
     List<String> code_attr_exceptions = getCodeAttrExceptions(methodInfo, 
       constantPool);
 
+    CoffiMethodSource method_source = new CoffiMethodSource(classFile, 
+      methodInfo);
+
     Code_attribute code_attribute = methodInfo.locate_code_attribute();
     HierarchySootMethod ret = new HierarchySootMethod(name, returnType,
       parameterTypes, exceptionTypes, methodInfo.access_flags, classFile,
-      methodInfo, code_attr_exceptions);
+      methodInfo, code_attr_exceptions, method_source);
 
     return ret;
   }

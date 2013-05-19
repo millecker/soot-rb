@@ -320,12 +320,12 @@ public class RootbeerClassLoader {
     m_classHierarchy.numberTypes();
     loadScene();
 
-    for(String entry : m_entryPoints){
-      m_currDfsInfo = m_dfsInfos.get(entry);
-      dfsForRootbeer();
-      m_currDfsInfo.expandArrayTypes();
-      m_currDfsInfo.finalizeTypes();
-    }
+    //for(String entry : m_entryPoints){
+    //  m_currDfsInfo = m_dfsInfos.get(entry);
+    //  dfsForRootbeer();
+    //  m_currDfsInfo.expandArrayTypes();
+    //  m_currDfsInfo.finalizeTypes();
+    //}
 
     Scene.v().loadDynamicClasses();
   }
@@ -789,6 +789,9 @@ public class RootbeerClassLoader {
 
       while(true){
         HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
+        if(hclass == null){
+          break;
+        }
         if(hclass.hasField(field_name) == false){
           if(hclass.hasSuperClass() == false){
             System.out.println("cannot find field: "+field_ref);
@@ -847,6 +850,7 @@ public class RootbeerClassLoader {
       }
       SootMethod soot_method = new SootMethod(method.getName(), parameterTypes,
         returnType, modifiers, thrownExceptions);
+      soot_method.setSource(method.getMethodSource());
 
       util.parse(method.getSignature());
       class_name = util.getClassName();
