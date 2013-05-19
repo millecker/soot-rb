@@ -195,7 +195,7 @@ We explain the initial class loading step in section \ref{sec:loading}, followed
 
 \subsection{Load and Wrap Classes}
 \label{sec:loading}
-The first step of our algorithm uses the list of classes in the process path and loads them in memory using Coffi. We convert the constant pool indices for the current class, super class and interfaces into a string representation. We put all this information into a wrapper class named {\tt HierarchySootClass} and store them in a map (with the class name as key) for fast lookups.
+The first step of our algorithm uses the list of classes in the process path and loads them in memory using Coffi. We convert the constant pool indices for the current class, super class and interfaces into a string representation. We put all this information into a wrapper class named {\tt HierarchyClass} and store them in a map (with the class name as key) for fast lookups.
 
 \subsection{Building a Call Graph}
 \label{sec:cg}
@@ -228,11 +228,11 @@ To make the backward traversal rapid, the forward traversal maintains the \emph{
 \subsubsection{Backward Traversal}
 If an entry point is not a main function, all of the methods on a depth first search walk from a main to the entry point need to be loaded in order to accurately represent the runtime behaviour.
 
-This is handled by a backward traversal from the entry points. When traversing the methods, we examine, using the \emph{reachable set}, if it contains any method call to any methods in the call graph. If so, the edge is added to the call graph.
+This is handled by a backward traversal from the entry points. When traversing the methods, we see if a method body makes a call into the \emph{reachable set}. If it does, the edge is added to the call graph.
 
 \subsubsection{Convergence}
 
-Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of classes created with {\tt new} we find for determining the fixed point.
+Since our algorithm is monotonic (only new virtual call targets are added) and the number of classes loaded is finite, we are guaranteed to converge. Note that we use the number of classes created with {\tt new} to determine the fixed point.
 
 \subsection{\rb{}-Specific Overrides}
 \label{sec:followtosig}
@@ -247,11 +247,10 @@ All the overrides mentioned are configured with {\tt MethodTester}s and {\tt Cla
 
 \subsection{Numbering Types}
 \label{sec:numbering}
-The Soot framework requires a unique number on many kinds of objects, including \sootclass instances.
 
 After the call graph is created, the types are numbered as follows. The number starts at one for the root Java {\tt Object}. Afterwards, we number the interfaces in reverse topological order. Then, we number the remaining classes using a breadth-first traversal on the hierarchy.
 
-We use topological sorting for the interfaces because of the fact that all interfaces inherit from {\tt Object} in the strict sense, even though they may extend many other interfaces. A breadth-first numbering approach would yield broken dependencies in the next step, which this approach solves. 
+We use topological sorting for the interfaces because interfaces can inherit from multiple interfaces, unlike objects. A pure breadth-first numbering has problems where an interface appended to an interface hierarchy can be numbered incorrectly.
 
 \subsection{Load Scene}
 \label{sec:loadscene}
@@ -261,17 +260,17 @@ The loading happens in four steps: loading the hierarchy, loading reachable fiel
 
 These steps are necessary because the \sootclass, \sootfield and \sootmethod instances reachable from the bodies must exist before the body can be resolved.
 
-As the last two steps are self-explanatory, we only explain the loading of the hierarchy and of the reachable fields.
+The last two steps are straight-forward, so we will only explain the loading of the hierarchy and of the reachable fields.
 
-In the first step, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guaranteed to already exist in the {\tt Scene}.
+To load the hierarchy of {\sootclass}s, the numbered types are visited from smallest to largest and empty \sootclass objects are created. At each empty \sootclass object the super class and interfaces are filled in. The super class and interfaces are retrieved from the {\tt Scene} by calling {\tt Scene.getSootClass}. Since the numbering is according to the class hierarchy, the object classes are guaranteed to already exist in the {\tt Scene}.
 
-In the second step, we traverse the program to find all the field references. We parse the string-based information with
+To load the fields, we traverse the program to find all the field references. We parse the string-based information with
 {\tt Field\-Signature\-Util} and construct the appropriate \sootfield object. This field object is then added to the declaring \sootclass.
 %TODO do we really parse the whole program for this.
 
 %TODO are we loading only the methods that are reacheable???
 
-Note that this approach results in a subset of the classes loaded, and a subset of the class details being converted to Jimple. Since our call graph is sound, no information is missing that would be required during program execution.
+Note that this approach results in a subset of the classes loaded, and a subset of the class details being converted to Jimple. Since our call graph is sound, no information is missing that would be required during program execution. However, if unknown library classes are linked with our output at runtime, unknown method exceptions can occur.
 
 In the case of our running example, we would have a lighter scene loaded, as illustrated in Listing \ref{lst:loadscenerunningexample}. Please note that JDK library classes were not added in. We notice that the class {\tt B} does not have the {\tt bar()} method, nor is the class {\tt D} loaded.
 
