@@ -542,24 +542,76 @@ We have shown data structures and algorithms to efficiently load a Soot Scene. I
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
 
 % We recommend abbrvnat bibliography style.
-
-\bibliographystyle{abbrvnat}
-\bibliography{bib}
+%\bibliographystyle{abbrvnat}
+%\bibliography{bib}
 
 % The bibliography should be embedded for final submission.
-%TODO copy-paste the bib output in there
-%\begin{thebibliography}{}
-%\softraggedright
+\begin{thebibliography}{9}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-%\bibitem[1]{soot-retro} Patrick Lam and Eric Bodden and Ondrej Lhotak and Laurie Hendren. The Soot framework for Java program analysis: a retrospective. In: Cetus Users and Compiler Infastructure Workshop (CETUS 2011).
-%\bibitem[2]{rootbeer} Philip C. Pratt-Szeliga, James W. Fawcett, Roy D. Welch. \rb: Seamlessly using GPUs from Java. HPCC-2012.
-%\bibitem[3]{soot-orig} Raja Vallee-Rai and Phong Co and Etienne Gagnon and Laurie Hendren and Patrick Lam and Vijay Sundaresan. Soot - a Java bytecode optimization framework. Proceedings of the 1999 conference of the Centre for Advanced Studies on Collaborative research. 1999. IBM Press.
-%\bibitem[4]{deanetal} Jeffrey Dean and David Grove and Craig Chambers. Optimization of Object-Oriented Programs
-%Using Static Class Hierarchy Analysis, UW CSE Technical Report 94-12-01, 1994
+\bibitem[Bacon and Sweeney(1996)]{BaconRTA}
+D.~F. Bacon and P.~F. Sweeney.
+\newblock Fast static analysis of {C++} virtual function calls.
+\newblock In \emph{Proceedings of the 11th ACM SIGPLAN conference on
+  Object-oriented programming, systems, languages, and applications}, OOPSLA
+  '96, pages 324--341. ACM, 1996.
+\newblock ISBN 0-89791-788-X.
 
+\bibitem[Dean et~al.(1995)Dean, Grove, and Chambers]{deanetal}
+J.~Dean, D.~Grove, and C.~Chambers.
+\newblock Optimization of object-oriented programs using static class hierarchy
+  analysis.
+\newblock In \emph{Proceedings of the 9th European Conference on
+  Object-Oriented Programming}, ECOOP '95, pages 77--101. Springer-Verlag,
+  1995.
 
-%% TODO get the citatadd page numbers on those citations
+\bibitem[Lam et~al.(2011)Lam, Bodden, Lhot{\'a}k, and Hendren]{soot-retro}
+P.~Lam, E.~Bodden, O.~Lhot{\'a}k, and L.~Hendren.
+\newblock The {Soot} framework for {Java} program analysis: a retrospective.
+\newblock Presentation at the CETUS Compiler Workshop, 2011.
 
-%\end{thebibliography}
+\bibitem[Lhot{\'a}k(2002)]{lhot02}
+O.~Lhot{\'a}k.
+\newblock Spark: A flexible points-to analysis framework for {Java}.
+\newblock Master's thesis, McGill University, December 2002.
+
+\bibitem[Pratt-Szeliga et~al.(2012)Pratt-Szeliga, Fawcett, and Welch]{rootbeer}
+P.~Pratt-Szeliga, J.~Fawcett, and R.~Welch.
+\newblock Rootbeer: Seamlessly using {GPUs} from java.
+\newblock In \emph{High Performance Computing and Communication 2012 IEEE 9th
+  International Conference on Embedded Software and Systems (HPCC-ICESS), 2012
+  IEEE 14th International Conference on}, pages 375--380, 2012.
+
+\bibitem[Sundaresan et~al.(2000)Sundaresan, Hendren, Razafimahefa,
+  Vall{\'e}e-Rai, Lam, Gagnon, and Godin]{Sundaresan:2000:PVM:354222.353189}
+V.~Sundaresan, L.~Hendren, C.~Razafimahefa, R.~Vall{\'e}e-Rai, P.~Lam,
+  E.~Gagnon, and C.~Godin.
+\newblock Practical virtual method call resolution for {Java}.
+\newblock \emph{SIGPLAN Not.}, 35\penalty0 (10):\penalty0 264--280, Oct. 2000.
+\newblock ISSN 0362-1340.
+
+\bibitem[Umanee(2006)]{shimple}
+N.~Umanee.
+\newblock Shimple: An investigation of static single assignment form.
+\newblock Master's thesis, McGill Unviersity, 2006.
+
+\bibitem[Vall{\'e}e-Rai and Hendren(1998)]{jimpletr}
+R.~Vall{\'e}e-Rai and L.~J. Hendren.
+\newblock Jimple: Simplifying {Java} bytecode for analyses and transformations.
+\newblock Technical report, McGill University, 1998.
+
+\bibitem[Vall{\'e}e-Rai et~al.(1999)Vall{\'e}e-Rai, Co, Gagnon, Hendren, Lam,
+  and Sundaresan]{soot-orig}
+R.~Vall{\'e}e-Rai, P.~Co, E.~Gagnon, L.~Hendren, P.~Lam, and V.~Sundaresan.
+\newblock Soot - a {Java} bytecode optimization framework.
+\newblock In \emph{Proceedings of the 1999 conference of the Centre for
+  Advanced Studies on Collaborative research}, CASCON '99, pages 13--. IBM
+  Press, 1999.
+
+\end{thebibliography}
 
 \end{document}
