@@ -847,7 +847,7 @@ public class RootbeerClassLoader {
         }
       }
 
-      // Reload missing fields
+      // Reload missing methods including fields
       while(method_queue.isEmpty() == false){
         String curr = method_queue.removeFirst();
         reloadMissingMethods(curr, method_queue, visited_methods);
