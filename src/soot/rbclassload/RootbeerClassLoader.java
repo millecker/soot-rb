@@ -819,7 +819,8 @@ public class RootbeerClassLoader {
       for(SootMethod method : main_class.getMethods()){
         System.out.println("Check method of MainClass: "+method.getSignature());
         // Always reload constructor
-        if(method.getSubSignature().equals("void <init>()")){
+        if((method.getSubSignature().equals("void <init>()")) ||
+          (method.getSubSignature().equals("void main(java.lang.String[])"))){
           // Add method to all_sigs for loading method body
           all_sigs.add(method.getSignature());
           continue;
