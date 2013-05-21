@@ -86,8 +86,8 @@ version of Rapid Type Analysis (RTA) to determine what classes, methods and
 fields would be reachable during program execution. This enables us to load 
 significantly less information in memory to enable program analyses.
 We implemented our approach for loading Java bytecode in the Soot-based \rb 
-compiler. The new class loader loaded a Scene that was 58.8\% smaller with
-our test case.
+compiler. The new class loader loaded a Scene that had 58\% to 64\% less classes,
+representing memory savings of 44\% to 82\%.
 \end{abstract}
 
 \category{D.3.4}{Programming Languages}{Processors – code generation}[compilers]
@@ -145,7 +145,7 @@ This paper describes a new class loading algorithm and the required data structu
 
 We have implemented this scheme in the \rb GPU Compiler \cite{rootbeer}. 
 
-The contents are organized as follows. In section \ref{sec:soot-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. Then, in section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, in section \ref{sec:future}, we will discuss future work, and conclude in section \ref{sec:conclusion}.
+The contents are organized as follows. In section \ref{sec:soot-cl}, we will first describe the current Soot class loading algorithm and why it has problems with memory usage. Then, in section \ref{sec:new-cl}, we will describe our methodology and describe the new class loading algorithm in detail. In section \ref{sec:api}, we describe the new API added to Soot. We then compare the performance of our method with Soot's class loading in \rb in section \ref{sec:eval}. Finally, we conclude in section \ref{sec:conclusion}.
 
 %TODO merge some of  that in the introduction ?
 \section{Soot Whole-Program Class Loading}
@@ -228,7 +228,7 @@ To make the backward traversal rapid, the forward traversal maintains the \emph{
 \subsubsection{Backward Traversal}
 If an entry point is not a main function, all of the methods on a depth first search walk from a main to the entry point need to be loaded in order to accurately represent the runtime behaviour.
 
-This is handled by a backward traversal from the entry points. When traversing the methods, we see if a method body makes a call into the \emph{reachable set}. If it does, the edge is added to the call graph.
+This is handled by a backward traversal from the entry points. When traversing the methods, we see if a method body makes a call into the \emph{reachable set}. If it does, the edge is added to the call graph and the new method is added to the forward traversal queue.
 
 \subsubsection{Convergence}
 
@@ -486,7 +486,7 @@ We have implemented our algorithm inside the \rb{}-specific fork of Soot. We cur
 %TODO put in the specs
 We have executed the test cases on a 4 core Intel Xeon Processor (E5405) running at 2.00GHz with 16 Gb of RAM, running Linux 2.6.32-5-amd64 and JDK 1.6.0\_45 64-bit. 
 
-Our test cases include our running example, and the test harness part of the DaCapo \cite{DaCapo:paper} test bench, and parts of the \rb test suite. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature. The \rb tests (Soot) are marked NA because the original soot class loader crashed with a segmentation fault while loading.
+Our test cases include our running example, and the SPECjvm2008 benchmark \cite{SPEC:paper}. We measured the execution time with Soot's built-in feature, and used the Classmexer\footnote{\url{http://www.javamex.com/classmexer/}} agent to measure the memory used by the loaded \sootclass objects. The overall memory usage was calculated using the JVM's global memory usage feature.
 
 Note that we configured our program to run the {\sc Spark} \cite{lhot02} points-to-analysis engine with default settings afterwards, in order to validate that our method did not remove any necessary dependency for analysis.
 
@@ -503,10 +503,8 @@ Note that we configured our program to run the {\sc Spark} \cite{lhot02} points-
 \textbf{Test Case} & \textbf{Classes Loaded} & \textbf{Memory Used (Mb)} & \textbf{\sootclass Memory (Mb)}& \textbf{Time (s)} \\\hline
 Running example (Soot) & 2031 & 885 & 139 & 91 \\\hline
 Running example (RBC)  & 712  & 1357 & 25 & 105 \\\hline
-DaCapo (Soot) & 2146 & 819 & 125 & 108 \\\hline
-DaCapo (RBC) & 884 & 1873 & 54 & 151 \\\hline
-\rb tests (Soot) & NA & NA & NA & NA \\\hline
-\rb tests (RBC) & 1308 & 2586 & 35 & 225 \\\hline
+SPEC jvm 2008 (Soot) & 6539 & 3411 & 333 & 469 \\\hline
+SPEC jvm 2008 (RBC) & 2737 & 3733 & 186 & 337 \\\hline
 
 \end{tabularx}
 \caption{Experimental results}
@@ -525,21 +523,15 @@ We compare our implementation against the Soot class loader by loading programs 
 
 While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separately.
 
-We notice a significant decrease in the number of classes loaded, which a minimal increase in processing time. It appears that the overhead of traversing the program in memory is only slightly greater than that of loading many files in memory. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to break even in terms of loading time.
+We notice a significant decrease in the number of classes loaded, with a decrease in processing time for the large test casse. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to improve our loading time for the small test case.
 
 We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. We show additional classes that would be loaded at the Signatures level by Soot's class loader with dashed edges. While significantly truncated, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
 
 \FloatBarrier
 
-\section{Future Work}
-\label{sec:future}
-There are two aspects of future work that the \rb GPU Compiler is interested in working on. First, parallel cpu threads will be used to try and accelerate class loading. Second, a project named Jimple Web Cache may be created.
-
-The Jimple Web Cache project aims to host a server online that can serve string based Jimple Bodies and StringCallGraphs. It will take an rt.jar (Java Runtime Jar) from the client and if it does not have a jar with the same name and md5 sum, it will cache the entire call graph of the archive in a MongoDB database along with the string based Jimple bodies. A user will be able to query to retrieve a call graph or Jimple body from an entry point method signature.
-
 \section{Conclusion}
 \label{sec:conclusion}
-We have shown data structures and algorithms to efficiently load a Soot Scene. In the DaCapo test case, the Scene is about 58.8\% smaller and the memory savings is about 56.8\%.
+We have shown data structures and algorithms to efficiently load a Soot Scene. The new class loader loaded a Scene that had 58\% to 64\% less classes, representing memory savings of 44\% to 82\%.
 
 \acks
 Philip C. Pratt-Szeliga was supported by Syracuse University and National Science Foundation grant number MCB-0746066 to R.D.W.
@@ -549,6 +541,7 @@ Philip C. Pratt-Szeliga was supported by Syracuse University and National Scienc
 %\bibliography{bib}
 
 % The bibliography should be embedded for final submission.
+
 \begin{thebibliography}{10}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
@@ -563,20 +556,6 @@ D.~F. Bacon and P.~F. Sweeney.
   Object-oriented programming, systems, languages, and applications}, OOPSLA
   '96, pages 324--341. ACM, 1996.
 \newblock ISBN 0-89791-788-X.
-
-\bibitem[Blackburn et~al.(2006)Blackburn, Garner, Hoffman, Khan, McKinley,
-  Bentzur, Diwan, Feinberg, Frampton, Guyer, Hirzel, Hosking, Jump, Lee, Moss,
-  Phansalkar, Stefanovi\'{c}, {VanDrunen}, von Dincklage, and
-  Wiedermann]{DaCapo:paper}
-S.~M. Blackburn, R.~Garner, C.~Hoffman, A.~M. Khan, K.~S. McKinley, R.~Bentzur,
-  A.~Diwan, D.~Feinberg, D.~Frampton, S.~Z. Guyer, M.~Hirzel, A.~Hosking,
-  M.~Jump, H.~Lee, J.~E.~B. Moss, A.~Phansalkar, D.~Stefanovi\'{c},
-  T.~{VanDrunen}, D.~von Dincklage, and B.~Wiedermann.
-\newblock The {DaCapo} benchmarks: {J}ava benchmarking development and
-  analysis.
-\newblock In \emph{OOPSLA '06: Proceedings of the 21st annual ACM SIGPLAN
-  conference on Object-Oriented Programing, Systems, Languages, and
-  Applications}, pages 169--190. ACM Press, Oct. 2006.
 
 \bibitem[Dean et~al.(1995)Dean, Grove, and Chambers]{deanetal}
 J.~Dean, D.~Grove, and C.~Chambers.
@@ -598,10 +577,18 @@ O.~Lhot{\'a}k.
 
 \bibitem[Pratt-Szeliga et~al.(2012)Pratt-Szeliga, Fawcett, and Welch]{rootbeer}
 P.~Pratt-Szeliga, J.~Fawcett, and R.~Welch.
-\newblock Rootbeer: Seamlessly using {GPUs} from java.
+\newblock Rootbeer: Seamlessly using {GPUs} from {Java}.
 \newblock In \emph{High Performance Computing and Communication 2012 IEEE 9th
   International Conference on Embedded Software and Systems (HPCC-ICESS), 2012
   IEEE 14th International Conference on}, pages 375--380, 2012.
+
+\bibitem[Shiv et~al.(2009)Shiv, Chow, Wang, and Petrochenko]{SPEC:paper}
+K.~Shiv, K.~Chow, Y.~Wang, and D.~Petrochenko.
+\newblock {SPECjvm2008} performance characterization.
+\newblock In \emph{Proceedings of the 2009 SPEC Benchmark Workshop on Computer
+  Performance Evaluation and Benchmarking}, pages 17--35. Springer-Verlag,
+  2009.
+\newblock ISBN 978-3-540-93798-2.
 
 \bibitem[Sundaresan et~al.(2000)Sundaresan, Hendren, Razafimahefa,
   Vall{\'e}e-Rai, Lam, Gagnon, and Godin]{Sundaresan:2000:PVM:354222.353189}
@@ -614,7 +601,7 @@ V.~Sundaresan, L.~Hendren, C.~Razafimahefa, R.~Vall{\'e}e-Rai, P.~Lam,
 \bibitem[Umanee(2006)]{shimple}
 N.~Umanee.
 \newblock Shimple: An investigation of static single assignment form.
-\newblock Master's thesis, McGill Unviersity, 2006.
+\newblock Master's thesis, McGill University, 2006.
 
 \bibitem[Vall{\'e}e-Rai and Hendren(1998)]{jimpletr}
 R.~Vall{\'e}e-Rai and L.~J. Hendren.
