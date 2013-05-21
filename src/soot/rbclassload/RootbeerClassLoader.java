@@ -1335,7 +1335,7 @@ public class RootbeerClassLoader {
       if(dontFollow(method_sig)){
         continue;
       }
-    
+      
       // If MainClass was set, check for overwriting methods
       if (!m_mainClass.isEmpty()){
         // Check if method or its children is overwritten 
@@ -1370,6 +1370,7 @@ public class RootbeerClassLoader {
             continue;
           }
           // Exchange reference method
+          System.out.println(method_sig+" was overwritten by "+curr_hmethod.getSignature());
           method_sig = curr_hmethod.getSignature();
         }
       }
