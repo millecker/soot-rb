@@ -1371,6 +1371,7 @@ public class RootbeerClassLoader {
           }
           // Exchange reference method
           System.out.println(method_sig+" was overwritten by "+curr_hmethod.getSignature());
+          m_currDfsInfo.addOverwrittenRef(mutil.getSignature(),method_sig,curr_hmethod.getSignature());
           method_sig = curr_hmethod.getSignature();
         }
       }
