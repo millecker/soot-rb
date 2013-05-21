@@ -46,14 +46,17 @@ public class ListClassTester implements ClassTester {
   }
 
   public boolean test(HierarchySootClass hclass){
-    String name = hclass.getName();
+    return test(hclass.getName());
+  }
+  
+  public boolean test(String className){
     for(String pkg : m_packages){
-      if(name.startsWith(pkg)){
+      if(className.startsWith(pkg)){
         return true;
       }
     }
     for(String class_name : m_classes){
-      if(name.equals(class_name)){
+      if(className.equals(class_name)){
         return true;
       }
     }
