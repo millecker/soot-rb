@@ -1341,13 +1341,13 @@ public class RootbeerClassLoader {
         // Check if method or its children is overwritten 
         // by a method of MainClass
         // If yes, replace method with newer one from MainClass
-        MethodSignatureUtil m_util = new MethodSignatureUtil();
-        m_util.parse(method_sig);
+        MethodSignatureUtil reference_mutil = new MethodSignatureUtil();
+        reference_mutil.parse(method_sig);
         
         // getChildren implies that the Class of referencing method and 
         // SuperClass of MainClass must be equal
         HierarchyGraph hg = m_classHierarchy.getHierarchyGraph(method_sig);
-        for(String childClass : hg.getChildren(m_util.getClassName())){
+        for(String childClass : hg.getChildren(reference_mutil.getClassName())){
     	      if(dontFollowClass(childClass)){
     	        continue;
       	  }
@@ -1365,7 +1365,7 @@ public class RootbeerClassLoader {
           
           // Check if the childClass (equal to MainClass) is overwriting the
           // referencing method
-          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(m_util.getSubSignature());
+          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(reference_mutil.getSubSignature());
           if(curr_hmethod == null){
             continue;
           }
