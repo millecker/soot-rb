@@ -523,7 +523,7 @@ We compare our implementation against the Soot class loader by loading programs 
 
 While we could have measured the overall memory used by the Java virtual machine at any given point, we chose not to because of the garbage collection's impredictability as well as the fact that newer garbage collectors typically work continuously in a separate thread. These factors make it essentially impossible to know what is the amount of memory really used in the program at a given point. This is the reason why we measured the \sootclass usage separately.
 
-We notice a significant decrease in the number of classes loaded, with a decrease in processing time for the large test casse. While we were careful about performance in our implementation, it is possible that further optimizations would allow us to improve our loading time for the small test case.
+We notice a significant decrease in the number of classes loaded, with a decrease in processing time for the large test casse. Our method requires significantly less information to be loaded from the disk. This explains why the class loading performance improves for larger test cases.
 
 We include an illustration of a subset of the dependencies loaded with the current class loader for our running example in Figure \ref{fig:deps}. We show additional classes that would be loaded at the Signatures level by Soot's class loader with dashed edges. While significantly truncated, it shows that even trivial programs require a significant number of core Java classes to be loaded in memory.
 
