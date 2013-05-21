@@ -954,16 +954,21 @@ public class RootbeerClassLoader {
       }
 
       int field_modifiers = hclass.getFieldModifiers(field_name);
+      
       StringToType string_to_type = new StringToType();
       Type field_type = string_to_type.convert(util.getType());
+      
+      // Create new SootField
       SootField new_field = new SootField(field_name, field_type, field_modifiers);
       
+      // Check if field was loaded before
       boolean found = false;
       for(SootField curr_field : declaring_class.getFields()){
         if(curr_field.getName().equals(new_field.getName())){
       	    found = true;
         }
       }
+      // If field was not loaded before, add to class
       if(!found){
         declaring_class.addField(new_field);
       }
@@ -973,18 +978,23 @@ public class RootbeerClassLoader {
   }
   
   private void loadMethodToScene(HierarchySootMethod method){
-    List<Type> parameterTypes = new ArrayList<Type>();
     StringToType string_to_type = new StringToType();
+    
+    List<Type> parameterTypes = new ArrayList<Type>();
     for(String paramType : method.getParameterTypes()){
       parameterTypes.add(string_to_type.convert(paramType));
     }
+    
     Type returnType = string_to_type.convert(method.getReturnType());
     int modifiers = method.getModifiers();
+    
     List<SootClass> thrownExceptions = new ArrayList<SootClass>();
     for(String exception : method.getExceptionTypes()){
       SootClass ex_class = Scene.v().getSootClass(exception);
       thrownExceptions.add(ex_class);
     }
+    
+    // Create new SootMethod
     SootMethod new_method = new SootMethod(method.getName(), parameterTypes,
         returnType, modifiers, thrownExceptions);
     
@@ -993,6 +1003,7 @@ public class RootbeerClassLoader {
     String class_name = util.getClassName();
 
     SootClass soot_class = Scene.v().getSootClass(class_name);
+    // Check if method was loaded before
     boolean found = false;
     for(SootMethod curr_method : soot_class.getMethods()){
       if((curr_method.getName().equals(new_method.getName())) &&
@@ -1004,6 +1015,7 @@ public class RootbeerClassLoader {
     	    found = true;
       }
     }
+    // If method was not loaded before, add to class
     if(!found){
       soot_class.addMethod(new_method);
     }
@@ -1324,27 +1336,42 @@ public class RootbeerClassLoader {
         continue;
       }
     
-      // Check if method is overwritten by instanced subclass
-      MethodSignatureUtil m_util = new MethodSignatureUtil();
-      m_util.parse(method_sig);
-      HierarchyGraph hg = m_classHierarchy.getHierarchyGraph(method_sig);
-      for(String childClass : hg.getChildren(m_util.getClassName())){
-    	    if(dontFollowClass(childClass)){
-    	      continue;
-      	}
-        if((Scene.v().hasMainClass()) && 
-        	  (!childClass.equals(Scene.v().getMainClass().getName()))){
-      	  continue;
+      // If MainClass was set, check for overwriting methods
+      if (!m_mainClass.isEmpty()){
+        // Check if method or its children is overwritten 
+        // by a method of MainClass
+        // If yes, replace method with newer one from MainClass
+        MethodSignatureUtil m_util = new MethodSignatureUtil();
+        m_util.parse(method_sig);
+        
+        // getChildren implies that the Class of referencing method and 
+        // SuperClass of MainClass must be equal
+        HierarchyGraph hg = m_classHierarchy.getHierarchyGraph(method_sig);
+        for(String childClass : hg.getChildren(m_util.getClassName())){
+    	      if(dontFollowClass(childClass)){
+    	        continue;
+      	  }
+          
+          // Check if referencing method has a childClass which equals
+          // the MainClass
+    	      if(!childClass.equals(Scene.v().getMainClass().getName())){
+      	    continue;
+          }
+    	      
+          HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
+          if(curr_hclass == null){
+            continue;
+          }
+          
+          // Check if the childClass (equal to MainClass) is overwriting the
+          // referencing method
+          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(m_util.getSubSignature());
+          if(curr_hmethod == null){
+            continue;
+          }
+          // Exchange reference method
+          method_sig = curr_hmethod.getSignature();
         }
-    	    	HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
-        if(curr_hclass == null){
-          continue;
-        }
-        HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(m_util.getSubSignature());
-        if(curr_hmethod == null){
-          continue;
-        }
-        method_sig = curr_hmethod.getSignature();
       }
       
       if(visited.contains(method_sig) == false){
