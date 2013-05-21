@@ -103,7 +103,7 @@ public class RootbeerClassLoader {
   private LinkedList<String> m_cgMethodQueue;
   private StringNumbers m_stringNumbers;
   
-  private String m_mainClass;
+  private Set<String> m_loadClasses;
 
   public RootbeerClassLoader(Singletons.Global g){
     m_dfsInfos = new HashMap<String, DfsInfo>();
@@ -149,7 +149,7 @@ public class RootbeerClassLoader {
     m_cgMethodQueue = new LinkedList<String>();
     m_stringNumbers = new StringNumbers();
 
-    m_mainClass = "";
+    m_loadClasses = new HashSet<String>();
     
     m_loaded = false;
     loadBuiltIns();
@@ -285,12 +285,12 @@ public class RootbeerClassLoader {
     m_userJar = filename;
   }
 
-  public String getMainClass(){
-    return m_mainClass;
+  public Set<String> getLoadClasses(){
+    return m_loadClasses;
   }
 
-  public void setMainClass(String mainClass){
-    this.m_mainClass = mainClass;
+  public boolean addLoadClasses(String className){
+    return m_loadClasses.add(className);
   }
   
   public void loadNecessaryClasses(){
@@ -824,61 +824,54 @@ public class RootbeerClassLoader {
     }
     
     
-    // If mainClass was set by CommandLine or Jar Manifest property
-    // reload methods of MainClass if in entryPoint hierarchy
-    if(!m_mainClass.isEmpty()){
-      SootClass mainClass = Scene.v().getSootClass(m_mainClass);
-      if(mainClass!=null){
-        Scene.v().setMainClass(mainClass);
-        
-        Set<String> visited_methods = new HashSet<String>();
-        LinkedList<String> method_queue = new LinkedList<String>();
-        for(SootMethod method : mainClass.getMethods()){
-          System.out.println("check method of MainClass: "+method.getSignature());
-          
-          // Always load constructor or main method body for writing class out
-          if((method.getSubSignature().equals("void <init>()")) ||
-            (method.getSubSignature().equals("void main(java.lang.String[])"))){
-            // Add method to all_sigs for loading method body
+    // Load methods of m_loadClasses
+    if(m_loadClasses.isEmpty() == false){
+      for(String loadClass : m_loadClasses){
+        SootClass load_class = Scene.v().getSootClass(loadClass);
+        if(load_class != null){
+          Set<String> visited_methods = new HashSet<String>();
+          LinkedList<String> method_queue = new LinkedList<String>();
+          for(SootMethod method : load_class.getMethods()){
+            System.out.println("load method: "+method.getSignature());
+            // Load method in case of write out
             all_sigs.add(method.getSignature());
-            continue;
-          }
+            
+            //Load method recursively, if its overwriting a method in the entryPoint hierarchy
+            for(String entryPoint : m_entryPoints){
+              LinkedList<String> subentry_queue = new LinkedList<String>();
+              HierarchyValueSwitch value_switch = getValueSwitch(entryPoint);
+              subentry_queue.addAll(value_switch.getMethodRefs());
           
-          //Check for every main method, if its overwritting a method in the entryPoint hierarchy
-          for(String entryPoint : m_entryPoints){
-            LinkedList<String> subentry_queue = new LinkedList<String>();
-            HierarchyValueSwitch value_switch = getValueSwitch(entryPoint);
-            subentry_queue.addAll(value_switch.getMethodRefs());
-          
-            while(subentry_queue.isEmpty() == false){
-              String method_sig = subentry_queue.removeFirst();
-              // Add all method references to queue
-              subentry_queue.addAll(getValueSwitch(method_sig).getMethodRefs());
+              while(subentry_queue.isEmpty() == false){
+                String method_sig = subentry_queue.removeFirst();
+                // Add all method references to queue
+                subentry_queue.addAll(getValueSwitch(method_sig).getMethodRefs());
               
-              MethodSignatureUtil util = new MethodSignatureUtil();
-              util.parse(method_sig);
+                MethodSignatureUtil util = new MethodSignatureUtil();
+                util.parse(method_sig);
               
-              // Check if entryPoint method and method from MainClass are implementing
-              // the same method, deriving from same SuperClass
-              if((util.getClassName().equals(mainClass.getSuperclass().getName())) &&
-                (util.getSubSignature().equals(method.getSubSignature()))){
-                System.out.println("found overwritting method: "+method_sig);
-                // Add method to queue, to load its fields
-                method_queue.add(method.getSignature());
-                // Add method to all_sigs for loading method body
-                all_sigs.add(method.getSignature());
+                // Check if entryPoint method and method from MainClass are implementing
+                // the same method, deriving from same SuperClass
+                if((util.getClassName().equals(load_class.getSuperclass().getName())) &&
+                  (util.getSubSignature().equals(method.getSubSignature()))){
+                  System.out.println("found overwritting method: "+method_sig);
+                  // Add method to queue, to load its fields
+                  method_queue.add(method.getSignature());
+                  // Add method to all_sigs for loading method body
+                  all_sigs.add(method.getSignature());
+                }
               }
             }
           }
+        
+          // Reload missing methods including fields
+          while(method_queue.isEmpty() == false){
+            String curr = method_queue.removeFirst();
+            reloadMissingMethods(curr, method_queue, visited_methods);
+          }
+          // Add method to all_sigs for loading method body
+          // all_sigs.addAll(visited_methods);
         }
-      
-        // Reload missing methods including fields
-        while(method_queue.isEmpty() == false){
-          String curr = method_queue.removeFirst();
-          reloadMissingMethods(curr, method_queue, visited_methods);
-  	    }
-        // Add method to all_sigs for loading method body
-        //all_sigs.addAll(visited_methods);
       }
     }
 
@@ -1336,11 +1329,11 @@ public class RootbeerClassLoader {
         continue;
       }
       
-      // If MainClass was set, check for overwriting methods
-      if (!m_mainClass.isEmpty()){
-        // Check if method or its children is overwritten 
-        // by a method of MainClass
-        // If yes, replace method with newer one from MainClass
+      // If m_loadClasses is not empty, check for overwriting methods
+      if(m_loadClasses.isEmpty() == false){
+        // Check if reference method or its children are overwritten 
+        // by a method of m_loadClasses
+        // If yes, replace method with newer one from m_loadClasses
         MethodSignatureUtil reference_mutil = new MethodSignatureUtil();
         reference_mutil.parse(method_sig);
         
@@ -1351,28 +1344,31 @@ public class RootbeerClassLoader {
     	      if(dontFollowClass(childClass)){
     	        continue;
       	  }
-          
-          // Check if referencing method has a childClass which equals
-          // the MainClass
-    	      if(!childClass.equals(Scene.v().getMainClass().getName())){
-      	    continue;
-          }
+
+          for(String loadClass : m_loadClasses){
+            // Check if referencing method has a childClass which equals
+            // the loadClass
+            if(childClass.equals(loadClass) == false){
+      	      continue;
+            }
     	      
-          HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
-          if(curr_hclass == null){
-            continue;
-          }
+            HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
+            if(curr_hclass == null){
+              continue;
+            }
           
-          // Check if the childClass (equal to MainClass) is overwriting the
-          // referencing method
-          HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(reference_mutil.getSubSignature());
-          if(curr_hmethod == null){
-            continue;
+            // Check if the childClass (equal to loadClass) is overwriting the
+            // referencing method
+            HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(reference_mutil.getSubSignature());
+            if(curr_hmethod == null){
+              continue;
+            }
+            // Exchange reference method
+            System.out.println(method_sig+" was overwritten by "+curr_hmethod.getSignature());
+            m_currDfsInfo.addOverwrittenRef(mutil.getSignature(),method_sig,curr_hmethod.getSignature());
+            method_sig = curr_hmethod.getSignature();
+            break;
           }
-          // Exchange reference method
-          System.out.println(method_sig+" was overwritten by "+curr_hmethod.getSignature());
-          m_currDfsInfo.addOverwrittenRef(mutil.getSignature(),method_sig,curr_hmethod.getSignature());
-          method_sig = curr_hmethod.getSignature();
         }
       }
       
