@@ -829,7 +829,6 @@ public class RootbeerClassLoader {
       for(String loadClass : m_loadClasses){
         SootClass load_class = Scene.v().getSootClass(loadClass);
         if(load_class != null){
-          Set<String> visited_methods = new HashSet<String>();
           LinkedList<String> method_queue = new LinkedList<String>();
           for(SootMethod method : load_class.getMethods()){
             System.out.println("load method: "+method.getSignature());
@@ -844,6 +843,11 @@ public class RootbeerClassLoader {
           
               while(subentry_queue.isEmpty() == false){
                 String method_sig = subentry_queue.removeFirst();
+                
+                if(dontFollowMethod(method_sig)){
+                  continue;
+                }
+                
                 // Add all method references to queue
                 subentry_queue.addAll(getValueSwitch(method_sig).getMethodRefs());
               
@@ -864,6 +868,7 @@ public class RootbeerClassLoader {
             }
           }
         
+          Set<String> visited_methods = new HashSet<String>();
           // Reload missing methods including fields
           while(method_queue.isEmpty() == false){
             String curr = method_queue.removeFirst();
@@ -1557,7 +1562,8 @@ public class RootbeerClassLoader {
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(app_class);
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
-        if(testMethod(m_entryMethodTesters, method)){
+        if((testMethod(m_entryMethodTesters, method)) &&
+          (dontFollow(method.getSignature()) == false)){
           m_entryPoints.add(method.getSignature());
         }
       }

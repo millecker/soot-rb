@@ -29,8 +29,8 @@ import java.util.ArrayList;
 
 public class ListClassTester implements ClassTester {
 
-  public List<String> m_packages;
-  public List<String> m_classes;
+  private List<String> m_packages;
+  private List<String> m_classes;
 
   public ListClassTester(){
     m_packages = new ArrayList<String>();
@@ -45,6 +45,10 @@ public class ListClassTester implements ClassTester {
     m_classes.add(class_name);
   }
 
+  public boolean removePackage(String pkg){
+	return m_packages.remove(pkg);
+  }
+  
   public boolean test(HierarchySootClass hclass){
     return test(hclass.getName());
   }
