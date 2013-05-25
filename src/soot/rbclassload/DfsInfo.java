@@ -25,10 +25,6 @@ package soot.rbclassload;
 
 import java.util.*;
 import soot.*;
-import soot.jimple.Stmt;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.jimple.toolkits.callgraph.Edge;
-import soot.options.Options;
 
 public class DfsInfo {
 
@@ -48,7 +44,8 @@ public class DfsInfo {
   private Set<String> m_modifiedClasses;
   private StringCallGraph m_stringCallGraph;
   private Set<String> m_reachableFields;
-
+  private Map<String, Pair<String,String> > m_overwrittenRefs;
+  
   public DfsInfo(String method_signature) {
     m_dfsMethods = new LinkedHashSet<String>();
     m_reverseDfsMethods = new LinkedHashSet<String>();
@@ -63,6 +60,7 @@ public class DfsInfo {
     m_orderedTypes = new ArrayList<Type>();
     m_orderedRefTypes = new ArrayList<RefType>();
     m_orderedRefLikeTypes = new ArrayList<Type>();
+    m_overwrittenRefs = new HashMap<String, Pair<String,String>>();
   }
 
   public StringCallGraph getStringCallGraph(){
@@ -197,6 +195,14 @@ public class DfsInfo {
   
   public Set<String> getModifiedClasses(){
     return m_modifiedClasses;
+  }
+  
+  public Map<String, Pair<String,String>> getOverwrittenRefs() {
+    return m_overwrittenRefs;
+  }
+
+  public void addOverwrittenRef(String method_sig, String reference_method_sig, String overwriting_ref_sig) {
+    this.m_overwrittenRefs.put(method_sig, new Pair<String,String>(reference_method_sig,overwriting_ref_sig));
   }
 
   public void finalizeTypes(){

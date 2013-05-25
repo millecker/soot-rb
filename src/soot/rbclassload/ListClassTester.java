@@ -29,8 +29,8 @@ import java.util.ArrayList;
 
 public class ListClassTester implements ClassTester {
 
-  public List<String> m_packages;
-  public List<String> m_classes;
+  private List<String> m_packages;
+  private List<String> m_classes;
 
   public ListClassTester(){
     m_packages = new ArrayList<String>();
@@ -45,15 +45,22 @@ public class ListClassTester implements ClassTester {
     m_classes.add(class_name);
   }
 
+  public boolean removePackage(String pkg){
+	return m_packages.remove(pkg);
+  }
+  
   public boolean test(HierarchySootClass hclass){
-    String name = hclass.getName();
+    return test(hclass.getName());
+  }
+  
+  public boolean test(String className){
     for(String pkg : m_packages){
-      if(name.startsWith(pkg)){
+      if(className.startsWith(pkg)){
         return true;
       }
     }
     for(String class_name : m_classes){
-      if(name.equals(class_name)){
+      if(className.equals(class_name)){
         return true;
       }
     }
