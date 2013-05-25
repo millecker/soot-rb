@@ -20,15 +20,15 @@ public class RootbeerClassLoaderAnalysis {
     PackManager.v().getPack("wjpp").add(new Transform("wjpp.stats", new StatsTransformer("wjpp")));
     PackManager.v().getPack("wjtp").add(new Transform("wjtp.stats", new StatsTransformer("wjtp")));
     
-    RootbeerClassLoader.v().setUserJar("test_case/test_case.jar");
+    RootbeerClassLoader.v().setUserJar("../benchmarks/spec_jvm/spec_jvm.jar");
     RootbeerClassLoader.v().addEntryMethodTester(new EntryPointDetector());
     
     Options.v().set_allow_phantom_refs(true);
             
     String[] args = {
       "-pp",
-      "-process-dir", "test_case/test_case.jar",
-      "-rbcl",
+      "-process-dir", "../benchmarks/spec_jvm/spec_jvm.jar",
+      //"-rbcl",
       "-w",
       "-p", "cg", "enabled:true",
       "-p", "cg", "implicit-entry:false",
