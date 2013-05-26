@@ -863,6 +863,11 @@ public class RootbeerClassLoader {
                   method_queue.add(method.getSignature());
                   // Add method to all_sigs for loading method body
                   all_sigs.add(method.getSignature());
+                  // Add SuperClass constructor to queue, to load method and fields
+                  String superClassConstructor = "<"+util.getClassName()+": void <init>()>";
+                  method_queue.add(superClassConstructor);
+                  // Load method body of SuperClass constructor
+                  all_sigs.add(superClassConstructor);
                 }
               }
             }
