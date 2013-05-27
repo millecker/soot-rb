@@ -530,8 +530,7 @@ public class SootMethod
 
         StringBuffer buffer = new StringBuffer();
         buffer.append(
-          //  "<" + Scene.v().quotedNameOf(getDeclaringClass().getName()) + ": ");
-            "<" + getDeclaringClass().getName() + ": ");
+            "<" + Scene.v().quotedNameOf(getDeclaringClass().getName()) + ": ");
         buffer.append(name);
         buffer.append(AbstractJasminClass.jasminDescriptorOf(makeRef()));
         buffer.append(">");
@@ -548,8 +547,7 @@ public class SootMethod
     public static String getSignature(SootClass cl, String name, List params, Type returnType) {
         StringBuffer buffer = new StringBuffer();
         buffer.append(
-          //  "<" + Scene.v().quotedNameOf(cl.getName()) + ": ");
-            "<" + cl.getName() + ": ");
+            "<" + Scene.v().quotedNameOf(cl.getName()) + ": ");
         buffer.append(getSubSignatureImpl(name, params, returnType));
         buffer.append(">");
 
@@ -583,9 +581,7 @@ public class SootMethod
         StringBuffer buffer = new StringBuffer();
         Type t = returnType;
 
-        //buffer.append(t.toString() + " " + Scene.v().quotedNameOf(name) + "(");
-        buffer.append(t.toString() + " " + name + "(");
-
+        buffer.append(t.toString() + " " + Scene.v().quotedNameOf(name) + "(");
         
         Iterator typeIt = params.iterator();
 
@@ -665,9 +661,7 @@ public class SootMethod
 									
 			buffer.append(tempString + " ");
 
-            //buffer.append(Scene.v().quotedNameOf(this.getName()));
-			buffer.append(this.getName());
-            
+            buffer.append(Scene.v().quotedNameOf(this.getName()));
         }
 
         buffer.append("(");
@@ -776,9 +770,7 @@ public class SootMethod
         // return type + name
 
         buffer.append(this.getReturnType() + " ");
-        //buffer.append(Scene.v().quotedNameOf(this.getName()));
-        buffer.append(this.getName());
-        
+        buffer.append(Scene.v().quotedNameOf(this.getName()));
         buffer.append("(");
 
         // parameters
