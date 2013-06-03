@@ -94,7 +94,6 @@ public class RootbeerClassLoader {
   private Set<String> m_refTypes;
   private Map<String, String> m_remapping;
   private Map<String, HierarchyValueSwitch> m_valueSwitchMap;
-  private List<ConditionalCudaEntry> m_conditionalCudaEntries;
   private RemapClassName m_remapClassName;
   private boolean m_loaded;
 
@@ -139,7 +138,6 @@ public class RootbeerClassLoader {
 
     m_remapClassName = new RemapClassName();
     m_generatedMethods = new HashSet<String>();
-    m_conditionalCudaEntries = new ArrayList<ConditionalCudaEntry>();
     m_newInvokes = new HashSet<String>();
     m_refTypes = new HashSet<String>();
     m_valueSwitchMap = new HashMap<String, HierarchyValueSwitch>();
@@ -227,10 +225,6 @@ public class RootbeerClassLoader {
 
   public StringNumbers getStringNumbers(){
     return m_stringNumbers;
-  }
-
-  public void addConditionalCudaEntry(ConditionalCudaEntry entry){
-    m_conditionalCudaEntries.add(entry);
   }
 
   public void addEntryMethodTester(MethodTester method_tester){
@@ -332,13 +326,6 @@ public class RootbeerClassLoader {
     m_classHierarchy.numberTypes();
     loadScene();
 
-    for(String entry : m_entryPoints){
-      m_currDfsInfo = m_dfsInfos.get(entry);
-      dfsForRootbeer();
-      m_currDfsInfo.expandArrayTypes();
-      m_currDfsInfo.finalizeTypes();
-    }
-
     Scene.v().loadDynamicClasses();
   }
  
@@ -368,17 +355,8 @@ public class RootbeerClassLoader {
     }
     m_newInvokes.add(util.getClassName());
 
-    for(String follow_signature : m_followMethods){
-      m_cgMethodQueue.add(follow_signature);
-    }
-
-    for(String follow_class : m_followClasses){
-      HierarchySootClass follow_hclass = m_classHierarchy.getHierarchySootClass(follow_class);
-      List<HierarchySootMethod> follow_methods = follow_hclass.getMethods();
-      for(HierarchySootMethod follow_method : follow_methods){
-        m_cgMethodQueue.add(follow_method.getSignature());
-      }
-    }
+    List<String> follow_sigs = getFollowSignatures();
+    m_cgMethodQueue.addAll(follow_sigs);
 
     processForwardStringCallGraphQueue();
 
@@ -568,6 +546,22 @@ public class RootbeerClassLoader {
     processForwardStringCallGraphQueue();
   }
 
+  private List<String> getFollowSignatures(){
+    List<String> ret = new ArrayList<String>();
+
+    for(String follow_signature : m_followMethods){
+      ret.add(follow_signature);
+    }
+
+    for(String follow_class : m_followClasses){
+      HierarchySootClass follow_hclass = m_classHierarchy.getHierarchySootClass(follow_class);
+      List<HierarchySootMethod> follow_methods = follow_hclass.getMethods();
+      for(HierarchySootMethod follow_method : follow_methods){
+        ret.add(follow_method.getSignature());
+      }
+    }
+    return ret;
+  }
 
   private boolean findClass(Collection<String> jars, String filename, String class_name) throws Exception {
     for(String jar : jars){
@@ -1055,7 +1049,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  private HierarchyValueSwitch getValueSwitch(String signature){
+  public HierarchyValueSwitch getValueSwitch(String signature){
     if(m_valueSwitchMap.containsKey(signature)){
       return m_valueSwitchMap.get(signature);
     } else {
@@ -1271,130 +1265,6 @@ public class RootbeerClassLoader {
   }
 */
 
-  private void dfsForRootbeer(){
-    String signature = m_currDfsInfo.getRootMethodSignature();
-    
-    Set<String> visited = new HashSet<String>();
-    //System.out.println("doing rootbeer dfs: "+signature);
-    LinkedList<String> queue = new LinkedList<String>();
-    queue.add(signature);
-
-    for(ConditionalCudaEntry conditional_entry : m_conditionalCudaEntries){
-      if(conditional_entry.condition(m_currDfsInfo)){
-        queue.add(conditional_entry.getSignature());
-      }
-    }
-
-    while(queue.isEmpty() == false){
-      String curr = queue.removeFirst();
-      doDfsForRootbeer(curr, queue, visited);
-    }
-  }
-
-  private void doDfsForRootbeer(String signature, LinkedList<String> queue, Set<String> visited){
-    HierarchyValueSwitch value_switch = getValueSwitch(signature);
-    StringToType converter = new StringToType();
-    FieldSignatureUtil futil = new FieldSignatureUtil();
-    MethodSignatureUtil mutil = new MethodSignatureUtil();
-
-    mutil.parse(signature);
-    String class_name = mutil.getClassName();
-    if(class_name.contains("[]")){
-      class_name = class_name.substring(0,class_name.indexOf("[]"));
-      mutil.setClassName(class_name);
-      signature = mutil.getSignature();
-    }
-    m_currDfsInfo.addType(mutil.getClassName());
-    m_currDfsInfo.addType(mutil.getReturnType());
-    m_currDfsInfo.addMethod(signature);
-    System.out.println("doDfsForRootbeer: "+signature);
-    
-    List<String> virt_methods = m_classHierarchy.getVirtualMethods(signature);
-    for(String virt_method : virt_methods){
-      if(dontFollow(virt_method)){
-        continue;
-      }
-
-      if(visited.contains(virt_method)){
-        continue;
-      }
-      visited.add(virt_method);
-      //System.out.println("doDfsForRootbeer adding virtual_method to queue: "+virt_method);
-      if(virt_method.equals(signature) == false)
-    	    queue.add(virt_method);
-    }
-
-    for(String type_str : value_switch.getAllTypes()){
-      Type type = converter.convert(type_str);
-      m_currDfsInfo.addType(type);
-    }    
-
-    for(String method_sig : value_switch.getMethodRefs()){
-      if(dontFollow(method_sig)){
-        continue;
-      }
-      
-      // If m_loadClasses is not empty, check for overwriting methods
-      if(m_loadClasses.isEmpty() == false){
-        // Check if reference method or its children are overwritten 
-        // by a method of m_loadClasses
-        // If yes, replace method with newer one from m_loadClasses
-        MethodSignatureUtil reference_mutil = new MethodSignatureUtil();
-        reference_mutil.parse(method_sig);
-        
-        // getChildren implies that the Class of referencing method and 
-        // SuperClass of MainClass must be equal
-        HierarchyGraph hg = m_classHierarchy.getHierarchyGraph(method_sig);
-        for(String childClass : hg.getChildren(reference_mutil.getClassName())){
-    	      if(dontFollowClass(childClass)){
-    	        continue;
-      	  }
-
-          for(String loadClass : m_loadClasses){
-            // Check if referencing method has a childClass which equals
-            // the loadClass
-            if(childClass.equals(loadClass) == false){
-      	      continue;
-            }
-    	      
-            HierarchySootClass curr_hclass = m_classHierarchy.getHierarchySootClass(childClass);
-            if(curr_hclass == null){
-              continue;
-            }
-          
-            // Check if the childClass (equal to loadClass) is overwriting the
-            // referencing method
-            HierarchySootMethod curr_hmethod = curr_hclass.findMethodBySubSignature(reference_mutil.getSubSignature());
-            if(curr_hmethod == null){
-              continue;
-            }
-            // Exchange reference method
-            System.out.println(method_sig+" was overwritten by "+curr_hmethod.getSignature());
-            m_currDfsInfo.addOverwrittenRef(mutil.getSignature(),method_sig,curr_hmethod.getSignature());
-            method_sig = curr_hmethod.getSignature();
-            break;
-          }
-        }
-      }
-      
-      if(visited.contains(method_sig) == false){
-        queue.add(method_sig);
-        visited.add(method_sig);
-      }
-    }
-
-    for(String field_ref : value_switch.getFieldRefs()){
-      futil.parse(field_ref);
-      SootField soot_field = futil.getSootField();
-      m_currDfsInfo.addField(soot_field);
-    }
-
-    for(String instanceof_str : value_switch.getInstanceOfs()){
-      Type type = converter.convert(instanceof_str);
-      m_currDfsInfo.addInstanceOf(type);
-    }
-  }
-
   public List<SootMethod> getEntryPoints(){
     List<SootMethod> ret = new ArrayList<SootMethod>();
     
@@ -1570,7 +1440,7 @@ public class RootbeerClassLoader {
     }
   }
 
-  private boolean dontFollow(String signature){
+  public boolean dontFollow(String signature){
     if(dontFollowMethod(signature)){
       return true;
     }
