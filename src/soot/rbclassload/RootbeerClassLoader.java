@@ -477,12 +477,12 @@ public class RootbeerClassLoader {
       }
       m_cgVisitedClasses.add(class_name);
 
-      //add <clinit> to queue
+      //add <init> and <clinit> to queue
       HierarchySootClass hclass = m_classHierarchy.getHierarchySootClass(class_name);
       List<HierarchySootMethod> methods = hclass.getMethods();
       for(HierarchySootMethod method : methods){
         String name = method.getName();
-        if(name.equals("<clinit>")){
+        if(name.equals("<clinit>") || name.equals("<init>")){
           //System.out.println("loadStringGraph adding ctor: "+method.getSignature());
           if(dontFollow(method.getSignature())){
             continue;
